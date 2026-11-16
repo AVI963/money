@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12263a"><link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<title>הכסף שלי</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--ink:#12263a;--mut:#64778a;--pri:#12263a;--acc:#1b9e77;--bad:#c8402f;--line:#dbe3ea}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1620;--card:#16222f;--ink:#e8eef4;--mut:#8fa3b5;--pri:#e8eef4;--acc:#3ed6a3;--bad:#ff8272;--line:#25354a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Heebo,system-ui,Arial,sans-serif;padding:env(safe-area-inset-top) 0 calc(78px + env(safe-area-inset-bottom))}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:15px;font-weight:600;color:var(--mut);margin:0 0 4px}
+.big{font-size:40px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:6px 0}
+.mut{color:var(--mut);font-size:14px}.pos{color:var(--acc)}.neg{color:var(--bad)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:4px}.bar i{display:block;height:100%;background:var(--acc)}
+.trend{display:flex;align-items:flex-end;gap:4px;height:90px;direction:ltr}.trend b{flex:1;background:var(--line);border-radius:3px 3px 0 0;min-height:2px}.trend b.on{background:var(--acc)}
+.mn{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+button{font:inherit;border:0;border-radius:10px;padding:10px 16px;background:var(--pri);color:var(--card);cursor:pointer}
+button.ln{background:none;color:var(--ink);font-size:22px;padding:4px 12px}
+nav{position:fixed;bottom:0;inset-inline:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+nav button{flex:1;background:none;color:var(--mut);border-radius:0}nav button.on{color:var(--acc);font-weight:600}
+#msg{text-align:center;padding:48px 16px}
+</style></head><body>
+<main id="app"><div id="msg"><h1>הכסף שלי</h1><p class="mut">נתוני האקסל נקראים ישירות מהדרייב שלך. שום דבר לא נשמר בשרת אחר.</p><button id="go">התחברות עם Google</button></div></main>
+<nav hidden><button data-t="home" class="on">בית</button><button data-t="inv">השקעות</button></nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+const CLIENT_ID='YOUR_CLIENT_ID.apps.googleusercontent.com';
+const FILES={exp:'סך הוצאת משק בית',inv:'תיק השקעות'};
+const S={exp:[],mon:[],inv:[],ym:0,tab:'home'};let token;
+const $=s=>document.querySelector(s),fmt=n=>(n<0?'-':'')+'₪'+Math.round(Math.abs(n)).toLocaleString('he-IL'),pct=n=>(n>0?'+':'')+n.toFixed(1)+'%';
+const ymOf=d=>{d=new Date(d.getTime()+432e5);return d.getFullYear()*100+d.getMonth()+1};
+const ymLabel=y=>new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+const T=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0);
+function msg(t){$('#app').innerHTML='<div id="msg"><p>'+t+'</p></div>'}
+function login(){
+  let seen=false;try{seen=localStorage.getItem('gd')}catch(e){}
+  google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:'https://www.googleapis.com/auth/drive.readonly',
+    callback:r=>{if(r.access_token){token=r.access_token;try{localStorage.setItem('gd','1')}catch(e){}load()}else msg('ההתחברות נכשלה. נסה שוב.')}
+  }).requestAccessToken({prompt:seen?'':'consent'});
+}
+async function getFile(name){
+  const h={Authorization:'Bearer '+token},q=encodeURIComponent("name contains '"+name+"' and trashed=false and mimeType!='application/vnd.google-apps.folder'");
+  const l=await(await fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+q,{headers:h})).json();
+  if(!l.files||!l.files.length)throw new Error('לא נמצא בדרייב קובץ ששמו כולל: '+name);
+  const b=await(await fetch('https://www.googleapis.com/drive/v3/files/'+l.files[0].id+'?alt=media',{headers:h})).arrayBuffer();
+  return XLSX.read(b,{type:'array',cellDates:true});
+}
+async function load(){
+  msg('טוען נתונים מהדרייב...');
+  try{
+    const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי'],{header:1,raw:true});
+    S.exp=[];S.mon=[];
+    rows.slice(1).forEach(x=>{
+      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date)S.exp.push({t:x[0],a:x[1],c:x[2],ym:ymOf(x[4])});
+      if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
+    });
+    S.ym=Math.max(...S.exp.map(e=>e.ym));
+    try{const w2=await getFile(FILES.inv);S.inv=XLSX.utils.sheet_to_json(w2.Sheets[w2.SheetNames[0]]).filter(r=>+r['שווי ₪']>0)}catch(e){S.inv=[];S.invErr=e.message}
+    $('nav').hidden=false;draw();
+  }catch(e){msg('שגיאה: '+e.message)}
+}
+function home(){
+  const m=S.exp.filter(e=>e.ym==S.ym),tot=T(m,'a'),cat={};
+  m.forEach(e=>cat[e.c]=(cat[e.c]||0)+e.a);
+  const cs=Object.entries(cat).sort((a,b)=>b[1]-a[1]),mx=cs.length?cs[0][1]:1,inc=(S.mon.find(x=>x.ym==S.ym)||{}).inc||0;
+  const yms=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b),last=yms.slice(-12),
+    sums=last.map(y=>T(S.exp.filter(e=>e.ym==y),'a')),smx=Math.max(...sums,1),i=yms.indexOf(S.ym);
+  return `<div class="mn"><button class="ln" data-m="1" ${i>=yms.length-1?'disabled':''}>›</button><strong>${ymLabel(S.ym)}</strong><button class="ln" data-m="-1" ${i<=0?'disabled':''}>‹</button></div>
+  <div class="card"><h1>הוצאות החודש</h1><p class="big">${fmt(tot)}</p>
+  ${inc?`<div class="row mut"><span>משכורת</span><span>${fmt(inc)}</span></div><div class="row"><span>נשאר</span><b class="${inc-tot<0?'neg':'pos'}">${fmt(inc-tot)}</b></div>`:''}</div>
+  <div class="card"><h1>12 חודשים אחרונים</h1><div class="trend">${last.map((y,k)=>`<b class="${y==S.ym?'on':''}" style="height:${sums[k]/smx*100}%" title="${ymLabel(y)}: ${fmt(sums[k])}"></b>`).join('')}</div></div>
+  <div class="card"><h1>לפי קטגוריה</h1>${cs.map(([c,v])=>`<div style="padding:6px 0"><div class="row" style="padding:0"><span>${c}</span><b>${fmt(v)}</b></div><div class="bar"><i style="width:${v/mx*100}%"></i></div></div>`).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
+}
+function inv(){
+  if(!S.inv.length)return `<div class="card"><p>${S.invErr||'לא נמצאו נתוני השקעות.'}</p><p class="mut">העלה לתיקיית פיננסי בדרייב את הקובץ "תיק השקעות".</p></div>`;
+  const val=T(S.inv,'שווי ₪'),cost=T(S.inv,'עלות ₪'),gain=val-cost,tax=Math.max(0,gain)*.25,acc={};
+  S.inv.forEach(r=>(acc[r['חשבון']]=acc[r['חשבון']]||[]).push(r));
+  return `<div class="card"><h1>סך השקעות</h1><p class="big">${fmt(val)}</p>
+  <div class="row"><span class="mut">רווח לפני מס</span><b class="${gain<0?'neg':'pos'}">${fmt(gain)} (${pct(gain/cost*100)})</b></div>
+  <div class="row"><span class="mut">מס משוער (25%)</span><span>${fmt(-tax)}</span></div>
+  <div class="row"><span>שווי אחרי מס</span><b>${fmt(val-tax)}</b></div>
+  <p class="mut" style="margin:8px 0 0;font-size:13px">הערכה בלבד: מחושב על הרווח הכולל, בלי הצמדה למדד ובלי עמלות.</p></div>`+
+  Object.entries(acc).map(([n,a])=>{const v=T(a,'שווי ₪'),c=T(a,'עלות ₪');
+    return `<div class="card"><div class="row"><h1>${n}</h1><b>${fmt(v)}</b></div><div class="row mut"><span>תשואה</span><span class="${v<c?'neg':'pos'}">${pct((v-c)/c*100)}</span></div>
+    ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-r['עלות ₪'];return `<div style="padding:6px 0"><div class="row" style="padding:0"><span>${r['שם']}</span><b>${fmt(r['שווי ₪'])}</b></div>
+    <div class="row mut" style="padding:0;font-size:13px"><span>${(r['שווי ₪']/v*100).toFixed(0)}% מהחשבון</span><span class="${g<0?'neg':'pos'}">${fmt(g)}</span></div><div class="bar"><i style="width:${r['שווי ₪']/v*100}%"></i></div></div>`}).join('')}</div>`}).join('');
+}
+function draw(){$('#app').innerHTML=S.tab=='home'?home():inv();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==S.tab))}
+document.addEventListener('click',e=>{
+  const t=e.target;if(t.id=='go')login();
+  if(t.dataset.t){S.tab=t.dataset.t;draw()}
+  if(t.dataset.m){const y=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);S.ym=y[y.indexOf(S.ym)+ +t.dataset.m];draw()}
+});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
