@@ -72,7 +72,7 @@ const T=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0),dl=d=>d.toLocaleDateString('he-IL
 function msg(t){$('#app').innerHTML='<div id="msg"><p>'+t+'</p></div>'}
 function tc(){return tcl=tcl||google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SC,
   callback:r=>{if(r.access_token){token=r.access_token;ls('tok',JSON.stringify({t:token,e:Date.now()+(r.expires_in-120)*1e3}));ls('gd','1');load()}},error_callback:()=>{}})}
-function login(silent){if(!window.google)return;tc().requestAccessToken({prompt:silent&&ls('gd')?'':ls('gd')?'':'consent'})}
+
 async function getFile(name){
   const h={Authorization:'Bearer '+token},q=encodeURIComponent("name contains '"+name+"' and trashed=false and mimeType!='application/vnd.google-apps.folder'");
   const l=await(await fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+q,{headers:h})).json();
@@ -93,9 +93,9 @@ async function load(){
     if(!S.ym||!S.exp.some(e=>e.ym==S.ym))S.ym=Math.max(...S.exp.map(e=>e.ym));if(!S.pv.from)setPr('12');
     try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
     try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
-    ls('data',JSON.stringify({exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,ym:S.ym}));
+    ls('data',JSON.stringify({exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,ym:S.ym}));S.rt2=0;
     $('nav').hidden=false;draw();
-  }catch(e){S.err=e.message;if(S.exp.length)draw();else msg('שגיאה: '+e.message+'<br><br><button class="go" data-sync>נסה שוב</button>')}
+  }catch(e){if(/פג/.test(e.message)&&!S.rt2){S.rt2=1;if(await refresh())return load()}S.err=e.message;if(S.exp.length)draw();else msg('שגיאה: '+e.message+'<br><br><button class="go" data-sync>נסה שוב</button>')}
 }
 function parseIns(wb){
   const sm=wb.Sheets['סיכום'],pr=XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות'],{header:1,raw:true}).slice(4,36),st=fix(sm.C6.v),yrs=+sm.C7.v,pay=[];
@@ -163,7 +163,7 @@ function pv(){
   <div class="card" id="tb"><h2>טבלה</h2><div class="tw"><table><tr><th></th>${per.map(p=>`<th>${plb(p)}</th>`).join('')}<th>סה״כ</th></tr>
   ${rs.map(([r,v])=>row(r,v,0)+(R=='c'&&P.open.includes(r)?sub(r).map(([t,u])=>row(t,u,1)).join(''):'')).join('')}
   <tr><td><b>סה״כ</b></td>${pt.map(x=>`<td><b>${nf(x)}</b></td>`).join('')}<td><b>${nf(tot)}</b></td></tr></table></div><span class="mut">לחץ על תא להצגת ההוצאות שבו.</span></div>
-  ${P.dr?(()=>{const it=d.filter(e=>e[P.dr.k||R]==P.dr.r&&(P.dr.p==null||pk(e)==P.dr.p)).sort((a,b)=>P.dr.p==null?b.ym-a.ym||b.a-a.a:b.a-a.a);return `<div class="card" id="dr"><div class="row"><h2>${P.dr.r} · ${P.dr.p==null?'כל התקופה':plb(P.dr.p)}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length?T(it,'a')/it.length:0)}</span><b>${fmt(T(it,'a'))}</b></div>${it.map(e=>`<div class="row s"><span>${e.t} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`})():''}`;
+  ${P.dr?(()=>{const it=d.filter(e=>e[P.dr.k||R]==P.dr.r&&(P.dr.p==null||pk(e)==P.dr.p)).sort((a,b)=>P.dr.p==null?b.ym-a.ym||b.a-a.a:b.a-a.a);return `<div class="card" id="dr"><div class="row"><h2>${P.dr.r} · ${P.dr.p==null?'כל התקופה':plb(P.dr.p)}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length?T(it,'a')/it.length:0)}</span><b>${fmt(T(it,'a'))}</b></div>${P.dr.p==null?(P.dr.k=='c'?brk(it):''):it.map(e=>`<div class="row s"><span>${e.t} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`})():''}`;
 }
 function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
   return `<div class="card"><div class="lb">שווי נקי כולל (השקעות וחיסכון פנסיוני)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
@@ -194,10 +194,12 @@ function insSched(){const I=S.ins;if(!I)return '';const now=new Date();
   return `<div class="card"><h2>לוח תשלומים מלא</h2><div class="tw"><table><tr><th>שנה</th><th>מתאריך</th><th>חודשי</th><th>שנתי</th><th>סטטוס</th></tr>${Array.from({length:I.yrs},(_,y)=>{const ps=I.pay.slice(y*12,y*12+12),a=ps[0].a,dn=ps.filter(p=>p.d<=now).length;return `<tr><td>${y+1}</td><td>${dl(ps[0].d)}</td><td>${a?fmt(a):'טרם פורסם'}</td><td>${a?fmt(T(ps,'a')):'—'}</td><td>${dn==12?'✓ שולם':dn?dn+' מתוך 12':'עתידי'}</td></tr>`}).join('')}</table></div></div>`}
 function ins(){return ins0()+insSched()}
 async function loadFiles(){
-  S.files='loading';draw();
-  try{const h={Authorization:'Bearer '+token},G=async q=>(await(await fetch('https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id,name,webViewLink)&q='+encodeURIComponent(q),{headers:h})).json()).files||[];
+  S.files='loading';
+  try{const h={Authorization:'Bearer '+token},G=async q=>(await(await fetch('https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id,name,mimeType,webViewLink)&q='+encodeURIComponent(q),{headers:h})).json()).files||[];
     const root=(await G("name='Sedrix' and mimeType='application/vnd.google-apps.folder' and trashed=false"))[0];if(!root)throw 0;
-    const out=[];for(const f of await G("'"+root.id+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"))out.push({n:f.name,f:await G("'"+f.id+"' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false")});
+    const out=[];let lv=[{id:root.id,p:''}];
+    for(let d=0;d<5&&lv.length;d++){const cur=lv,res=await Promise.all(cur.map(f=>G("'"+f.id+"' in parents and trashed=false")));lv=[];
+      res.forEach((a,k)=>a.forEach(x=>{if(x.mimeType=='application/vnd.google-apps.folder')lv.push({id:x.id,p:(cur[k].p?cur[k].p+' / ':'')+x.name});else out.push({name:x.name,webViewLink:x.webViewLink,g:cur[k].p})}))}
     S.files={root:root.id,out}}catch(e){S.files='err'}draw()}
 function fileCard0(){const F=S.files;
   if(!F)return `<button class="pr" data-fl style="margin:6px 0 4px">📂 עיון בקבצי Sedrix בדרייב</button>`;
@@ -225,14 +227,33 @@ function xs(){
 }
 async function openDoc(name,person){
   if(!S.files||S.files=='err'||S.files=='loading')await loadFiles();
-  const F=S.files,all=F&&F.out?F.out.flatMap(g=>g.f.map(f=>({...f,g:g.n}))):[],key=name.replace(/\(.*?\)/g,'').trim();
-  let hit=all.filter(f=>f.name.includes(key));const h2=person?hit.filter(f=>f.name.includes(person.split(' ')[0])):[];if(h2.length)hit=h2;
+  const F=S.files,all=F&&F.out?F.out:[],key=name.replace(/\(.*?\)/g,'').trim();
+  let hit=all.filter(f=>(f.g+' '+f.name).includes(key));const h2=person?hit.filter(f=>f.name.includes(person.split(' ')[0])):[];if(h2.length)hit=h2;
   if(hit.length==1)open(hit[0].webViewLink,'_blank','noopener');
   else if(hit.length>1){S.pick={name,hit};draw();scrollTo(0,0)}
-  else open('https://drive.google.com/drive/search?q='+encodeURIComponent(key),'_blank','noopener')}
+  else{S.pick={name:name+' (לא נמצאה התאמה, כל הקבצים)',hit:all};draw();scrollTo(0,0)}}
 function pickCard(){const p=S.pick;return p?`<div class="card"><div class="row"><h2>בחר קובץ: ${p.name}</h2><button class="chip2" data-pk>✕</button></div>${p.hit.map(f=>`<div class="row s"><span>${f.name} <span class="mut">${f.g}</span></span><button class="pr" data-l="${encodeURIComponent(f.webViewLink)}">פתח</button></div>`).join('')}</div>`:''}
-function fileCard(){return pickCard()+fileCard0()}
+function fileCard(){return pickCard()}
 document.addEventListener('scroll',e=>{const c=e.target;if(c.classList&&c.classList.contains('car')){const k=Math.round(Math.abs(c.scrollLeft)/c.clientWidth);document.querySelectorAll('.dots i').forEach((d,j)=>d.classList.toggle('on',j==k))}},true);
+const W='https://plain-dust-203fmoney-auth.orbach222.workers.dev';let cc;
+const post=async(p,b)=>(await fetch(W+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})).json();
+function setTok(j){token=j.access_token;ls('tok',JSON.stringify({t:token,e:Date.now()+((+j.expires_in||3600)-120)*1e3}))}
+async function refresh(){const rt=ls('rt');if(!rt)return false;try{const j=await post('/refresh',{refresh_token:rt});if(j.access_token){setTok(j);return true}if(j.error=='invalid_grant')ls('rt',null)}catch(e){}return false}
+const fail=m=>{S.err=m;S.exp.length?draw():msg(m+'<br><br><button class="go" data-sync>נסה שוב</button>')};
+async function login(){
+  if(await refresh()){load();return}
+  if(!window.google)return;
+  cc=cc||google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',callback:async r=>{
+    if(!r.code)return;
+    try{const x=await post('/exchange',{code:r.code});
+      if(!x.access_token){fail('שגיאת התחברות: '+(x.error_description||x.error||''));return}
+      setTok(x);ls('gd','1');
+      if(x.refresh_token)ls('rt',x.refresh_token);else alert('ההתחברות הצליחה, אך גוגל לא העניקה התחברות קבועה. הסר את ההרשאה של האפליקציה ב-myaccount.google.com/permissions, ואז התחבר שוב.');
+      load()}
+    catch(e){fail('אין חיבור לשרת ההתחברות')}}});
+  cc.requestCode()}
+const brk=it=>{const m={};it.forEach(e=>{(m[e.t]=m[e.t]||{s:0,n:0}).s+=e.a;m[e.t].n++});const tot=T(it,'a')||1;
+  return Object.entries(m).sort((a,b)=>b[1].s-a[1].s).map(([t,v])=>`<div style="padding-top:12px"><div class="row" style="padding:0"><span>${t}</span><b>${fmt(v.s)}</b></div><div class="row s mut" style="padding:0"><span>${v.n} פעולות · ממוצע ${fmt(v.s/v.n)}</span><span>${Math.round(v.s/tot*100)}%</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${v.s/tot*100}%;background:var(--g)"></i></div></div>`).join('')};
 document.addEventListener('change',e=>{const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}});
 function ins0(){
   const I=S.ins;if(!I)return `<div class="card"><p>${S.insErr||'הנתון זמין אחרי סנכרון עם הדרייב.'}</p></div>`;
@@ -255,7 +276,7 @@ function draw(){
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n]');
-  if(!b){if(!token&&ls('gd'))login(true);return}
+  if(!b){if(!token&&ls('rt'))refresh().then(ok=>ok&&load());return}
   if('sync'in b.dataset)login();
   if('eye'in b.dataset){S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
   if(b.dataset.t){S.tab=b.dataset.t;S.sub='';draw();scrollTo(0,0)}
@@ -282,8 +303,9 @@ document.addEventListener('click',e=>{
   S.hide=ls('hide')=='1';
   try{const d=JSON.parse(ls('data'));if(d&&d.exp&&d.exp.length){Object.assign(S,d);if(!S.pv.from)setPr('12');$('nav').hidden=false;draw()}}catch(e){}
   try{const t=JSON.parse(ls('tok'));if(t&&t.e>Date.now()){token=t.t;load()}}catch(e){}
-  const w=setInterval(()=>{if(window.google){clearInterval(w);if(!token&&ls('gd'))login(true)}},300);
-  setInterval(()=>{if(document.visibilityState=='visible'&&window.google&&ls('gd'))login(true)},45*60*1e3);
+  if(!token)refresh().then(ok=>ok&&load());
+  setInterval(()=>{if(document.visibilityState=='visible'&&ls('rt'))refresh()},40*60*1e3);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&ls('rt')){let t;try{t=JSON.parse(ls('tok'))}catch(e){}if(!t||t.e<Date.now())refresh().then(ok=>ok&&load())}});
 })();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
 </script></body></html>
