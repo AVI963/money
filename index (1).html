@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f3f5f7"><link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<title>הכסף שלי</title>
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--ink:#0b1220;--mut:#6b7686;--line:#e6eaef;--g:#12b76a;--gs:#e3f6ec;--r:#f04438;--rs:#fdeceb;--b:#4f6bed}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1118;--card:#141c26;--ink:#eef2f6;--mut:#8b97a8;--line:#232d3a;--gs:#12372a;--rs:#3a1b1a}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Heebo,system-ui,Arial,sans-serif;padding:env(safe-area-inset-top) 0 calc(100px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;padding:6px 16px}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 0}header b{font-size:20px;font-weight:800}
+header button{width:38px;height:38px;border-radius:50%;border:0;background:var(--card);font-size:17px;margin-inline-start:8px;cursor:pointer;box-shadow:0 2px 8px -4px #0004;color:var(--ink)}
+.view{animation:in .25s ease-out}@keyframes in{from{opacity:0;transform:translateY(8px)}}
+@media(prefers-reduced-motion:reduce){.view{animation:none}}
+.bn{background:var(--card);border-radius:14px;padding:8px 12px;font-size:13px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.bn button{border:0;background:var(--g);color:#fff;border-radius:10px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.card{background:var(--card);border-radius:24px;padding:18px;margin:12px 0;box-shadow:0 8px 24px -16px #0b122044}
+.mp{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 14px}.mp strong{background:var(--card);border-radius:99px;padding:8px 22px;font-size:16px;box-shadow:0 2px 10px -6px #0006}
+.mp button{width:36px;height:36px;border-radius:50%;border:0;background:var(--card);font-size:16px;cursor:pointer;color:var(--ink)}.mp button:disabled{opacity:.25}
+.lb{color:var(--mut);font-size:14px}.big{font-size:52px;font-weight:800;letter-spacing:-2px;line-height:1.1;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;border-radius:99px;padding:4px 12px;font-size:13px;font-weight:500;background:var(--gs);color:var(--g)}.chip.bad{background:var(--rs);color:var(--r)}
+.trio{display:flex;border-top:1px solid var(--line);margin-top:16px;padding-top:14px}.trio div{flex:1;text-align:center}.trio b{display:block;font-size:17px}.trio div+div{border-inline-start:1px solid var(--line)}
+.bars{display:flex;gap:8px;height:130px;direction:ltr;position:relative;margin-top:10px}
+.bars>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;gap:5px;height:100%;position:relative;z-index:1}
+.bars b{width:100%;max-width:34px;border-radius:10px;background:var(--line);transition:.25s}.bars .on b{background:var(--g)}.bars small{font-size:11px;color:var(--mut)}.bars em{font-style:normal;font-size:11px;font-weight:700}
+.avg{position:absolute;inset-inline:0;border-top:2px dashed var(--b);opacity:.6;z-index:0}
+h2{font-size:17px;font-weight:800;margin:0 0 6px}.mut{color:var(--mut);font-size:13px}.pos{color:var(--g)}.neg{color:var(--r)}
+details.ct{border-top:1px solid var(--line)}details.ct:first-of-type{border:0}
+summary{list-style:none;display:flex;align-items:center;gap:12px;padding:12px 0;cursor:pointer}summary::-webkit-details-marker{display:none}
+.ci{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:21px}.cn{flex:1;display:flex;flex-direction:column}.cn small{color:var(--mut);font-size:12px}
+.ca{text-align:end;font-variant-numeric:tabular-nums}.ca b{display:block}.ca small{font-size:12px;font-weight:700}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:-2px 0 8px}.bar i{display:block;height:100%;border-radius:3px}
+.it{display:flex;justify-content:space-between;padding:5px 56px 5px 0;font-size:14px;color:var(--mut)}
+.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0}.row.s{font-size:14px}
+.stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:14px 0 4px;gap:2px;direction:ltr}.stack i{display:block;height:100%}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid .card{margin:0}.grid b{display:block;font-size:22px;font-weight:800}
+.cp{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:22px;padding:14px;margin:10px 0}
+.cp .am{flex:none;width:60px;height:60px;border-radius:18px;display:grid;place-items:center;color:#fff;font-weight:800}.cp>div:nth-child(2){flex:1}
+button.pr{border:0;border-radius:12px;padding:9px 14px;background:var(--ink);color:var(--card);font:inherit;font-weight:500;cursor:pointer}button.pr.ok{background:var(--g);color:#fff}
+nav{position:fixed;inset-inline:14px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:532px;margin:0 auto;display:flex;background:var(--card);border-radius:26px;padding:6px;box-shadow:0 12px 36px -12px #0b122066}
+nav button{flex:1;border:0;background:none;border-radius:20px;padding:8px 0;font:inherit;font-size:12px;color:var(--mut);cursor:pointer;transition:.2s}nav button span{display:block;font-size:20px}nav button.on{background:var(--gs);color:var(--g);font-weight:700}
+#msg{text-align:center;padding:80px 10px}#msg h1{font-size:34px;margin:0 0 6px}.go{border:0;border-radius:16px;padding:14px 28px;background:var(--g);color:#fff;font:inherit;font-weight:700;font-size:17px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:center}.chip2{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 13px;font:inherit;font-size:13px;cursor:pointer}.chip2.on{background:var(--g);border-color:var(--g);color:#fff}
+select{font:inherit;font-size:13px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.tw{overflow-x:auto}table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}td,th{padding:7px 8px;white-space:nowrap;text-align:center}td:first-child,th:first-child{position:sticky;inset-inline-start:0;background:var(--card);text-align:start;font-weight:600}tr+tr td{border-top:1px solid var(--line)}td[data-r]{cursor:pointer}
+.pl{flex:none;border-radius:14px;padding:8px 10px;font-weight:700;font-size:13px;text-align:center;min-width:80px}.pl.pos{background:var(--gs);color:var(--g)}.pl.neg{background:var(--rs);color:var(--r)}.pl.amb{background:#fef0c7;color:#b54708}.pl.mut{background:var(--line);color:var(--mut)}
+.mn2{display:flex;align-items:center;gap:12px;width:100%;background:var(--card);border:0;border-radius:22px;padding:14px;margin:10px 0;font:inherit;color:var(--ink);text-align:start;cursor:pointer}
+input[data-q]{flex:1;min-width:150px;font:inherit;font-size:14px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}.lg2{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--mut)}
+.car{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:12px -16px 8px;padding:0 16px}.car::-webkit-scrollbar{display:none}.car .sl{flex:none;width:100%;scroll-snap-align:center;margin:0;min-height:230px}
+.dots{display:flex;justify-content:center;gap:6px;margin:0 0 6px}.dots i{width:7px;height:7px;border-radius:4px;background:var(--line);transition:.2s}.dots i.on{background:var(--g);width:18px}#dr{scroll-margin-top:8px}
+</style></head><body>
+<main id="app"><div id="msg"><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></main>
+<nav hidden><button data-t="home" class="on"><span>🏠</span>בית</button><button data-t="pv"><span>📊</span>ניתוח</button><button data-t="inv"><span>💎</span>נכסים</button><button data-t="more"><span>☰</span>עוד</button></nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script>
+const CLIENT_ID='579770283485-41n96q8bol22fh83dkgua1lb5fq4n70c.apps.googleusercontent.com',SC='https://www.googleapis.com/auth/drive.readonly';
+const FILES={exp:'סך הוצאת משק בית',inv:'תיק השקעות',ins:'לוח תשלומים ביטוח חיים'};
+const COL=['#4f6bed','#12b76a','#f79009','#ee46bc','#06aed4','#84cc16','#f04438','#9e77ed'];
+const ICO=[[/דיור|שכר|משכנת/,'🏠'],[/סופר|מזון|אוכל|מכולת/,'🛒'],[/מסעד|קפה|משלוח/,'🍽️'],[/רכב|דלק|תחבור|חני/,'🚗'],[/בריאות|רפוא|תרופ/,'💊'],[/טיפוח|ספא|שיער/,'💅'],[/בילוי|פנאי|חופש|טיול/,'🎬'],[/ביגוד|בגד|הנעל/,'👕'],[/חשמל|מים|ארנונה|גז/,'💡'],[/תקשור|סלולר|אינטרנט|טלפון/,'📱'],[/לימוד|חינוך|קורס/,'🎓'],[/מתנ|שונות/,'🎁']];
+const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],cp:[],ins:null,ym:0,tab:'home',sub:'',dcf:'',hide:false,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};let token,tcl;
+const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+const fmt=n=>S.hide?'₪•••':(n<0?'-':'')+'₪'+Math.round(Math.abs(n)).toLocaleString('he-IL'),pct=n=>(n>0?'+':'')+n.toFixed(1)+'%';
+const fix=d=>new Date(d.getTime()+432e5),ymOf=d=>{d=fix(d);return d.getFullYear()*100+d.getMonth()+1};
+const ymLb=y=>new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+const T=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0),dl=d=>d.toLocaleDateString('he-IL');
+function msg(t){$('#app').innerHTML='<div id="msg"><p>'+t+'</p></div>'}
+function tc(){return tcl=tcl||google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SC,
+  callback:r=>{if(r.access_token){token=r.access_token;ls('tok',JSON.stringify({t:token,e:Date.now()+(r.expires_in-120)*1e3}));ls('gd','1');load()}},error_callback:()=>{}})}
+function login(silent){if(!window.google)return;tc().requestAccessToken({prompt:silent&&ls('gd')?'':ls('gd')?'':'consent'})}
+async function getFile(name){
+  const h={Authorization:'Bearer '+token},q=encodeURIComponent("name contains '"+name+"' and trashed=false and mimeType!='application/vnd.google-apps.folder'");
+  const l=await(await fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+q,{headers:h})).json();
+  if(l.error&&l.error.code==401){token=null;ls('tok',null);throw new Error('החיבור פג, לחץ על סנכרן')}
+  if(!l.files||!l.files.length)throw new Error('לא נמצא בדרייב קובץ ששמו כולל: '+name);
+  return XLSX.read(await(await fetch('https://www.googleapis.com/drive/v3/files/'+l.files[0].id+'?alt=media',{headers:h})).arrayBuffer(),{type:'array',cellDates:true});
+}
+async function load(){
+  if(!S.exp.length)msg('טוען נתונים מהדרייב...');
+  try{
+    const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי'],{header:1,raw:true});
+    S.exp=[];S.mon=[];S.cp=[];S.err='';
+    rows.slice(1).forEach(x=>{
+      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date)S.exp.push({t:x[0],a:x[1],c:x[2],ym:ymOf(x[4])});
+      if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
+      if(x[21]&&typeof x[22]==='number'&&!String(x[21]).startsWith('סה'))S.cp.push({n:x[21],a:x[22],c:String(x[23]||'')});
+    });
+    if(!S.ym||!S.exp.some(e=>e.ym==S.ym))S.ym=Math.max(...S.exp.map(e=>e.ym));if(!S.pv.from)setPr('12');
+    try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
+    try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
+    ls('data',JSON.stringify({exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,ym:S.ym}));
+    $('nav').hidden=false;draw();
+  }catch(e){S.err=e.message;if(S.exp.length)draw();else msg('שגיאה: '+e.message+'<br><br><button class="go" data-sync>נסה שוב</button>')}
+}
+function parseIns(wb){
+  const sm=wb.Sheets['סיכום'],pr=XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות'],{header:1,raw:true}).slice(4,36),st=fix(sm.C6.v),yrs=+sm.C7.v,pay=[];
+  for(let n=0;n<yrs*12;n++){const y=Math.floor(n/12),r=pr[y]||[],t=(+r[6]||0)+(+r[7]||0);pay.push({d:new Date(st.getFullYear(),st.getMonth()+n,st.getDate()),a:t?Math.floor(t/12*100)/100:null})}
+  return{yrs,pay,pr,end:new Date(st.getFullYear(),st.getMonth()+yrs*12,st.getDate())};
+}
+function home(){
+  const ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b),i=ys.indexOf(S.ym),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),
+  m=S.exp.filter(e=>e.ym==S.ym),tot=sy(S.ym),pm=ys.slice(Math.max(0,i-6),i),avg=pm.length?T(S.exp.filter(e=>pm.includes(e.ym)),'a')/pm.length:0,
+  inc=(S.mon.find(x=>x.ym==S.ym)||{}).inc||0,diff=tot-avg,cat={};
+  m.forEach(e=>(cat[e.c]=cat[e.c]||[]).push(e));
+  const cs=Object.entries(cat).map(([c,a])=>[c,T(a,'a'),a]).sort((x,y)=>y[1]-x[1]),
+  cav=c=>pm.length?T(S.exp.filter(e=>pm.includes(e.ym)&&e.c==c),'a')/pm.length:0,
+  last=ys.slice(Math.max(0,i-5),i+1),sums=last.map(sy),mx=Math.max(...sums,avg,1),
+  now=new Date(),days=Math.floor(S.ym/100)==now.getFullYear()&&S.ym%100==now.getMonth()+1?now.getDate():new Date(Math.floor(S.ym/100),S.ym%100,0).getDate(),
+  big=m.reduce((a,e)=>e.a>(a.a||0)?e:a,{});
+  return `<div class="mp"><button data-m="1" ${i>=ys.length-1?'disabled':''}>←</button><strong>${ymLb(S.ym)}</strong><button data-m="-1" ${i<=0?'disabled':''}>→</button></div>
+  <div class="card"><div class="lb">הוצאות החודש</div><div class="big">${fmt(tot)}</div>
+  ${avg?`<span class="chip ${diff>0?'bad':''}">${diff>0?'↑':'↓'} ${fmt(Math.abs(diff))} ${diff>0?'יותר':'פחות'} מהממוצע</span>`:''}
+  ${inc?`<div class="row s" style="margin-top:12px"><span class="lb">משכורת ${fmt(inc)}</span><b class="${inc-tot<0?'neg':'pos'}">נשאר ${fmt(inc-tot)}</b></div>`:''}
+  <div class="trio"><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/days)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div><div><span class="lb">הכי גדולה</span><b>${fmt(big.a||0)}</b></div></div></div>
+  <div class="car"><div class="card sl"><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">הקו המקווקו הוא הממוצע ${fmt(avg)}</span><div class="bars">${avg?`<div class="avg" style="bottom:calc(${avg/mx*78}% + 19px)"></div>`:''}
+  ${last.map((y,k)=>`<div data-y="${y}" class="${y==S.ym?'on':''}">${y==S.ym?`<em>${fmt(sums[k])}</em>`:''}<b style="height:${Math.max(sums[k]/mx*78,3)}%"></b><small>${new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short'})}</small></div>`).join('')}</div></div>
+  ${xs()}</div><div class="dots">${[0,1,2,3,4].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0;
+  return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${c}</b><small>${Math.round(v/tot*100)}% מההוצאות</small></span>
+  <span class="ca"><b>${fmt(v)}</b>${av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span></summary>
+  <div class="bar"><i style="width:${v/cs[0][1]*100}%;background:${COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>`<div class="it"><span>${e.t}</span><span>${fmt(e.a)}</span></div>`).join('')}</details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
+}
+function inv0(){
+  if(!S.inv.length)return `<div class="card"><p>${S.invErr||'לא נמצאו נתוני השקעות.'}</p></div>`;
+  const val=T(S.inv,'שווי ₪'),cost=T(S.inv,'עלות ₪'),gain=val-cost,tax=Math.max(0,gain)*.25,acc={},top=[...S.inv].sort((a,b)=>b['שווי ₪']-a['שווי ₪']);
+  S.inv.forEach(r=>(acc[r['חשבון']]=acc[r['חשבון']]||[]).push(r));
+  return `<div class="card"><div class="lb">סך השקעות</div><div class="big">${fmt(val)}</div><span class="chip ${gain<0?'bad':''}">${pct(gain/cost*100)} · ${fmt(gain)} רווח</span>
+  <div class="stack">${top.slice(0,6).map((r,k)=>`<i style="width:${r['שווי ₪']/val*100}%;background:${COL[k]}"></i>`).join('')}</div><div class="lg2">${top.slice(0,6).map((r,k)=>`<span><i class="dot" style="background:${COL[k]}"></i>${r['שם']} ${Math.round(r['שווי ₪']/val*100)}%</span>`).join('')}</div>
+  <div class="trio"><div><span class="lb">מס משוער</span><b>${fmt(-tax)}</b></div><div><span class="lb">אחרי מס</span><b>${fmt(val-tax)}</b></div></div>
+  <p class="mut" style="margin:10px 0 0">הערכה בלבד: מס 25% על הרווח הכולל, בלי הצמדה למדד ובלי עמלות.</p></div>`+
+  Object.entries(acc).map(([n,a],k)=>{const v=T(a,'שווי ₪'),c=T(a,'עלות ₪');
+  return `<div class="card"><div class="row"><h2 style="margin:0">${n}</h2><b>${fmt(v)}</b></div><div class="row s"><span class="mut">תשואה</span><b class="${v<c?'neg':'pos'}">${pct((v-c)/c*100)}</b></div>
+  ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-r['עלות ₪'],sh=r['שווי ₪']/v*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${r['שם']}</span><b>${fmt(r['שווי ₪'])}</b></div>
+  <div class="row s mut" style="padding:0"><span>${sh.toFixed(0)}% מהחשבון</span><span class="${g<0?'neg':'pos'}">${fmt(g)}</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${sh}%;background:${COL[k*3%8]}"></i></div></div>`}).join('')}</div>`}).join('');
+}
+const pk=e=>S.pv.by=='y'?Math.floor(e.ym/100):e.ym,nf=n=>S.hide?'•••':Math.round(n).toLocaleString('he-IL');
+const plb=p=>S.pv.by=='y'?String(p):new Date(Math.floor(p/100),p%100-1,1).toLocaleDateString('he-IL',{month:'short',year:'2-digit'});
+function setPr(p){const P=S.pv,ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b),mx=ys[ys.length-1],yr=Math.floor(mx/100);P.pr=p;P.to=mx;P.dr=null;
+  if(p=='all')P.from=ys[0];else if(p=='ty')P.from=yr*100+1;else if(p=='ly'){P.from=(yr-1)*100+1;P.to=(yr-1)*100+12}else P.from=ys[Math.max(0,ys.length-+p)]}
+function pv(){
+  const P=S.pv,R=P.rows,all=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b),inr=S.exp.filter(e=>e.ym>=P.from&&e.ym<=P.to),
+  cats=[...new Set(inr.map(e=>e.c))].sort((a,b)=>T(inr.filter(e=>e.c==b),'a')-T(inr.filter(e=>e.c==a),'a')),d=inr.filter(e=>(!P.sel.length||P.sel.includes(e.c))&&(!P.q||(e.t+' '+e.c).includes(P.q))),per=[];
+  if(P.by=='y'){for(let y=Math.floor(P.from/100);y<=Math.floor(P.to/100);y++)per.push(y)}else{for(let y=Math.floor(P.from/100),m=P.from%100;y*100+m<=P.to;m==12?(y++,m=1):m++)per.push(y*100+m)}
+  const M={};d.forEach(e=>{const r=e[R],p=pk(e);M[r]=M[r]||{t:0,p:{}};M[r].t+=e.a;M[r].p[p]=(M[r].p[p]||0)+e.a});
+  const rs=Object.entries(M).sort((a,b)=>b[1].t-a[1].t),pt=per.map(p=>T(d.filter(e=>pk(e)==p),'a')),tot=T(d,'a'),nmo=all.filter(y=>y>=P.from&&y<=P.to).length||1,
+  mxc=Math.max(...rs.flatMap(([,v])=>Object.values(v.p)),1),mxp=Math.max(...pt,1),pi=pt.indexOf(mxp),
+  pr=[['3','3 חודשים'],['6','חצי שנה'],['12','שנה'],['ty','השנה'],['ly','שנה שעברה'],['all','הכל']],
+  opt=v=>all.map(y=>`<option value="${y}" ${y==v?'selected':''}>${ymLb(y)}</option>`).join('');
+  const row=(r,v,sb)=>`<tr><td ${R=='c'&&!sb?`data-x="${encodeURIComponent(r)}" style="cursor:pointer"`:`data-n="${encodeURIComponent(r)}" data-k="${sb?'t':R}" style="cursor:pointer"`}>${sb?'<span class="mut">↳ </span>':R=='c'?(P.open.includes(r)?'▾ ':'▸ '):''}${r}</td>${per.map(p=>{const x=v.p[p]||0;return `<td data-r="${encodeURIComponent(r)}" data-k="${sb?'t':R}" data-p="${p}" style="background:rgba(18,183,106,${x/mxc*.45})">${x?nf(x):''}</td>`}).join('')}<td data-r="${encodeURIComponent(r)}" data-k="${sb?'t':R}" data-p=""><b>${nf(v.t)}</b></td></tr>`,
+  sub=c=>{const m={};d.filter(e=>e.c==c).forEach(e=>{m[e.t]=m[e.t]||{t:0,p:{}};m[e.t].t+=e.a;m[e.t].p[pk(e)]=(m[e.t].p[pk(e)]||0)+e.a});return Object.entries(m).sort((a,b)=>b[1].t-a[1].t)};
+  return `<div class="card"><h2>ניתוח הוצאות</h2><div class="chips">${pr.map(([k,t])=>`<button class="chip2 ${P.pr==k?'on':''}" data-pr="${k}">${t}</button>`).join('')}</div>
+  <div class="chips"><select data-sel="from">${opt(P.from)}</select><span class="mut">עד</span><select data-sel="to">${opt(P.to)}</select></div>
+  <div class="chips"><input data-q placeholder="חיפוש הוצאה ספציפית (למשל: חשמל)" value="${P.q}"></div>
+  <div class="chips"><button class="chip2 ${P.by=='m'?'on':''}" data-by="m">לפי חודש</button><button class="chip2 ${P.by=='y'?'on':''}" data-by="y">לפי שנה</button><button class="chip2 ${R=='c'?'on':''}" data-rows="c">קטגוריות</button><button class="chip2 ${R=='t'?'on':''}" data-rows="t">סוגי הוצאה</button></div></div>
+  <div class="card"><div class="lb">סך הכל בטווח${P.sel.length?' ('+P.sel.length+' קטגוריות נבחרו)':''}</div><div class="big">${fmt(tot)}</div>
+  <div class="trio"><div><span class="lb">ממוצע לחודש</span><b>${fmt(tot/nmo)}</b></div><div><span class="lb">חודשים</span><b>${nmo}</b></div><div><span class="lb">שיא · ${plb(per[pi]||0)}</span><b>${fmt(mxp)}</b></div></div>
+  <div class="bars" style="gap:${per.length>18?2:6}px">${per.map((p,k)=>`<div title="${plb(p)}: ${fmt(pt[k])}"><b style="height:${Math.max(pt[k]/mxp*80,2)}%;background:var(--g)"></b>${per.length<=14?`<small>${plb(p)}</small>`:''}</div>`).join('')}</div></div>
+  <div class="card"><h2>סינון קטגוריות</h2><div class="chips">${cats.map(c=>`<button class="chip2 ${P.sel.includes(c)?'on':''}" data-cat="${encodeURIComponent(c)}">${ico(c)} ${c}</button>`).join('')}</div><span class="mut">בחירה מרובה. בלי בחירה מוצגות כולן.</span></div>
+  <div class="card" id="tb"><h2>טבלה</h2><div class="tw"><table><tr><th></th>${per.map(p=>`<th>${plb(p)}</th>`).join('')}<th>סה״כ</th></tr>
+  ${rs.map(([r,v])=>row(r,v,0)+(R=='c'&&P.open.includes(r)?sub(r).map(([t,u])=>row(t,u,1)).join(''):'')).join('')}
+  <tr><td><b>סה״כ</b></td>${pt.map(x=>`<td><b>${nf(x)}</b></td>`).join('')}<td><b>${nf(tot)}</b></td></tr></table></div><span class="mut">לחץ על תא להצגת ההוצאות שבו.</span></div>
+  ${P.dr?(()=>{const it=d.filter(e=>e[P.dr.k||R]==P.dr.r&&(P.dr.p==null||pk(e)==P.dr.p)).sort((a,b)=>P.dr.p==null?b.ym-a.ym||b.a-a.a:b.a-a.a);return `<div class="card" id="dr"><div class="row"><h2>${P.dr.r} · ${P.dr.p==null?'כל התקופה':plb(P.dr.p)}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length?T(it,'a')/it.length:0)}</span><b>${fmt(T(it,'a'))}</b></div>${it.map(e=>`<div class="row s"><span>${e.t} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`})():''}`;
+}
+function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
+  return `<div class="card"><div class="lb">שווי נקי כולל (השקעות וחיסכון פנסיוני)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
+  <div class="trio"><div><span class="lb">השקעות</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה, גמל והשתלמות</span><b>${fmt(p)}</b></div></div></div>`}
+function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${r['שם']} <span class="mut">${r['סוג']||''}</span></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
+function inv(){return nw()+inv0()+penCard()}
+function dc0(){
+  if(!S.docs.length)return `<div class="card"><p>אין מסמכים. הוסף גיליון בשם מסמכים לקובץ תיק השקעות.</p></div>`;
+  const now=new Date(),cs=[...new Set(S.docs.map(d=>d['קטגוריה']).filter(Boolean))],
+  L=S.docs.filter(d=>!S.dcf||d['קטגוריה']==S.dcf).map(d=>({...d,x:d['תוקף עד']?new Date(d['תוקף עד']):null})).sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15));
+  return `<div class="chips"><button class="chip2 ${S.dcf?'':'on'}" data-dcf="">הכל</button>${cs.map(c=>`<button class="chip2 ${S.dcf==c?'on':''}" data-dcf="${encodeURIComponent(c)}">${c}</button>`).join('')}</div>`+
+  L.map(d=>{const n=d.x?Math.round((d.x-now)/864e5):null,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
+  return `<div class="cp"><div class="pl ${cl}">${tx}</div><div><b>${d['שם']}${d['רגיש']=='כן'?' 🔒':''}</b><div class="mut">${[d['אדם'],d['קטגוריה'],d.x?dl(d.x):''].filter(Boolean).join(' · ')}</div></div>${d['קישור']?`<button class="pr" data-l="${encodeURIComponent(d['קישור'])}">פתח</button>`:`<button class="pr" data-od="${encodeURIComponent(d['שם'])}" data-op="${encodeURIComponent(d['אדם']||'')}">פתח מסמך</button>`}</div>`}).join('');
+}
+function more(){
+  if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc}[S.sub]();
+  return [['ins','🛡️','ביטוח חיים','לוח תשלומים והתקדמות'],['cp','🎟️','קופונים','יתרות וקודים'],['dc','📁','מסמכים ותוקפים','דרכון, רישיון, ביטוחים ועוד']].map(([k,i,t,s])=>`<button class="mn2" data-sub="${k}"><span class="ci" style="background:var(--gs)">${i}</span><span class="cn"><b>${t}</b><small>${s}</small></span>←</button>`).join('');
+}
+const greet=()=>{const h=new Date().getHours();return h<5?'לילה טוב':h<12?'בוקר טוב':h<18?'צהריים טובים':'ערב טוב'};
+function insights(cs,cav){
+  const L=[],tot=T(cs.map(x=>({a:x[1]})),'a'),ch=cs.map(([c,v])=>[c,v-cav(c),cav(c)]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
+  if(ch[0]&&ch[0][1]>0)L.push(['📈',ch[0][0]+' גבוה ב-'+fmt(ch[0][1])+' מהממוצע שלו']);
+  const lo=ch[ch.length-1];if(lo&&lo[1]<0)L.push(['📉',lo[0]+' נמוך ב-'+fmt(-lo[1])+' מהממוצע שלו']);
+  if(cs[0]&&tot)L.push(['🥇',cs[0][0]+' מהווה '+Math.round(cs[0][1]/tot*100)+'% מההוצאות החודש']);
+  return L.length?`<div class="card"><h2>תובנות</h2>${L.map(([i,t])=>`<div class="row" style="justify-content:flex-start;gap:12px"><span>${i}</span><span>${t}</span></div>`).join('')}</div>`:'';
+}
+function insSched(){const I=S.ins;if(!I)return '';const now=new Date();
+  return `<div class="card"><h2>לוח תשלומים מלא</h2><div class="tw"><table><tr><th>שנה</th><th>מתאריך</th><th>חודשי</th><th>שנתי</th><th>סטטוס</th></tr>${Array.from({length:I.yrs},(_,y)=>{const ps=I.pay.slice(y*12,y*12+12),a=ps[0].a,dn=ps.filter(p=>p.d<=now).length;return `<tr><td>${y+1}</td><td>${dl(ps[0].d)}</td><td>${a?fmt(a):'טרם פורסם'}</td><td>${a?fmt(T(ps,'a')):'—'}</td><td>${dn==12?'✓ שולם':dn?dn+' מתוך 12':'עתידי'}</td></tr>`}).join('')}</table></div></div>`}
+function ins(){return ins0()+insSched()}
+async function loadFiles(){
+  S.files='loading';draw();
+  try{const h={Authorization:'Bearer '+token},G=async q=>(await(await fetch('https://www.googleapis.com/drive/v3/files?pageSize=200&fields=files(id,name,webViewLink)&q='+encodeURIComponent(q),{headers:h})).json()).files||[];
+    const root=(await G("name='Sedrix' and mimeType='application/vnd.google-apps.folder' and trashed=false"))[0];if(!root)throw 0;
+    const out=[];for(const f of await G("'"+root.id+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"))out.push({n:f.name,f:await G("'"+f.id+"' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false")});
+    S.files={root:root.id,out}}catch(e){S.files='err'}draw()}
+function fileCard0(){const F=S.files;
+  if(!F)return `<button class="pr" data-fl style="margin:6px 0 4px">📂 עיון בקבצי Sedrix בדרייב</button>`;
+  if(F=='loading')return `<div class="card"><p>טוען קבצים...</p></div>`;
+  if(F=='err')return `<div class="card"><p>לא הצלחתי לקרוא את התיקייה Sedrix. ודא שהחיבור פעיל ולחץ ⟳.</p><button class="pr" data-fl>נסה שוב</button></div>`;
+  return `<div class="card"><div class="row"><h2>קבצים בדרייב</h2><button class="pr" data-l="${encodeURIComponent('https://drive.google.com/drive/folders/'+F.root)}">פתח תיקייה</button></div>${F.out.map(g=>`<div class="lb" style="margin-top:12px">${g.n} (${g.f.length})</div>`+g.f.map(f=>`<div class="row s"><span>${f.name}</span><button class="chip2" data-l="${encodeURIComponent(f.webViewLink)}">פתח</button></div>`).join('')).join('')}</div>`}
+function dc(){return fileCard()+dc0()}
+document.addEventListener('change',e=>{if(e.target.dataset.q!==undefined){S.pv.q=e.target.value.trim();S.pv.dr=null;draw()}});
+const toDr=()=>setTimeout(()=>{const x=document.getElementById('dr');x&&x.scrollIntoView({behavior:'smooth',block:'start'})},40);
+function xs(){
+  const ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b),i=ys.indexOf(S.ym),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),inc=y=>(S.mon.find(x=>x.ym==y)||{}).inc||0,
+  l6=ys.slice(Math.max(0,i-5),i+1),mx=Math.max(...l6.map(y=>Math.max(sy(y),inc(y))),1),yr=Math.floor(S.ym/100),mo=S.ym%100,mn=y=>new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short'}),
+  wi=l6.filter(y=>inc(y)>0),si=T(wi.map(y=>({a:inc(y)})),'a'),se=T(wi.map(y=>({a:sy(y)})),'a'),
+  ly=(yr-1)*100+mo,ytd=(y0,y1)=>T(S.exp.filter(e=>e.ym>=y0*100+1&&e.ym<=y1),'a'),a1=ytd(yr,S.ym),a0=ytd(yr-1,ly),m0=sy(ly),tot=sy(S.ym),
+  w=ys.slice(Math.max(0,i-11),i+1),cnt={};
+  S.exp.filter(e=>w.includes(e.ym)).forEach(e=>{(cnt[e.t]=cnt[e.t]||new Set()).add(e.ym)});
+  const fx=new Set(Object.keys(cnt).filter(t=>w.length>=4&&cnt[t].size>=w.length*.75)),cur=S.exp.filter(e=>e.ym==S.ym),fs=T(cur.filter(e=>fx.has(e.t)),'a'),
+  topf=Object.entries(cur.filter(e=>fx.has(e.t)).reduce((o,e)=>(o[e.t]=(o[e.t]||0)+e.a,o),{})).sort((a,b)=>b[1]-a[1]).slice(0,3),
+  dif=(a,b)=>b?`<span class="chip ${a>b?'bad':''}">${a>b?'↑ יותר':'↓ פחות'} ב-${fmt(Math.abs(a-b))}</span>`:'';
+  return `<div class="card sl"><h2>הכנסות מול הוצאות</h2><span class="lb">ירוק הכנסה · אדום הוצאה</span><div class="bars">${l6.map(y=>`<div><div style="display:flex;gap:3px;align-items:flex-end;height:calc(100% - 18px);width:100%;justify-content:center"><b style="height:${Math.max(inc(y)/mx*100,2)}%;background:var(--g);max-width:14px"></b><b style="height:${Math.max(sy(y)/mx*100,2)}%;background:var(--r);max-width:14px"></b></div><small>${mn(y)}</small></div>`).join('')}</div></div>
+  <div class="card sl"><h2>חיסכון</h2>${si?`<div class="big">${Math.round((si-se)/si*100)}%</div><span class="lb">מההכנסה נשאר, ב-${wi.length} חודשים אחרונים עם משכורת</span><div class="trio"><div><span class="lb">משכורת ממוצעת</span><b>${fmt(si/wi.length)}</b></div><div><span class="lb">הוצאות ממוצעות</span><b>${fmt(se/wi.length)}</b></div><div><span class="lb">נחסך</span><b class="${si>se?'pos':'neg'}">${fmt(si-se)}</b></div></div>`:'<p class="mut">אין עדיין נתוני משכורת בחודשים האחרונים.</p>'}</div>
+  <div class="card sl"><h2>לעומת שנה שעברה</h2><div class="row"><span class="lb">${ymLb(S.ym)}</span><b>${fmt(tot)}</b></div><div class="row"><span class="lb">${ymLb(ly)}</span><b>${m0?fmt(m0):'אין נתונים'}</b></div>${dif(tot,m0)}
+  <div class="row" style="margin-top:10px"><span class="lb">מתחילת השנה</span><b>${fmt(a1)}</b></div><div class="row"><span class="lb">באותה תקופה אשתקד</span><b>${a0?fmt(a0):'אין נתונים'}</b></div>${dif(a1,a0)}</div>
+  <div class="card sl"><h2>קבועות מול משתנות</h2>${fx.size?`<span class="lb">הוצאות שחוזרות כמעט כל חודש נחשבות קבועות</span><div class="stack" style="height:14px"><i style="width:${fs/(tot||1)*100}%;background:var(--b)"></i><i style="width:${(1-fs/(tot||1))*100}%;background:var(--line)"></i></div><div class="trio"><div><span class="lb">קבועות</span><b>${fmt(fs)}</b></div><div><span class="lb">משתנות</span><b>${fmt(tot-fs)}</b></div></div>${topf.map(([t,v])=>`<div class="row s"><span class="mut">${t}</span><b>${fmt(v)}</b></div>`).join('')}`:'<p class="mut">אין מספיק חודשים לזיהוי הוצאות קבועות.</p>'}</div>`;
+}
+async function openDoc(name,person){
+  if(!S.files||S.files=='err'||S.files=='loading')await loadFiles();
+  const F=S.files,all=F&&F.out?F.out.flatMap(g=>g.f.map(f=>({...f,g:g.n}))):[],key=name.replace(/\(.*?\)/g,'').trim();
+  let hit=all.filter(f=>f.name.includes(key));const h2=person?hit.filter(f=>f.name.includes(person.split(' ')[0])):[];if(h2.length)hit=h2;
+  if(hit.length==1)open(hit[0].webViewLink,'_blank','noopener');
+  else if(hit.length>1){S.pick={name,hit};draw();scrollTo(0,0)}
+  else open('https://drive.google.com/drive/search?q='+encodeURIComponent(key),'_blank','noopener')}
+function pickCard(){const p=S.pick;return p?`<div class="card"><div class="row"><h2>בחר קובץ: ${p.name}</h2><button class="chip2" data-pk>✕</button></div>${p.hit.map(f=>`<div class="row s"><span>${f.name} <span class="mut">${f.g}</span></span><button class="pr" data-l="${encodeURIComponent(f.webViewLink)}">פתח</button></div>`).join('')}</div>`:''}
+function fileCard(){return pickCard()+fileCard0()}
+document.addEventListener('scroll',e=>{const c=e.target;if(c.classList&&c.classList.contains('car')){const k=Math.round(Math.abs(c.scrollLeft)/c.clientWidth);document.querySelectorAll('.dots i').forEach((d,j)=>d.classList.toggle('on',j==k))}},true);
+document.addEventListener('change',e=>{const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}});
+function ins0(){
+  const I=S.ins;if(!I)return `<div class="card"><p>${S.insErr||'הנתון זמין אחרי סנכרון עם הדרייב.'}</p></div>`;
+  const now=new Date(),pd=I.pay.filter(p=>p.d<=now),paid=T(pd,'a'),nx=I.pay.find(p=>p.d>now),pc=pd.length/I.pay.length*100,yi=Math.min(Math.floor(pd.length/12),I.yrs-1),r=I.pr[yi]||[],miss=I.pay.filter(p=>p.a===null).length;
+  return `<div class="card"><div class="lb">ביטוח חיים · שולם עד היום</div><div class="big">${fmt(paid)}</div><span class="chip">${pd.length} מתוך ${I.pay.length} תשלומים</span>
+  <div class="bar" style="height:10px;margin:16px 0 6px"><i style="width:${Math.max(pc,1)}%;background:var(--g)"></i></div><div class="lb">${pc.toFixed(1)}% מתקופת הביטוח · מסתיים ב-${dl(I.end)}</div></div>
+  <div class="grid"><div class="card"><span class="lb">התשלום הבא</span><b>${nx&&nx.a?fmt(nx.a):'—'}</b><span class="lb">${nx?dl(nx.d):''}</span></div><div class="card"><span class="lb">סכום ביטוח כיום</span><b>${fmt(r[5]||0)}</b><span class="lb">לכל מבוטח</span></div></div>
+  ${miss?`<p class="mut" style="margin:10px 4px">ל-${miss} תשלומים עתידיים עדיין אין פרמיה בפוליסה.</p>`:''}
+  <div class="card"><h2>פרמיה חודשית לפי שנת ביטוח</h2>${I.pr.filter(x=>x[0]).map(x=>{const m=((+x[6]||0)+(+x[7]||0))/12,cur=x[0]==yi+1;return `<div class="row s" style="${cur?'font-weight:700':'color:var(--mut)'}"><span>שנה ${x[0]}${cur?' (נוכחית)':''}</span><span>${m?fmt(m):'טרם פורסם'}</span></div>`}).join('')}</div>`;
+}
+function cp(){
+  if(!S.cp.length)return `<div class="card"><p>${S.exp.length?'לא נמצאו קופונים בקובץ ההוצאות.':''}הקופונים זמינים אחרי סנכרון עם הדרייב.</p></div>`;
+  return `<div class="card"><div class="lb">שווי קופונים</div><div class="big">${fmt(T(S.cp,'a'))}</div><span class="chip">${S.cp.length} קופונים</span></div>`+
+  S.cp.map((c,k)=>`<div class="cp"><div class="am" style="background:${COL[k%8]}">${fmt(c.a)}</div><div><b>${c.n}</b><div class="mut">${c.c.startsWith('http')?'קישור למימוש':'קוד'}</div></div><button class="pr" data-c="${k}">${c.c.startsWith('http')?'פתח':'העתק קוד'}</button></div>`).join('');
+}
+function draw(){
+  $('#app').innerHTML=`<header><div><b>${greet()}</b><div class="mut">${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</div></div><div><button data-eye title="הסתר סכומים">${S.hide?'🙈':'👁'}</button><button data-sync title="סנכרון">⟳</button></div></header>`+
+  (token?'':`<div class="bn"><span>${S.err||'מציג נתונים מהסנכרון האחרון'}</span><button data-sync>סנכרן</button></div>`)+`<div class="view">${{home,pv,inv,more}[S.tab]()}</div>`;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==S.tab));
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n]');
+  if(!b){if(!token&&ls('gd'))login(true);return}
+  if('sync'in b.dataset)login();
+  if('eye'in b.dataset){S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
+  if(b.dataset.t){S.tab=b.dataset.t;S.sub='';draw();scrollTo(0,0)}
+  if(b.dataset.pr){setPr(b.dataset.pr);draw()}
+  if(b.dataset.by){S.pv.by=b.dataset.by;S.pv.dr=null;draw()}
+  if(b.dataset.rows){S.pv.rows=b.dataset.rows;S.pv.dr=null;draw()}
+  if(b.dataset.cat){const c=decodeURIComponent(b.dataset.cat),s=S.pv.sel;s.includes(c)?s.splice(s.indexOf(c),1):s.push(c);S.pv.dr=null;draw()}
+  if(b.dataset.x){const P=S.pv,c=decodeURIComponent(b.dataset.x),o=P.open,op=o.includes(c);op?o.splice(o.indexOf(c),1):o.push(c);P.dr=op?(P.dr&&P.dr.r==c&&P.dr.p==null?null:P.dr):{r:c,k:'c',p:null};draw();if(!op)toDr();return}
+  if(b.dataset.n){const P=S.pv,r=decodeURIComponent(b.dataset.n),same=P.dr&&P.dr.r==r&&P.dr.k==b.dataset.k&&P.dr.p==null;P.dr=same?null:{r,k:b.dataset.k,p:null};draw();if(!same)toDr();return}
+  if('up'in b.dataset){const t=document.getElementById('tb');t&&t.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if('pk'in b.dataset){S.pick=null;draw()}
+  if(b.dataset.od)openDoc(decodeURIComponent(b.dataset.od),decodeURIComponent(b.dataset.op||''));
+  if(b.dataset.r){S.pv.dr={r:decodeURIComponent(b.dataset.r),k:b.dataset.k,p:b.dataset.p===''?null:+b.dataset.p};draw();toDr()}
+  if('fl'in b.dataset)loadFiles();
+  if('sub'in b.dataset){S.sub=b.dataset.sub;draw();scrollTo(0,0);if(S.sub=='dc'&&token&&!S.files)loadFiles()}
+  if('dcf'in b.dataset){S.dcf=decodeURIComponent(b.dataset.dcf);draw()}
+  if(b.dataset.l)open(decodeURIComponent(b.dataset.l),'_blank','noopener');
+
+  if(b.dataset.y){S.ym=+b.dataset.y;draw()}
+  if(b.dataset.m){const y=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);S.ym=y[y.indexOf(S.ym)+ +b.dataset.m];draw()}
+  if(b.dataset.c){const c=S.cp[+b.dataset.c];if(c.c.startsWith('http'))open(c.c,'_blank','noopener');else{navigator.clipboard.writeText(c.c);b.textContent='הועתק ✓';b.classList.add('ok')}}
+});
+(function boot(){
+  S.hide=ls('hide')=='1';
+  try{const d=JSON.parse(ls('data'));if(d&&d.exp&&d.exp.length){Object.assign(S,d);if(!S.pv.from)setPr('12');$('nav').hidden=false;draw()}}catch(e){}
+  try{const t=JSON.parse(ls('tok'));if(t&&t.e>Date.now()){token=t.t;load()}}catch(e){}
+  const w=setInterval(()=>{if(window.google){clearInterval(w);if(!token&&ls('gd'))login(true)}},300);
+  setInterval(()=>{if(document.visibilityState=='visible'&&window.google&&ls('gd'))login(true)},45*60*1e3);
+})();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
