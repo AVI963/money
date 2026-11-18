@@ -52,6 +52,8 @@ input[data-q]{flex:1;min-width:150px;font:inherit;font-size:14px;padding:8px 12p
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}.lg2{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--mut)}
 .car{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:12px -16px 8px;padding:0 16px}.car::-webkit-scrollbar{display:none}.car .sl{flex:none;width:100%;scroll-snap-align:center;margin:0;min-height:230px}
 .dots{display:flex;justify-content:center;gap:6px;margin:0 0 6px}.dots i{width:7px;height:7px;border-radius:4px;background:var(--line);transition:.2s}.dots i.on{background:var(--g);width:18px}#dr{scroll-margin-top:8px}
+.dn{display:flex;align-items:center;gap:14px}.donut{flex:none;width:148px;height:148px;border-radius:50%;position:relative}.donut>div{position:absolute;inset:24px;background:var(--card);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:12px}.donut b{font-size:15px}.lg{flex:1;min-width:0;font-size:13px}
+.hg{background:linear-gradient(135deg,rgba(18,183,106,.16),rgba(79,107,237,.16)),var(--card)}
 </style></head><body>
 <main id="app"><div id="msg"><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></main>
 <nav hidden><button data-t="home" class="on"><span>🏠</span>בית</button><button data-t="pv"><span>📊</span>ניתוח</button><button data-t="inv"><span>💎</span>נכסים</button><button data-t="more"><span>☰</span>עוד</button></nav>
@@ -93,7 +95,7 @@ async function load(){
     if(!S.ym||!S.exp.some(e=>e.ym==S.ym))S.ym=Math.max(...S.exp.map(e=>e.ym));if(!S.pv.from)setPr('12');
     try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
     try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
-    try{S.mort=parseMort(await getAny(['=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל.xlsx','סילוקין']))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
+    try{S.mort=parseMort(await getAny(['סילוקין','=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל.xlsx','=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל_1.xlsx','משכנתא']))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
     ls('data',JSON.stringify({exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,ym:S.ym}));S.rt2=0;
     $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&S.sub=='dc')loadFiles();
   }catch(e){if(/פג/.test(e.message)&&!S.rt2){S.rt2=1;if(await refresh())return load()}S.err=e.message;if(S.exp.length)draw();else msg('שגיאה: '+e.message+'<br><br><button class="go" data-sync>נסה שוב</button>')}
@@ -114,13 +116,13 @@ function home(){
   now=new Date(),days=Math.floor(S.ym/100)==now.getFullYear()&&S.ym%100==now.getMonth()+1?now.getDate():new Date(Math.floor(S.ym/100),S.ym%100,0).getDate(),
   big=m.reduce((a,e)=>e.a>(a.a||0)?e:a,{});
   return `<div class="mp"><button data-m="1" ${i>=ys.length-1?'disabled':''}>←</button><strong>${ymLb(S.ym)}</strong><button data-m="-1" ${i<=0?'disabled':''}>→</button></div>
-  <div class="card"><div class="lb">הוצאות החודש</div><div class="big">${fmt(tot)}</div>
+  <div class="card hg"><div class="lb">הוצאות החודש</div><div class="big">${fmt(tot)}</div>
   ${avg?`<span class="chip ${diff>0?'bad':''}">${diff>0?'↑':'↓'} ${fmt(Math.abs(diff))} ${diff>0?'יותר':'פחות'} מהממוצע</span>`:''}
   ${inc?`<div class="row s" style="margin-top:12px"><span class="lb">משכורת ${fmt(inc)}</span><b class="${inc-tot<0?'neg':'pos'}">נשאר ${fmt(inc-tot)}</b></div>`:''}
   <div class="trio"><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/days)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div><div><span class="lb">הכי גדולה</span><b>${fmt(big.a||0)}</b></div></div></div>
-  <div class="car"><div class="card sl"><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">הקו המקווקו הוא הממוצע ${fmt(avg)}</span><div class="bars">${avg?`<div class="avg" style="bottom:calc(${avg/mx*78}% + 19px)"></div>`:''}
-  ${last.map((y,k)=>`<div data-y="${y}" class="${y==S.ym?'on':''}">${y==S.ym?`<em>${fmt(sums[k])}</em>`:''}<b style="height:${Math.max(sums[k]/mx*78,3)}%"></b><small>${new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short'})}</small></div>`).join('')}</div></div>
-  ${xs()}</div><div class="dots">${[0,1,2,3,4].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0;
+  <div class="car">${donut(cs,tot)}<div class="card sl"><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">הקו המקווקו הוא הממוצע ${fmt(avg)}</span><div class="bars">${avg?`<div class="avg" style="bottom:calc(${avg/mx*78}% + 19px)"></div>`:''}
+  ${last.map((y,k)=>`<div data-y="${y}" class="${y==S.ym?'on':''}"><em>${S.hide?'':(sums[k]/1000).toFixed(1)+'K'}</em><b style="height:${Math.max(sums[k]/mx*78,3)}%;background:${avg&&sums[k]>avg?'linear-gradient(#fda4af,#f43f5e)':'linear-gradient(#6ee7b7,#10b981)'};opacity:${y==S.ym?1:.6}"></b><small>${new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short'})}</small></div>`).join('')}</div></div>
+  ${xs()}</div><div class="dots">${[0,1,2,3,4,5].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0;
   return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${c}</b><small>${Math.round(v/tot*100)}% מההוצאות</small></span>
   <span class="ca"><b>${fmt(v)}</b>${av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span></summary>
   <div class="bar"><i style="width:${v/cs[0][1]*100}%;background:${COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>`<div class="it"><span>${e.t}</span><span>${fmt(e.a)}</span></div>`).join('')}</details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
@@ -186,7 +188,7 @@ function dc0(){
 }
 function more(){
   if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc,mt}[S.sub]();
-  return [['ins','🛡️','ביטוח חיים','לוח תשלומים והתקדמות'],['cp','🎟️','קופונים','יתרות וקודים'],['dc','📁','מסמכים ותוקפים','דרכון, רישיון, ביטוחים ועוד'],['mt','🏠','משכנתא','יתרה, פעימות, תמהיל ולוח סילוקין מלא']].map(([k,i,t,s])=>`<button class="mn2" data-sub="${k}"><span class="ci" style="background:var(--gs)">${i}</span><span class="cn"><b>${t}</b><small>${s}</small></span>←</button>`).join('');
+  return [['mt','🏠','משכנתא','יתרה, פעימות, תמהיל ולוח סילוקין מלא'],['ins','🛡️','ביטוח חיים','לוח תשלומים והתקדמות'],['cp','🎟️','קופונים','יתרות וקודים'],['dc','📁','מסמכים ותוקפים','דרכון, רישיון, ביטוחים ועוד']].map(([k,i,t,s])=>`<button class="mn2" data-sub="${k}"><span class="ci" style="background:var(--gs)">${i}</span><span class="cn"><b>${t}</b><small>${s}</small></span>←</button>`).join('');
 }
 const greet=()=>{const h=new Date().getHours();return h<5?'לילה טוב':h<12?'בוקר טוב':h<18?'צהריים טובים':'ערב טוב'};
 function insights(cs,cav){
@@ -260,17 +262,20 @@ async function login(){
   cc.requestCode()}
 const brk=it=>{const m={};it.forEach(e=>{(m[e.t]=m[e.t]||{s:0,n:0}).s+=e.a;m[e.t].n++});const tot=T(it,'a')||1;
   return Object.entries(m).sort((a,b)=>b[1].s-a[1].s).map(([t,v])=>`<div style="padding-top:12px"><div class="row" style="padding:0"><span>${t}</span><b>${fmt(v.s)}</b></div><div class="row s mut" style="padding:0"><span>${v.n} פעולות · ממוצע ${fmt(v.s/v.n)}</span><span>${Math.round(v.s/tot*100)}%</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${v.s/tot*100}%;background:var(--g)"></i></div></div>`).join('')};
-function pmt(r,n,pv){return r?pv*r/(1-Math.pow(1+r,-n)):pv/n}
+function pmt(){}
 async function getAny(a){let er;for(const n of a){try{return await getFile(n)}catch(x){er=x;if(/פג/.test(x.message))throw x}}throw er}
 function parseMort(wb){
-  const J=(n,r)=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,range:r}),sm=J('סיכום ומצב נוכחי','A1:I30'),pl=J('פעימות ואימות מול הבנק','A1:I40'),sc=J('לוח סילוקין חודשי','A1:O370'),
-  D=x=>x instanceof Date?fix(x):null,frame=+sm[7][3];let cum=0;
-  return{bank:sm[5][3],val:+sm[6][3],frame,note:sm[26]&&sm[26][6],
-    mix:[16,17,18].map(i=>({n:sm[i][1],a:+sm[i][2],r:+sm[i][4],ix:sm[i][5],mech:sm[i][6],dr:+sm[i][7]})),
-    pulses:[6,7,8,9,10].map((i,k)=>{const r=pl[i],a=k==4?frame-cum:+r[3];cum+=a;return{n:r[1],d:k==4?D(sm[12][3]):D(r[2]),a,cum,t:r[6],st:String(r[7]||''),note:r[8]}}),
-    hist:pl.slice(15,31).filter(r=>typeof r[2]=='number').map(r=>({m:r[1],i:r[2],p:r[3],b:r[5],pu:r[6],e:r[7]})),
-    pay:sc.slice(5,365).filter(r=>typeof r[1]=='number').map(r=>({n:r[1],d:fix(r[2]),y:r[3],dr:r[4],pr:+r[6]||0,it:+r[7]||0,ix:+r[8]||0,tot:(+r[6]||0)+(+r[7]||0)+(+r[8]||0),bal:+r[12]||0})),
-    sim:J('סימולטור תרחישים ומחזור','A1:H12').slice(5,9).map(r=>({n:r[1],c:+r[2],m:+r[3],z:+r[4],f:+r[5]}))}}
+  const J=n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,range:'A1:O400'}),sm=J('סיכום ומצב נוכחי'),pl=J('פעימות ואימות מול הבנק'),sc=J('לוח סילוקין חודשי'),si=J('סימולטור תרחישים ומחזור'),
+  D=x=>x instanceof Date?fix(x):null,hr=(a,t)=>a.findIndex(r=>r&&r.some(c=>String(c||'').trim()==t)),
+  va=(a,t)=>{for(const r of a){const i=r?r.findIndex(c=>String(c||'').includes(t)):-1;if(i>=0)return r.slice(i+1).find(c=>c!==undefined&&c!==null&&c!=='')}},
+  frame=+va(sm,'סך מסגרת משכנתא מאושרת'),mi=hr(sm,'מסלול הלוואה'),pi=hr(pl,'מועד משיכה משוער'),hi=hr(pl,'תאריך חיוב בפועל'),ci=hr(sc,'תאריך חיוב'),ti=hr(si,'תרחיש כלכלי'),
+  ni=sm.findIndex(r=>r&&String(r[0]||'').includes('סה"כ תשלומים כוללים'));let cum=0;
+  return{bank:va(sm,'בנק וסניף'),val:+va(sm,'שווי נכס'),frame,note:ni>=0?[...sm[ni]].reverse().find(c=>typeof c=='string'&&c.length>20):'',
+    mix:[1,2,3].map(k=>{const r=sm[mi+k];return{n:r[0],a:+r[1],r:+r[3],ix:r[4],mech:r[5],dr:+r[6]}}),
+    pulses:[1,2,3,4,5].map(k=>{const r=pl[pi+k],a=+r[2];cum+=a;return{n:r[0],d:D(r[1]),a,cum,t:r[5],st:String(r[6]||''),note:r[7]}}),
+    hist:pl.slice(hi+1,hi+40).filter(r=>r&&typeof r[2]=='number'&&typeof r[3]=='number').map(r=>({m:r[1],i:r[2],p:r[3],b:r[5],pu:r[6],e:r[7]})),
+    pay:sc.slice(ci+1).filter(r=>r&&typeof r[0]=='number'&&r[1] instanceof Date).map(r=>({n:r[0],d:fix(r[1]),y:r[2],dr:+r[3]||0,pr:+r[5]||0,it:+r[6]||0,ix:+r[7]||0,tot:(+r[5]||0)+(+r[6]||0)+(+r[7]||0),bal:+r[11]||0})),
+    sim:[1,2,3,4].map(k=>{const r=si[ti+k]||[];return{n:r[0],mo:+r[5]||0,cost:+r[6]||0}}).filter(s=>s.n)}}
 function mt(){
   const M=S.mort;if(!M)return `<div class="card"><p>${S.mortErr||'לא נמצא קובץ המשכנתא בדרייב.'}</p></div>`;
   const now=new Date(),paid=M.pay.filter(p=>p.d<=now),nx=M.pay.find(p=>p.d>now),last=paid[paid.length-1]||{bal:0},pp=T(paid,'pr'),pi=T(paid,'it'),px=T(paid,'ix'),
@@ -292,7 +297,7 @@ function mt(){
   `<div class="card"><h2>עלות כוללת לכל חיי ההלוואה</h2><div class="big" style="font-size:34px">${fmt(gt)}</div><span class="lb">על מסגרת של ${fmt(M.frame)} · עלות מימון ${fmt(al.it+al.ix)}</span><div class="stack">${LT.map(x=>`<i style="width:${x[2]/gt*100}%;background:${x[3]}"></i>`).join('')}</div>${LT.map(x=>`<div class="row s"><span><i class="dot" style="background:${x[3]}"></i>${x[0]}</span><span class="mut">שולם ${fmt(x[1])} · נותר ${fmt(x[2]-x[1])}</span><b>${fmt(x[2])}</b></div>`).join('')}</div>`,
   `<div class="card"><h2>סיכום שנתי</h2><div class="tw"><table><tr><th>שנה</th><th>תקופה</th><th>חודשי</th><th>קרן</th><th>ריבית</th><th>הצמדה</th><th>סה״כ</th><th>יתרה</th><th>סילוק</th></tr>${yrs.map(y=>{const a=gy(y),e=a[a.length-1];return `<tr style="${cur(a)?'font-weight:700':''}"><td>${y}</td><td>${mm(a[0].d)}–${mm(e.d)}</td><td>${nf(T(a,'tot')/a.length)}</td><td>${nf(T(a,'pr'))}</td><td>${nf(T(a,'it'))}</td><td>${nf(T(a,'ix'))}</td><td>${nf(T(a,'tot'))}</td><td>${nf(e.bal)}</td><td>${Math.round((1-e.bal/M.frame)*100)}%</td></tr>`}).join('')}</table></div></div>`,
   `<div class="card"><h2>לוח סילוקין חודשי</h2><span class="lb">לחץ על שנה לפתיחה · ✓ שולם · ▶ התשלום הבא</span>${yrs.map(y=>{const a=gy(y);return `<details ${cur(a)?'open':''} class="ct"><summary><span>שנה ${y} · ${mm(a[0].d)}–${mm(a[a.length-1].d)}</span><b>${fmt(a[a.length-1].bal)}</b></summary><div class="tw"><table><tr><th>חודש</th><th>קרן</th><th>ריבית</th><th>הצמדה</th><th>סה״כ</th><th>יתרה</th></tr>${a.map(p=>`<tr><td>${p.d<=now?'✓':p==nx?'▶':''} ${mm(p.d)}</td><td>${nf(p.pr)}</td><td>${nf(p.it)}</td><td>${nf(p.ix)}</td><td><b>${nf(p.tot)}</b></td><td>${nf(p.bal)}</td></tr>`).join('')}</table></div></details>`}).join('')}</div>`,
-  `<div class="card"><h2>סימולטור תרחישים</h2><span class="lb">רגישות לשינויי ריבית ומדד, לפי הנוסחה שבקובץ</span><div class="tw"><table><tr><th>תרחיש</th><th>חודשי ממוצע</th><th>עלות ריבית והצמדה</th></tr>${M.sim.map(s=>{const g=pmt(s.c/12,360,M.mix[0].a)+pmt(s.m/12,360,M.mix[1].a)+pmt(s.z/12,360,M.mix[2].a)*(1+s.f*12);return `<tr><td>${s.n}</td><td><b>${nf(g)}</b></td><td>${nf(g*360-M.frame)}</td></tr>`}).join('')}</table></div></div>`].join('');
+  `<div class="card"><h2>סימולטור תרחישים</h2><span class="lb">רגישות לשינויי ריבית ומדד, לפי הנתונים שבקובץ</span><div class="tw"><table><tr><th>תרחיש</th><th>חודשי ממוצע</th><th>עלות ריבית והצמדה</th></tr>${M.sim.map(s=>`<tr><td>${s.n}</td><td><b>${nf(s.mo)}</b></td><td>${nf(s.cost)}</td></tr>`).join('')}</table></div></div>`].join('');
 }
 function pxs(rs,tot,nmo,d,P,all){
   const R=P.rows,top=rs.slice(0,5),n=all.filter(y=>y>=P.from&&y<=P.to),k=n.length,i0=all.indexOf(n[0]),prev=all.slice(Math.max(0,i0-k),i0),
@@ -301,6 +306,12 @@ function pxs(rs,tot,nmo,d,P,all){
   <div class="card sl"><h2>לעומת התקופה הקודמת</h2>${prev.length?`<span class="lb">${prev.length} החודשים שלפני הטווח שנבחר</span><div class="row"><span class="lb">בטווח</span><b>${fmt(tot)}</b></div><div class="row"><span class="lb">קודם</span><b>${fmt(pt)}</b></div>${pt?`<span class="chip ${tot>pt?'bad':''}">${tot>pt?'↑':'↓'} ${fmt(Math.abs(tot-pt))} (${pct((tot-pt)/pt*100)})</span>`:''}<div class="row s" style="margin-top:8px"><span class="lb">ממוצע חודשי</span><span>${fmt(tot/nmo)} לעומת ${fmt(pt/prev.length)}</span></div>`:'<p class="mut">אין נתונים לתקופה קודמת.</p>'}</div>
   <div class="card sl"><h2>ההוצאות הגדולות בטווח</h2>${big.map(e=>`<div class="row s"><span>${e.t} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')||'<p class="mut">אין נתונים.</p>'}</div>`;
 }
+function donut(cs,tot){
+  if(!tot)return `<div class="card sl"><h2>לאן הלך הכסף</h2><p class="mut">אין הוצאות בחודש הזה.</p></div>`;
+  const rest=cs.slice(6).reduce((s,x)=>s+x[1],0),seg=[...cs.slice(0,6).map(([c,v],k)=>[c,v,COL[k]]),...(rest?[['אחר',rest,'#94a3b8']]:[])];let acc=0;
+  const g=seg.map(([c,v,col])=>{const a=acc/tot*100;acc+=v;return col+' '+a+'% '+acc/tot*100+'%'}).join(',');
+  return `<div class="card sl"><h2>לאן הלך הכסף</h2><div class="dn"><div class="donut" style="background:conic-gradient(${g})"><div><span class="mut">סה״כ</span><b>${fmt(tot)}</b></div></div>
+  <div class="lg">${seg.map(([c,v,col])=>`<div class="row s" style="padding:3px 0"><span><i class="dot" style="background:${col}"></i>${c}</span><b>${Math.round(v/tot*100)}%</b></div>`).join('')}</div></div></div>`}
 document.addEventListener('change',e=>{const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}});
 function ins0(){
   const I=S.ins;if(!I)return `<div class="card"><p>${S.insErr||'הנתון זמין אחרי סנכרון עם הדרייב.'}</p></div>`;
