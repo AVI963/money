@@ -54,6 +54,8 @@ input[data-q]{flex:1;min-width:150px;font:inherit;font-size:14px;padding:8px 12p
 .dots{display:flex;justify-content:center;gap:6px;margin:0 0 6px}.dots i{width:7px;height:7px;border-radius:4px;background:var(--line);transition:.2s}.dots i.on{background:var(--g);width:18px}#dr{scroll-margin-top:8px}
 .dn{display:flex;align-items:center;gap:14px}.donut{flex:none;width:148px;height:148px;border-radius:50%;position:relative}.donut>div{position:absolute;inset:24px;background:var(--card);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:12px}.donut b{font-size:15px}.lg{flex:1;min-width:0;font-size:13px}
 .hg{background:linear-gradient(135deg,rgba(18,183,106,.16),rgba(79,107,237,.16)),var(--card)}
+.stp{display:flex;align-items:center;gap:12px}.stp b{min-width:22px;text-align:center}.stp .chip2{width:34px;height:34px;padding:0;font-size:18px}
+input[data-sw]{width:100px;font:inherit;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);text-align:center}
 </style></head><body>
 <main id="app"><div id="msg"><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></main>
 <nav hidden><button data-t="home" class="on"><span>🏠</span>בית</button><button data-t="pv"><span>📊</span>ניתוח</button><button data-t="inv"><span>💎</span>נכסים</button><button data-t="more"><span>☰</span>עוד</button></nav>
@@ -65,7 +67,7 @@ const FILES={exp:'סך הוצאת משק בית',inv:'תיק השקעות',ins:'
 const COL=['#4f6bed','#12b76a','#f79009','#ee46bc','#06aed4','#84cc16','#f04438','#9e77ed'];
 const ICO=[[/דיור|שכר|משכנת/,'🏠'],[/סופר|מזון|אוכל|מכולת/,'🛒'],[/מסעד|קפה|משלוח/,'🍽️'],[/רכב|דלק|תחבור|חני/,'🚗'],[/בריאות|רפוא|תרופ/,'💊'],[/טיפוח|ספא|שיער/,'💅'],[/בילוי|פנאי|חופש|טיול/,'🎬'],[/ביגוד|בגד|הנעל/,'👕'],[/חשמל|מים|ארנונה|גז/,'💡'],[/תקשור|סלולר|אינטרנט|טלפון/,'📱'],[/לימוד|חינוך|קורס/,'🎓'],[/מתנ|שונות/,'🎁']];
 const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],cp:[],ins:null,ym:0,tab:'home',sub:'',dcf:'',hide:false,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};let token,tcl;
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,ym:0,tab:'home',sub:'',dcf:'',hide:false,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};let token,tcl;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const fmt=n=>S.hide?'₪•••':(n<0?'-':'')+'₪'+Math.round(Math.abs(n)).toLocaleString('he-IL'),pct=n=>(n>0?'+':'')+n.toFixed(1)+'%';
 const fix=d=>new Date(d.getTime()+432e5),ymOf=d=>{d=fix(d);return d.getFullYear()*100+d.getMonth()+1};
@@ -86,18 +88,18 @@ async function load(){
   if(!S.exp.length)msg('טוען נתונים מהדרייב...');
   try{
     const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי'],{header:1,raw:true});
-    S.exp=[];S.mon=[];S.cp=[];S.err='';
+    S.exp=[];S.mon=[];S.cp=[];S.err='';S.bud={};S.sal=null;
     rows.slice(1).forEach(x=>{
       if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date)S.exp.push({t:x[0],a:x[1],c:x[2],ym:ymOf(x[4])});
       if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
       if(x[21]&&typeof x[22]==='number'&&!String(x[21]).startsWith('סה'))S.cp.push({n:x[21],a:x[22],c:String(x[23]||'')});
     });
-    if(!S.ym||!S.exp.some(e=>e.ym==S.ym))S.ym=Math.max(...S.exp.map(e=>e.ym));if(!S.pv.from)setPr('12');
+    parseExtra(wb);if(!S.ym||!S.exp.some(e=>e.ym==S.ym))S.ym=Math.max(...S.exp.map(e=>e.ym));if(!S.pv.from)setPr('12');
     try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
     try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
     try{S.mort=parseMort(await getAny(['סילוקין','=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל.xlsx','=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל_1.xlsx','משכנתא']))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
-    ls('data',JSON.stringify({exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,ym:S.ym}));S.rt2=0;
-    $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&S.sub=='dc')loadFiles();
+    ls('data',JSON.stringify({exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,bud:S.bud,ym:S.ym}));S.rt2=0;
+    $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&S.sub=='dc')loadFiles();quotes();
   }catch(e){if(/פג/.test(e.message)&&!S.rt2){S.rt2=1;if(await refresh())return load()}S.err=e.message;if(S.exp.length)draw();else msg('שגיאה: '+e.message+'<br><br><button class="go" data-sync>נסה שוב</button>')}
 }
 function parseIns(wb){
@@ -119,13 +121,13 @@ function home(){
   <div class="card hg"><div class="lb">הוצאות החודש</div><div class="big">${fmt(tot)}</div>
   ${avg?`<span class="chip ${diff>0?'bad':''}">${diff>0?'↑':'↓'} ${fmt(Math.abs(diff))} ${diff>0?'יותר':'פחות'} מהממוצע</span>`:''}
   ${inc?`<div class="row s" style="margin-top:12px"><span class="lb">משכורת ${fmt(inc)}</span><b class="${inc-tot<0?'neg':'pos'}">נשאר ${fmt(inc-tot)}</b></div>`:''}
-  <div class="trio"><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/days)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div><div><span class="lb">הכי גדולה</span><b>${fmt(big.a||0)}</b></div></div></div>
+  ${(()=>{const b=Object.values(S.bud).reduce((x,y)=>x+y,0);return b?`<div class="row s" style="margin-top:10px"><span class="lb">תקציב חודשי ${fmt(b)}</span><b class="${tot>b?'neg':'pos'}">${tot>b?'חריגה '+fmt(tot-b):'נשאר '+fmt(b-tot)}</b></div>`:''})()}<div class="trio"><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/days)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div><div><span class="lb">הכי גדולה</span><b>${fmt(big.a||0)}</b></div></div></div>
   <div class="car">${donut(cs,tot)}<div class="card sl"><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">הקו המקווקו הוא הממוצע ${fmt(avg)}</span><div class="bars">${avg?`<div class="avg" style="bottom:calc(${avg/mx*78}% + 19px)"></div>`:''}
   ${last.map((y,k)=>`<div data-y="${y}" class="${y==S.ym?'on':''}"><em>${S.hide?'':(sums[k]/1000).toFixed(1)+'K'}</em><b style="height:${Math.max(sums[k]/mx*78,3)}%;background:${avg&&sums[k]>avg?'linear-gradient(#fda4af,#f43f5e)':'linear-gradient(#6ee7b7,#10b981)'};opacity:${y==S.ym?1:.6}"></b><small>${new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short'})}</small></div>`).join('')}</div></div>
-  ${xs()}</div><div class="dots">${[0,1,2,3,4,5].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0;
+  ${xs()}</div><div class="dots">${[0,1,2,3,4,5].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0;
   return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${c}</b><small>${Math.round(v/tot*100)}% מההוצאות</small></span>
-  <span class="ca"><b>${fmt(v)}</b>${av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span></summary>
-  <div class="bar"><i style="width:${v/cs[0][1]*100}%;background:${COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>`<div class="it"><span>${e.t}</span><span>${fmt(e.a)}</span></div>`).join('')}</details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
+  <span class="ca"><b>${fmt(v)}</b>${bg?`<small class="${v>bg?'neg':'pos'}">${v>bg?'חריגה '+fmt(v-bg):'נשאר '+fmt(bg-v)} מתוך ${fmt(bg)}</small>`:av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span></summary>
+  <div class="bar"><i style="width:${bg?Math.min(v/bg*100,100):v/cs[0][1]*100}%;background:${bg&&v>bg?'var(--r)':COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>`<div class="it"><span>${e.t}</span><span>${fmt(e.a)}</span></div>`).join('')}</details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
 }
 function inv0(){
   if(!S.inv.length)return `<div class="card"><p>${S.invErr||'לא נמצאו נתוני השקעות.'}</p></div>`;
@@ -137,7 +139,7 @@ function inv0(){
   <p class="mut" style="margin:10px 0 0">הערכה בלבד: מס 25% על הרווח הכולל, בלי הצמדה למדד ובלי עמלות.</p></div>`+
   Object.entries(acc).map(([n,a],k)=>{const v=T(a,'שווי ₪'),c=T(a,'עלות ₪');
   return `<div class="card"><div class="row"><h2 style="margin:0">${n}</h2><b>${fmt(v)}</b></div><div class="row s"><span class="mut">תשואה</span><b class="${v<c?'neg':'pos'}">${pct((v-c)/c*100)}</b></div>
-  ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-r['עלות ₪'],sh=r['שווי ₪']/v*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${r['שם']}</span><b>${fmt(r['שווי ₪'])}</b></div>
+  ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-r['עלות ₪'],sh=r['שווי ₪']/v*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${r['שם']}${r.live?' <small class="pos">● חי</small>':''}</span><b>${fmt(r['שווי ₪'])}</b></div>
   <div class="row s mut" style="padding:0"><span>${sh.toFixed(0)}% מהחשבון</span><span class="${g<0?'neg':'pos'}">${fmt(g)}</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${sh}%;background:${COL[k*3%8]}"></i></div></div>`}).join('')}</div>`}).join('');
 }
 const pk=e=>S.pv.by=='y'?Math.floor(e.ym/100):e.ym,nf=n=>S.hide?'•••':Math.round(n).toLocaleString('he-IL');
@@ -172,7 +174,7 @@ function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!
   return `<div class="card"><div class="lb">שווי נקי כולל (השקעות וחיסכון פנסיוני)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
   <div class="trio"><div><span class="lb">השקעות</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה, גמל והשתלמות</span><b>${fmt(p)}</b></div></div></div>`}
 function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${r['שם']} <span class="mut">${r['סוג']||''}</span></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
-function inv(){return nw()+inv0()+penCard()}
+function inv(){return (S.qt?`<p class="mut" style="margin:4px 6px">● מחירים חיים עודכנו ב-${S.qt}</p>`:'')+nw()+inv0()+penCard()}
 function dc0(){
   const now=new Date(),F=S.files,files=F&&F.out?F.out:null,docs=S.docs.map(d=>({...d,k:String(d['שם']||'').replace(/\(.*?\)/g,'').trim().toLowerCase()})).filter(d=>d.k),used=new Set(),
   mk=d=>({cat:d['קטגוריה']||'',who:d['אדם']||'',x:d['תוקף עד']?new Date(d['תוקף עד']):null,sens:d['רגיש']=='כן'});let L=[];
@@ -187,8 +189,8 @@ function dc0(){
     return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${d.n}${d.sens?' 🔒':''}</b><div class="mut">${[d.who,d.cat,d.x?dl(d.x):'',d.missing?'⚠ אין קובץ בדרייב':''].filter(Boolean).join(' · ')}</div></div>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:d.od?`<button class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:''}</div>`}).join('');
 }
 function more(){
-  if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc,mt}[S.sub]();
-  return [['mt','🏠','משכנתא','יתרה, פעימות, תמהיל ולוח סילוקין מלא'],['ins','🛡️','ביטוח חיים','לוח תשלומים והתקדמות'],['cp','🎟️','קופונים','יתרות וקודים'],['dc','📁','מסמכים ותוקפים','דרכון, רישיון, ביטוחים ועוד']].map(([k,i,t,s])=>`<button class="mn2" data-sub="${k}"><span class="ci" style="background:var(--gs)">${i}</span><span class="cn"><b>${t}</b><small>${s}</small></span>←</button>`).join('');
+  if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc,mt,sl}[S.sub]();
+  return [['mt','🏠','משכנתא','יתרה, פעימות, תמהיל ולוח סילוקין מלא'],['ins','🛡️','ביטוח חיים','לוח תשלומים והתקדמות'],['cp','🎟️','קופונים','יתרות וקודים'],['dc','📁','מסמכים ותוקפים','דרכון, רישיון, ביטוחים ועוד'],['sl','🧮','מחשבון שכר פריאל','משמרות, ברוטו, מס ושכר נטו']].map(([k,i,t,s])=>`<button class="mn2" data-sub="${k}"><span class="ci" style="background:var(--gs)">${i}</span><span class="cn"><b>${t}</b><small>${s}</small></span>←</button>`).join('');
 }
 const greet=()=>{const h=new Date().getHours();return h<5?'לילה טוב':h<12?'בוקר טוב':h<18?'צהריים טובים':'ערב טוב'};
 function insights(cs,cav){
@@ -312,6 +314,51 @@ function donut(cs,tot){
   const g=seg.map(([c,v,col])=>{const a=acc/tot*100;acc+=v;return col+' '+a+'% '+acc/tot*100+'%'}).join(',');
   return `<div class="card sl"><h2>לאן הלך הכסף</h2><div class="dn"><div class="donut" style="background:conic-gradient(${g})"><div><span class="mut">סה״כ</span><b>${fmt(tot)}</b></div></div>
   <div class="lg">${seg.map(([c,v,col])=>`<div class="row s" style="padding:3px 0"><span><i class="dot" style="background:${col}"></i>${c}</span><b>${Math.round(v/tot*100)}%</b></div>`).join('')}</div></div></div>`}
+function fev(f,get){
+  const T=f.replace(/\s+/g,'').replace(/^=/,'').match(/\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?|\d*\.?\d+%?|[A-Z]+(?=\()|<=|>=|<>|[-+*\/^(),<>=]/g)||[];let i=0;
+  const cn=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s},cc=s=>s.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0),
+  ref=s=>{const [a,b]=s.replace(/\$/g,'').split(':'),p=x=>[cc(x.match(/[A-Z]+/)[0]),+x.match(/\d+/)[0]],A1=p(a),B1=b?p(b):A1,o=[];for(let r=A1[1];r<=B1[1];r++)for(let c=A1[0];c<=B1[0];c++)o.push(get(cn(c)+r));return o};
+  let E,A,M,P,U,V;
+  E=()=>{const a=A(),o=T[i];if(['<','<=','>','>=','=','<>'].includes(o)){i++;const b=A();return o=='<'?a<b:o=='<='?a<=b:o=='>'?a>b:o=='>='?a>=b:o=='='?a==b:a!=b}return a};
+  A=()=>{let a=M();while(T[i]=='+'||T[i]=='-'){const o=T[i++],b=M();a=o=='+'?a+b:a-b}return a};
+  M=()=>{let a=P();while(T[i]=='*'||T[i]=='/'){const o=T[i++],b=P();a=o=='*'?a*b:a/b}return a};
+  P=()=>{let a=U();while(T[i]=='^'){i++;a=Math.pow(a,U())}return a};
+  U=()=>T[i]=='-'?(i++,-U()):T[i]=='+'?(i++,U()):V();
+  V=()=>{const t=T[i++];if(t=='('){const v=E();i++;return v}
+    if(/^\d|^\./.test(t))return t.endsWith('%')?parseFloat(t)/100:parseFloat(t);
+    if(/^[A-Z]+$/.test(t)){i++;const args=[];if(T[i]!=')'){do{if(T[i]==',')i++;args.push(E())}while(T[i]==',')}i++;const n=t,fl=args.flat();
+      return n=='SUM'?fl.reduce((s,x)=>s+(+x||0),0):n=='MAX'?Math.max(...fl.map(x=>+x||0)):n=='MIN'?Math.min(...fl.map(x=>+x||0)):n=='IF'?(args[0]?args[1]:args[2]):n=='ABS'?Math.abs(args[0]):n=='ROUND'?Math.round(args[0]*Math.pow(10,args[1]||0))/Math.pow(10,args[1]||0):0}
+    return t.includes(':')?ref(t):get(t.replace(/\$/g,''))};
+  return E()}
+
+function parseExtra(wb){S.bud={};
+  const bs=wb.Sheets['תקציב'];if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1]});
+  const ws=wb.Sheets['ראשי'],c={};for(let r=40;r<=75;r++)for(const l of 'KLMNO'){const x=ws[l+r];if(x)c[l+r]={v:x.v,f:x.f}}S.sal=c}
+let sv=null;try{sv=JSON.parse(ls('salv'))}catch(e){}
+function salCalc(ov){const C=S.sal||{},m={},get=a=>{if(a in ov)return ov[a];if(a in m)return m[a];const c=C[a];if(!c)return 0;m[a]=c.f?fev(c.f,get):(typeof c.v=='number'?c.v:0);return m[a]};return get}
+function salMap(){
+  const C=S.sal;if(!C)return null;const f=t=>Object.keys(C).find(a=>String(C[a].v||'').includes(t)),a1=f('משמרת בוקר'),aw=f('שכר לשעה'),a2=f('הסכמי שכר'),a3=f('ברוטו');if(!a1||!aw||!a2||!a3)return null;
+  const r1=+a1.slice(1),r2=+a2.slice(1),r3=+a3.slice(1),L='KLMNO',wa=L.slice(L.indexOf(aw[0])+1).split('').map(c=>c+aw.slice(1)).find(a=>C[a]&&typeof C[a].v=='number'),nm=(c,r)=>String(C[c+r]&&C[c+r].v||'').trim();
+  return{wage:wa,sh:'KLMN'.split('').map(c=>({n:nm(c,r1),cA:c+(r1+1),rA:c+(r1+2),tA:c+(r1+3)})).filter(s=>s.n),shiftTot:'O'+(r1+3),
+    ad:'KLMN'.split('').map(c=>({n:nm(c,r2),a:c+(r2+1)})).filter(x=>x.n),addTot:'O'+(r2+1),ded:'LMN'.split('').map(c=>({n:nm(c,r3),a:c+(r3+1)})).filter(x=>x.n),gross:'K'+(r3+1),net:'O'+(r3+1)}}
+function sl(){
+  const M=salMap();if(!M)return `<div class="card"><p>לא נמצא מחשבון השכר בגיליון ראשי של קובץ ההוצאות.${S.exp.length?'':' סנכרן עם הדרייב.'}</p></div>`;
+  const base=salCalc({}),w0=+base(M.wage)||0;
+  if(!sv||!sv.c||sv.c.length!=M.sh.length)sv={c:M.sh.map(s=>+base(s.cA)||0),w:w0};
+  const ov={[M.wage]:+sv.w||w0};M.sh.forEach((s,k)=>ov[s.cA]=sv.c[k]);
+  const g=salCalc(ov),n=g(M.net),gr=g(M.gross),n0=base(M.net),cnt=sv.c.reduce((a,b)=>a+b,0),mg=M.sh.map((s,k)=>salCalc({...ov,[s.cA]:sv.c[k]+1})(M.net)-n);
+  return [`<div class="card hg"><div class="lb">מחשבון שכר פריאל</div><div class="lb">שכר נטו חזוי</div><div class="big">${fmt(n)}</div><span class="chip">${fmt(gr)} ברוטו</span><div class="row s" style="margin-top:10px"><span class="lb">בקובץ האקסל כרגע</span><b>${fmt(n0)}</b></div></div>`,
+  `<div class="card"><h2>משמרות החודש</h2><span class="lb">שינוי כאן נשמר במכשיר בלבד ולא משנה את האקסל</span>${M.sh.map((s,k)=>`<div class="row" style="align-items:center;padding:10px 0;border-top:1px solid var(--line)"><div><b>${s.n}</b><div class="mut">${fmt(g(s.rA))} למשמרת · נטו נוסף ${fmt(mg[k])}</div></div><div class="stp"><button class="chip2" data-sc="${k}:-1">−</button><b>${sv.c[k]}</b><button class="chip2" data-sc="${k}:1">+</button></div><b style="min-width:72px;text-align:end">${fmt(g(s.tA))}</b></div>`).join('')}
+  <div class="row" style="align-items:center;margin-top:8px"><span class="lb">שכר לשעה</span><input type="number" step="0.01" data-sw value="${ov[M.wage]}"></div><button class="chip2" data-sreset style="margin-top:8px">אפס לערכי האקסל</button></div>`,
+  `<div class="card"><h2>פירוט</h2><div class="row s"><span>משמרות (${cnt})</span><b>${fmt(g(M.shiftTot))}</b></div>${M.ad.map(x=>`<div class="row s mut"><span>${x.n}</span><span>${fmt(g(x.a))}</span></div>`).join('')}<div class="row s"><span>סה״כ הוספות</span><b>${fmt(g(M.addTot))}</b></div><div class="row" style="border-top:1px solid var(--line)"><b>ברוטו</b><b>${fmt(gr)}</b></div>${M.ded.map(x=>`<div class="row s"><span>${x.n}</span><b class="neg">${fmt(g(x.a))}</b></div>`).join('')}<div class="row" style="border-top:1px solid var(--line)"><b>שכר נטו</b><b class="pos">${fmt(n)}</b></div></div>`,
+  `<div class="card"><h2>תובנות</h2><div class="row s"><span class="lb">ניכויים מהברוטו</span><b>${gr?((1-n/gr)*100).toFixed(1):0}%</b></div><div class="row s"><span class="lb">נטו ממוצע למשמרת</span><b>${cnt?fmt(n/cnt):'—'}</b></div></div>`].join('')}
+async function quotes(){
+  if(!S.inv.length)return;
+  try{const id=r=>String(r['מספר נייר']||'').trim(),ids=[...new Set(S.inv.map(id).filter(Boolean))],j=await(await fetch(W+'/quote?ids='+encodeURIComponent(ids.join(',')))).json(),fx=j.fx&&+j.fx.USDILS,Q=j.quotes||{};let n=0;
+    S.inv.forEach(r=>{const q=Q[id(r)];if(!q||!(+q.price>0))return;const u=q.cur=='USD'?(fx?q.price*fx:0):q.cur=='ILA'?q.price/100:+q.price;if(u>0){r['שווי ₪']=+(u*(+r['כמות']||0)).toFixed(2);r.live=1;n++}});
+    if(n){S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});if(S.tab=='inv'||S.tab=='home')draw()}}catch(e){}}
+setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
+document.addEventListener('change',e=>{if(e.target.dataset.sw!==undefined&&sv){sv.w=+e.target.value;ls('salv',JSON.stringify(sv));draw()}});
 document.addEventListener('change',e=>{const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}});
 function ins0(){
   const I=S.ins;if(!I)return `<div class="card"><p>${S.insErr||'הנתון זמין אחרי סנכרון עם הדרייב.'}</p></div>`;
@@ -338,6 +385,8 @@ document.addEventListener('click',e=>{
   if('sync'in b.dataset)login();
   if('eye'in b.dataset){S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
   if(b.dataset.t){S.tab=b.dataset.t;S.sub='';draw();scrollTo(0,0)}
+  if(b.dataset.sc){const [k,d]=b.dataset.sc.split(':');sv.c[+k]=Math.max(0,sv.c[+k]+ +d);ls('salv',JSON.stringify(sv));draw();return}
+  if('sreset'in b.dataset){sv=null;ls('salv',null);draw();return}
   if(b.dataset.pr){setPr(b.dataset.pr);draw()}
   if(b.dataset.by){S.pv.by=b.dataset.by;S.pv.dr=null;draw()}
   if(b.dataset.rows){S.pv.rows=b.dataset.rows;S.pv.dr=null;draw()}
