@@ -43,7 +43,37 @@ header button.spin svg{animation:rot .8s linear infinite}
 
 /* Cards */
 .card{background:var(--card);border:1px solid var(--bd);border-radius:24px;padding:18px;margin:12px 0;box-shadow:var(--sh)}
-.hg{background:radial-gradient(120% 100% at 0% 0%,rgba(16,185,129,.15) 0%,rgba(79,107,237,.11) 52%,transparent 100%),var(--card)}
+.hg{background:radial-gradient(120% 100% at 0% 0%,rgba(16,185,129,.16) 0%,rgba(79,107,237,.11) 52%,transparent 100%),var(--card);transition:background .35s ease}
+.hg.warn{background:radial-gradient(120% 100% at 0% 0%,rgba(245,158,11,.17) 0%,rgba(16,185,129,.09) 55%,transparent 100%),var(--card)}
+.hg.bad{background:radial-gradient(120% 100% at 0% 0%,rgba(239,68,68,.16) 0%,rgba(245,158,11,.10) 55%,transparent 100%),var(--card)}
+
+/* Smart Dynamic Pill (iOS style) */
+.dpill{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card);border:1px solid var(--bd);border-radius:99px;padding:7px 14px;margin:2px 0 12px;font-size:12.5px;font-weight:600;box-shadow:var(--sh)}
+.dpill .dp-main{display:flex;align-items:center;gap:8px;min-width:0}
+.dpill .dp-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 0 3px var(--gs)}
+.dpill.warn .dp-dot{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.dpill.bad .dp-dot{background:var(--r);box-shadow:0 0 0 3px var(--rs)}
+.dpill .dp-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dpill .dp-sub{flex:none;font-size:11.5px;color:var(--mut);font-weight:500}
+
+/* RiseUp Monthly Variable Pace Bar + Today Marker */
+.pace-box{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.pace-hdr{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:8px}
+.pace-track{position:relative;height:10px;border-radius:99px;background:var(--line);overflow:visible}
+.pace-fill{height:100%;border-radius:99px;background:var(--g);transition:width .4s cubic-bezier(.22,1,.36,1),background-color .3s}
+.pace-fill.warn{background:#f59e0b}
+.pace-fill.bad{background:var(--r)}
+.pace-now{position:absolute;top:-4px;bottom:-4px;width:2.5px;background:var(--ink);border-radius:2px;z-index:2;transform:translateX(50%)}
+.pace-now-lbl{position:absolute;top:-18px;transform:translateX(50%);font-size:10px;font-weight:700;color:var(--ink);white-space:nowrap;background:var(--card);padding:0 4px;border-radius:4px;border:1px solid var(--bd)}
+.pace-ft{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin-top:6px;font-variant-numeric:tabular-nums}
+
+/* Apple Health Quiet Trends */
+.tr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.tr-row:first-of-type{border-top:0;padding-top:4px}
+.tr-info{flex:1;min-width:0}
+.tr-info b{display:block;font-size:13.5px}
+.tr-info small{display:block;font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-spk{flex:none;width:68px;height:24px}
 
 /* Month Picker */
 .mp{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 14px}
@@ -211,7 +241,7 @@ async function load(){
     rows.slice(1).forEach(x=>{
       if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date)S.exp.push({t:x[0],a:x[1],c:x[2],ym:ymOf(x[4])});
       if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
-      if(x[21]&&typeof x[22]==='number'&&!String(x[21]).startsWith('סה'))S.cp.push({n:x[21],a:x[22],c:String(x[23]||'')});
+      if(x[23]&&typeof x[24]==='number'&&!String(x[23]).startsWith('סה'))S.cp.push({n:x[23],a:x[24],c:String(x[25]||'')});
     });
     parseExtra(wb);if(!S.ym||!S.exp.some(e=>e.ym==S.ym))S.ym=Math.max(...S.exp.map(e=>e.ym));if(!S.pv.from)setPr('12');
     try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
@@ -257,28 +287,123 @@ function areaChart(pts,opts={}){
     ${opts.showLabels!==false?`<div class="xlabs">${[...coords].reverse().map(c=>`<span class="${c.on?'on':''}" ${c.ym?`data-y="${c.ym}"`:''} style="cursor:pointer">${c.lb}</span>`).join('')}</div>`:''}
   </div>`;
 }
+const isRent=e=>/שכר דירה|שכ["״]?ד|משכנתא/.test(String(e.t||''));
+function sparkSvg(vals,col){
+  if(!vals||vals.length<2)return '';
+  const W=68,H=24,p=3,mx=Math.max(...vals,1),mn=Math.min(...vals,0),sp=Math.max(mx-mn,1);
+  const pts=vals.map((v,i)=>{
+    const x=p+(i/(vals.length-1))*(W-p*2);
+    const y=H-p-((v-mn)/sp)*(H-p*2);
+    return [x.toFixed(1),y.toFixed(1)];
+  });
+  const d='M '+pts.map(a=>a.join(' ')).join(' L ');
+  const last=pts[pts.length-1];
+  return `<svg class="tr-spk" viewBox="0 0 ${W} ${H}"><path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0]}" cy="${last[1]}" r="2.8" fill="${col}"/></svg>`;
+}
+function trendsCard(ys,i){
+  const win=ys.slice(Math.max(0,i-5),i+1);
+  if(win.length<4)return `<div class="card sl"><h2>מגמות שקטות</h2><p class="mut">נדרשים לפחות 4 חודשי נתונים לזיהוי מגמות.</p></div>`;
+  const mid=Math.floor(win.length/2),prevYms=win.slice(0,mid),recYms=win.slice(mid);
+  const cats=[...new Set(S.exp.filter(e=>win.includes(e.ym)&&!isRent(e)).map(e=>e.c))];
+  const items=cats.map(c=>{
+    const ser=win.map(y=>T(S.exp.filter(e=>e.ym==y&&e.c==c&&!isRent(e)),'a'));
+    const a1=ser.slice(0,mid).reduce((s,x)=>s+x,0)/prevYms.length;
+    const a2=ser.slice(mid).reduce((s,x)=>s+x,0)/recYms.length;
+    const diff=a2-a1,pctCh=a1>20?(diff/a1)*100:0;
+    return{c,ser,a1,a2,diff,pctCh,abs:Math.abs(diff)};
+  }).filter(x=>x.a1+x.a2>80&&x.abs>25).sort((a,b)=>b.abs-a.abs).slice(0,4);
+  if(!items.length)return `<div class="card sl"><h2>מגמות שקטות</h2><p class="mut">ההוצאות השוטפות יציבות מאוד ביחס לרבעון הקודם.</p></div>`;
+  return `<div class="card sl"><div class="row"><h2>מגמות שקטות</h2><small class="mut">${recYms.length} חוד׳ מול ${prevYms.length} קודמים</small></div><span class="lb">שינויים בקצב השוטף (ללא שכר דירה)</span>${items.map(it=>{
+    const up=it.diff>0,col=up?(it.pctCh>18?'#ef4444':'#f59e0b'):'#10b981';
+    const desc=up?`עלייה של ${fmt(it.diff)}/חודש${it.pctCh?` (${Math.round(it.pctCh)}%)`:''}`:`ירידה של ${fmt(-it.diff)}/חודש${it.pctCh?` (${Math.abs(Math.round(it.pctCh))}%)`:''}`;
+    return `<div class="tr-row"><span class="ci" style="width:36px;height:36px;font-size:17px;border-radius:12px;background:${col}1a">${ico(it.c)}</span><div class="tr-info"><b>${it.c}</b><small>${desc}</small></div>${sparkSvg(it.ser,col)}</div>`;
+  }).join('')}</div>`;
+}
 function home(){
   const ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b),i=ys.indexOf(S.ym),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),
-  m=S.exp.filter(e=>e.ym==S.ym),tot=sy(S.ym),pm=ys.slice(Math.max(0,i-6),i),avg=pm.length?T(S.exp.filter(e=>pm.includes(e.ym)),'a')/pm.length:0,
-  inc=(S.mon.find(x=>x.ym==S.ym)||{}).inc||0,diff=tot-avg,cat={};
+  m=S.exp.filter(e=>e.ym==S.ym),tot=sy(S.ym),
+  rent=T(m.filter(isRent),'a'),varTot=Math.max(0,tot-rent),
+  pm=ys.slice(Math.max(0,i-6),i),
+  avg=pm.length?T(S.exp.filter(e=>pm.includes(e.ym)),'a')/pm.length:0,
+  pmRentMonths=pm.filter(y=>S.exp.some(e=>e.ym==y&&isRent(e))),
+  avgRent=pmRentMonths.length?T(S.exp.filter(e=>pmRentMonths.includes(e.ym)&&isRent(e)),'a')/pmRentMonths.length:0,
+  avgVar=pm.length?T(S.exp.filter(e=>pm.includes(e.ym)&&!isRent(e)),'a')/pm.length:0,
+  inc=(S.mon.find(x=>x.ym==S.ym)||{}).inc||0,
+  cat={};
   m.forEach(e=>(cat[e.c]=cat[e.c]||[]).push(e));
   const cs=Object.entries(cat).map(([c,a])=>[c,T(a,'a'),a]).sort((x,y)=>y[1]-x[1]),
   cav=c=>pm.length?T(S.exp.filter(e=>pm.includes(e.ym)&&e.c==c),'a')/pm.length:0,
   last=ys.slice(Math.max(0,i-5),i+1),sums=last.map(sy),
-  now=new Date(),days=Math.floor(S.ym/100)==now.getFullYear()&&S.ym%100==now.getMonth()+1?now.getDate():new Date(Math.floor(S.ym/100),S.ym%100,0).getDate(),
-  big=m.reduce((a,e)=>e.a>(a.a||0)?e:a,{});
+  now=new Date(),yr=Math.floor(S.ym/100),mo=S.ym%100,
+  isCur=yr==now.getFullYear()&&mo==now.getMonth()+1,
+  daysInMonth=new Date(yr,mo,0).getDate(),
+  days=isCur?Math.max(1,now.getDate()):daysInMonth,
+  daysLeft=isCur?Math.max(1,daysInMonth-now.getDate()+1):0,
+  monthPct=isCur?Math.min(100,Math.max(4,(now.getDate()/daysInMonth)*100)):100;
+
+  // Budget / Target for variable (non-rent) spending so day-1 rent never turns bars falsely red
+  const totBud=Object.values(S.bud).reduce((x,y)=>x+y,0);
+  const reservedRent=rent>0?rent:avgRent;
+  const varTarget=totBud>0?Math.max(totBud-reservedRent,varTot*0.5||1):(avgVar||1);
+  const varPct=varTarget>0?(varTot/varTarget)*100:0;
+  const expectedByToday=isCur?varTarget*(monthPct/100):varTarget;
+  const paceRatio=expectedByToday>0?varTot/expectedByToday:0;
+
+  // Health state: 'ok' | 'warn' | 'bad'
+  let st='ok';
+  if(varTarget>0){
+    if(varPct>102||(isCur&&paceRatio>1.22))st='bad';
+    else if(isCur&&paceRatio>1.04)st='warn';
+  }
+  const varLeft=Math.max(0,varTarget-varTot);
+  const dailyAllowance=isCur?varLeft/daysLeft:0;
+  const diffVar=avgVar?varTot-avgVar:0;
+
+  // Dynamic Pill text
+  let pillMain='',pillSub='';
+  if(isCur){
+    if(st=='ok'){
+      pillMain=varLeft>0?`בקצב טוב · פנוי ${fmt(dailyAllowance)} ליום לשוטף`:`עומד ביעד השוטף החודשי`;
+      pillSub=`עברו ${Math.round(monthPct)}% מהחודש`;
+    }else if(st=='warn'){
+      pillMain=`קצב מעט מהיר · פנוי ${fmt(dailyAllowance)} ליום`;
+      pillSub=`${Math.round(varPct)}% מהשוטף`;
+    }else{
+      pillMain=varTot>varTarget?`חריגה בשוטף של ${fmt(varTot-varTarget)}`:`קצב הוצאות גבוה מהזמן שעבר`;
+      pillSub=`${daysLeft} ימים לסוף החודש`;
+    }
+  }else{
+    const net=inc?inc-tot:0;
+    pillMain=inc?(net>=0?`חודש סגור · נשארו ${fmt(net)} מהמשכורת`:`חודש סגור · חריגה של ${fmt(-net)} מהמשכורת`):(avgVar?`חודש סגור · שוטף ${diffVar<=0?'נמוך ב-'+fmt(-diffVar):'גבוה ב-'+fmt(diffVar)} מהממוצע`:`סיכום ${ymLb(S.ym)}`);
+    pillSub=`${m.length} פעולות`;
+  }
+
   const pts=last.map((y,k)=>({
     ym:y,v:sums[k],on:y==S.ym,
     lb:new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short'}),
     flb:new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'long',year:'2-digit'})
   }));
+  const rentNote=rent>0?`כולל ${fmt(rent)} שכ״ד · שוטף ${fmt(varTot)}`:(avgRent>0&&isCur?`שוטף ${fmt(varTot)} · משוריין ${fmt(avgRent)} לשכ״ד`:'');
+
   return `<div class="mp"><button data-m="1" ${i>=ys.length-1?'disabled':''} aria-label="חודש הבא">${SVG.chevR}</button><strong>${ymLb(S.ym)}</strong><button data-m="-1" ${i<=0?'disabled':''} aria-label="חודש קודם">${SVG.chevL}</button></div>
-  <div class="card hg"><div class="lb">הוצאות החודש</div><div class="big">${fmt(tot)}</div>
-  ${avg?`<span class="chip ${diff>0?'bad':''}">${diff>0?'↑':'↓'} ${fmt(Math.abs(diff))} ${diff>0?'יותר':'פחות'} מהממוצע</span>`:''}
-  ${inc?`<div class="row s" style="margin-top:12px"><span class="lb">משכורת ${fmt(inc)}</span><b class="${inc-tot<0?'neg':'pos'}">נשאר ${fmt(inc-tot)}</b></div>`:''}
-  ${(()=>{const b=Object.values(S.bud).reduce((x,y)=>x+y,0);return b?`<div class="row s" style="margin-top:10px"><span class="lb">תקציב חודשי ${fmt(b)}</span><b class="${tot>b?'neg':'pos'}">${tot>b?'חריגה '+fmt(tot-b):'נשאר '+fmt(b-tot)}</b></div>`:''})()}<div class="trio"><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/days)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div><div><span class="lb">הכי גדולה</span><b>${fmt(big.a||0)}</b></div></div></div>
-  <div class="car">${donut(cs,tot)}<div class="card sl"><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">החלק על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span>${areaChart(pts,{avg})}</div>
-  ${xs()}</div><div class="dots">${[0,1,2,3,4,5].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0;
+  <div class="dpill ${st=='ok'?'':st}"><div class="dp-main"><span class="dp-dot"></span><span class="dp-txt">${pillMain}</span></div><span class="dp-sub">${pillSub}</span></div>
+  <div class="card hg ${st=='ok'?'':st}"><div class="row" style="padding:0"><span class="lb">סך הוצאות החודש</span>${rentNote?`<small class="mut">${rentNote}</small>`:''}</div><div class="big">${fmt(tot)}</div>
+  ${avgVar?`<span class="chip ${diffVar>0?'bad':''}">${diffVar>0?'↑':'↓'} ${fmt(Math.abs(diffVar))} בשוטף ${diffVar>0?'יותר':'פחות'} מהממוצע</span>`:''}
+  ${varTarget>0?`<div class="pace-box">
+    <div class="pace-hdr"><span><b>קצב הוצאות שוטפות</b> <small class="mut">(ללא שכ״ד)</small></span><span><b>${fmt(varTot)}</b> <small class="mut">מתוך ${fmt(varTarget)}</small></span></div>
+    <div class="pace-track">
+      <div class="pace-fill ${st=='ok'?'':st}" style="width:${Math.min(100,varPct).toFixed(1)}%"></div>
+      ${isCur?`<div class="pace-now" style="inset-inline-start:${monthPct.toFixed(1)}%"><span class="pace-now-lbl">היום · ${now.getDate()}/${mo}</span></div>`:''}
+    </div>
+    <div class="pace-ft"><span>${Math.round(varPct)}% נוצל מהשוטף</span><span>${varTot<=varTarget?'נותר לשוטף '+fmt(varLeft):'חריגה בשוטף '+fmt(varTot-varTarget)}</span></div>
+  </div>`:''}
+  ${inc?`<div class="row s" style="margin-top:12px"><span class="lb">משכורת ${fmt(inc)}${rent===0&&avgRent>0&&isCur?' (אחרי שריון שכ״ד)':''}</span><b class="${inc-(tot+(rent===0&&isCur?avgRent:0))<0?'neg':'pos'}">נשאר ${fmt(inc-(tot+(rent===0&&isCur?avgRent:0)))}</b></div>`:''}
+  <div class="trio">
+    ${isCur?`<div><span class="lb">פנוי ליום</span><b>${fmt(dailyAllowance)}</b></div><div><span class="lb">ממוצע יומי שוטף</span><b>${fmt(varTot/days)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`
+           :`<div><span class="lb">הוצאות שוטפות</span><b>${fmt(varTot)}</b></div><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/daysInMonth)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`}
+  </div></div>
+  <div class="car">${donut(cs,tot)}${trendsCard(ys,i)}<div class="card sl"><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">החלק על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span>${areaChart(pts,{avg})}</div>
+  ${xs()}</div><div class="dots">${[0,1,2,3,4,5,6].map(k=>`<i class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ על קטגוריה לפירוט, והחץ משווה לממוצע שלה</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0;
   return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${c}</b><small>${Math.round(v/tot*100)}% מההוצאות</small></span>
   <span class="ca"><b>${fmt(v)}</b>${bg?`<small class="${v>bg?'neg':'pos'}">${v>bg?'חריגה '+fmt(v-bg):'נשאר '+fmt(bg-v)} מתוך ${fmt(bg)}</small>`:av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span>${SVG.chevD}</summary>
   <div class="ct-body"><div class="bar"><i style="width:${bg?Math.min(v/bg*100,100):v/cs[0][1]*100}%;background:${bg&&v>bg?'var(--r)':COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>`<div class="it"><span>${e.t}</span><span>${fmt(e.a)}</span></div>`).join('')}</div></details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
@@ -349,7 +474,7 @@ function more(){
 }
 const greet=()=>{const h=new Date().getHours();return h<5?'לילה טוב':h<12?'בוקר טוב':h<18?'צהריים טובים':'ערב טוב'};
 function insights(cs,cav){
-  const L=[],tot=T(cs.map(x=>({a:x[1]})),'a'),ch=cs.map(([c,v])=>[c,v-cav(c),cav(c)]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
+  const L=[],tot=T(cs.map(x=>({a:x[1]})),'a'),ch=cs.filter(([c])=>c!=='דיור').map(([c,v])=>[c,v-cav(c),cav(c)]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
   if(ch[0]&&ch[0][1]>0)L.push(['📈',ch[0][0]+' גבוה ב-'+fmt(ch[0][1])+' מהממוצע שלו']);
   const lo=ch[ch.length-1];if(lo&&lo[1]<0)L.push(['📉',lo[0]+' נמוך ב-'+fmt(-lo[1])+' מהממוצע שלו']);
   if(cs[0]&&tot)L.push(['🥇',cs[0][0]+' מהווה '+Math.round(cs[0][1]/tot*100)+'% מההוצאות החודש']);
