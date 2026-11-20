@@ -69,6 +69,7 @@ header button.spin svg{animation:rot .8s linear infinite}
 .view > :nth-child(4){animation-delay:.09s}
 .view > :nth-child(5){animation-delay:.12s}
 .view > :nth-child(6){animation-delay:.15s}
+.view.no-anim,.view.no-anim > *,.view.no-anim .bar i,.view.no-anim .cf-bar{animation:none!important;transition:none!important}
 @keyframes cardUp{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
 @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
@@ -228,7 +229,7 @@ header button.spin svg{animation:rot .8s linear infinite}
 .bars b{width:100%;max-width:34px;border-radius:10px;background:var(--line);transform-origin:bottom center;animation:growY .5s cubic-bezier(.22,1,.36,1) both;transition:.25s}.bars .on b{background:var(--g)}.bars small{font-size:11px;color:var(--mut)}
 
 /* Interactive SVG Area Chart */
-.svgc{position:relative;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.svgc{position:relative;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:auto}
 .svgc svg{width:100%;height:146px;display:block;overflow:visible;cursor:crosshair}
 .svgc .scrub-tip{position:absolute;top:-8px;transform:translateX(-50%);background:var(--ink);color:var(--card);font-size:12px;font-weight:700;padding:4px 11px;border-radius:99px;white-space:nowrap;pointer-events:none;box-shadow:0 8px 20px -4px rgba(0,0,0,.35);opacity:0;transition:opacity .15s;font-variant-numeric:tabular-nums;z-index:3}
 .svgc .scrub-tip.on{opacity:1}
@@ -438,12 +439,12 @@ const ICO=[
   [/שונות/,'📦']
 ];
 const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,excl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};let token,tcl;
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};let token,tcl;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
 const expKey=e=>`${e.ym}|${e.d||0}|${String(e.c||'').trim()}|${String(e.t||'').trim()}|${e.a}`;
-const isExcl=e=>S.excl.has(expKey(e));
-function saveExcl(){ls('excl',JSON.stringify([...S.excl]))}
+const isExcl=e=>{const k=expKey(e);return (e.sheetExcl&&!S.unexcl.has(k))||S.excl.has(k)};
+function saveExcl(){ls('excl',JSON.stringify([...S.excl]));ls('unexcl',JSON.stringify([...S.unexcl]))}
 const SVG={
   eye:'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg viewBox="0 0 24 24"><path d="M9.9 4.2A10.4 10.4 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M6.6 6.6C4 8.4 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/></svg>',
@@ -462,12 +463,13 @@ function tc(){return tcl=tcl||google.accounts.oauth2.initTokenClient({client_id:
   callback:r=>{if(r.access_token){token=r.access_token;ls('tok',JSON.stringify({t:token,e:Date.now()+(r.expires_in-120)*1e3}));ls('gd','1');load()}},error_callback:()=>{}})}
 
 function saveSnap(){
-  const core={exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,bud:S.bud,cp:S.cp,sal:S.sal,ym:S.ym,syncAt:S.syncAt};
+  const core={exp:S.exp,mon:S.mon,inv:S.inv,pen:S.pen,docs:S.docs,bud:S.bud,ym:S.ym,syncAt:S.syncAt};
   try{ls('data',JSON.stringify({...core,ins:S.ins,mort:S.mort}))}
   catch(e){try{ls('data',JSON.stringify(core))}catch(e2){}}
 }
 function rehydrateSnap(d){
   if(!d||!d.exp||!d.exp.length)return false;
+  delete d.cp;delete d.sal;
   if(d.ins){
     if(d.ins.end)d.ins.end=new Date(d.ins.end);
     if(Array.isArray(d.ins.pay))d.ins.pay.forEach(p=>{if(p.d)p.d=new Date(p.d)});
@@ -500,7 +502,11 @@ async function load(){
     const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי'],{header:1,raw:true});
     S.exp=[];S.mon=[];S.cp=[];S.err='';S.bud={};S.sal=null;
     rows.slice(1).forEach(x=>{
-      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){const fd=fix(x[4]);S.exp.push({t:x[0],a:x[1],c:x[2],ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate()})}
+      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
+        const fd=fix(x[4]);
+        const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
+        S.exp.push({t:x[0],a:x[1],c:x[2],ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
+      }
       if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
       if(x[23]&&typeof x[24]==='number'&&!String(x[23]).startsWith('סה'))S.cp.push({n:x[23],a:x[24],c:String(x[25]||'')});
     });
@@ -540,13 +546,14 @@ function areaChart(pts,opts={}){
     <div class="scrub-tip"></div>
     <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
       <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--g)" stop-opacity=".36"/><stop offset="100%" stop-color="var(--g)" stop-opacity="0"/></linearGradient></defs>
-      <line x1="${pX}" y1="${midY}" x2="${W-pX}" y2="${midY}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity=".8"/>
-      ${avgY!==null?`<line x1="${pX}" y1="${avgY}" x2="${W-pX}" y2="${avgY}" stroke="var(--b)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7"/>`:''}
+      <line x1="${pX}" y1="${midY}" x2="${W-pX}" y2="${midY}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" opacity=".8" vector-effect="non-scaling-stroke"/>
+      ${avgY!==null?`<line x1="${pX}" y1="${avgY}" x2="${W-pX}" y2="${avgY}" stroke="var(--b)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".7" vector-effect="non-scaling-stroke"/>`:''}
       ${area?`<path d="${area}" fill="url(#${gid})"/>`:''}
-      ${n>1?`<path d="${line}" fill="none" stroke="var(--g)" stroke-width="2.8" stroke-linecap="round"/>`:''}
-      <line class="scrub-ln" x1="0" y1="${pT}" x2="0" y2="${pT+pH}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="3 3" opacity="0"/>
-      <circle class="scrub-dot" cx="0" cy="0" r="6" fill="var(--g)" stroke="var(--card)" stroke-width="2.5" opacity="0"/>
-      ${coords.map(c=>`${c.on?`<circle cx="${c.x}" cy="${c.y}" r="10" fill="var(--g)" opacity=".18"/>`:''}<circle cx="${c.x}" cy="${c.y}" r="${c.on?5.2:3.6}" fill="${c.on?'var(--g)':'var(--card)'}" stroke="var(--g)" stroke-width="${c.on?2.8:2.1}" ${c.ym?`data-y="${c.ym}"`:''} style="cursor:pointer"/>`).join('')}
+      ${n>1?`<path d="${line}" fill="none" stroke="var(--g)" stroke-width="2.8" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`:''}
+      <line class="scrub-ln" x1="0" y1="${pT}" x2="0" y2="${pT+pH}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="3 3" opacity="0" vector-effect="non-scaling-stroke"/>
+      <line class="scrub-dot-ring" x1="0" y1="0" x2="0.001" y2="0" stroke="var(--card)" stroke-width="15" stroke-linecap="round" opacity="0" vector-effect="non-scaling-stroke"/>
+      <line class="scrub-dot" x1="0" y1="0" x2="0.001" y2="0" stroke="var(--g)" stroke-width="10" stroke-linecap="round" opacity="0" vector-effect="non-scaling-stroke"/>
+      ${coords.map(c=>{const x2=+(c.x+0.001).toFixed(3);return `${c.on?`<line x1="${c.x}" y1="${c.y}" x2="${x2}" y2="${c.y}" stroke="var(--g)" stroke-width="20" stroke-linecap="round" opacity=".18" vector-effect="non-scaling-stroke"/>`:''}<line x1="${c.x}" y1="${c.y}" x2="${x2}" y2="${c.y}" stroke="var(--g)" stroke-width="${c.on?12:9.5}" stroke-linecap="round" vector-effect="non-scaling-stroke" ${c.ym?`data-y="${c.ym}"`:''} style="cursor:pointer"/><line x1="${c.x}" y1="${c.y}" x2="${x2}" y2="${c.y}" stroke="${c.on?'var(--g)':'var(--card)'}" stroke-width="${c.on?6.5:5.2}" stroke-linecap="round" vector-effect="non-scaling-stroke" ${c.ym?`data-y="${c.ym}"`:''} style="cursor:pointer"/>`}).join('')}
     </svg>
     ${opts.showLabels!==false?`<div class="xlabs">${[...coords].reverse().map(c=>`<span class="${c.on?'on':''}" ${c.ym?`data-y="${c.ym}"`:''} style="cursor:pointer">${c.lb}</span>`).join('')}</div>`:''}
   </div>`;
@@ -607,14 +614,14 @@ function cashflowCard(ys,i){
   </div>`;
 }
 function monthSheet(ys,sy){
-  if(!S.mPick)return '';
+  if(!S.mPick||!ys.length)return '';
   const latestYm=ys[ys.length-1];
   const byYr={};
   ys.forEach(y=>{const yr=Math.floor(y/100);(byYr[yr]=byYr[yr]||[]).push(y)});
   const years=Object.keys(byYr).sort((a,b)=>+b-+a);
   const mName=y=>new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'long'});
   return `<div class="ms-back" data-mp-close>
-    <div class="ms-sheet" onclick="event.stopPropagation()">
+    <div class="ms-sheet">
       <div class="ms-grab"></div>
       <div class="row" style="padding:0 0 8px"><h2 style="margin:0">בחירת חודש</h2>${S.ym!==latestYm?`<button class="chip2 on" data-y="${latestYm}" style="padding:5px 12px;font-size:12px">חזור לחודש הנוכחי ↩</button>`:`<button class="chip2" data-mp-close style="padding:4px 10px;font-size:12px">✕</button>`}</div>
       ${years.map(yr=>`<div><b class="mut" style="font-size:12.5px">${yr}</b><div class="ms-grid">${byYr[yr].slice().reverse().map(y=>`<button class="ms-cell ${y==S.ym?'on':''}" data-y="${y}"><b>${mName(y)}</b><small>${fmt(sy(y))}</small></button>`).join('')}</div></div>`).join('')}
@@ -639,6 +646,7 @@ function home(){
   last=ys.slice(Math.max(0,i-5),i+1),sums=last.map(sy),
   now=new Date(),yr=Math.floor(S.ym/100),mo=S.ym%100,
   isCur=yr==now.getFullYear()&&mo==now.getMonth()+1,
+  isEarly=isCur&&now.getDate()<=7,
   daysInMonth=new Date(yr,mo,0).getDate(),
   days=isCur?Math.max(1,now.getDate()):daysInMonth,
   daysLeft=isCur?Math.max(1,daysInMonth-now.getDate()+1):0,
@@ -653,15 +661,16 @@ function home(){
   const paceRatio=expectedByToday>0?varTot/expectedByToday:0;
 
   const dailyVarPace=varTot/days;
-  const projectedVar=dailyVarPace*daysInMonth;
+  const histDailyVar=varTarget>0?varTarget/daysInMonth:dailyVarPace;
+  const projectedVar=isEarly?(varTot+histDailyVar*Math.max(0,daysInMonth-days)):(dailyVarPace*daysInMonth);
   const projectedTotal=projectedVar+expectedRent;
   const baselineTotal=totBud>0?totBud:(avgVar+expectedRent);
   const projDiff=baselineTotal>0?projectedTotal-baselineTotal:0;
 
   let st='ok';
   if(varTarget>0){
-    if(varPct>102||(isCur&&days>3&&paceRatio>1.18))st='bad';
-    else if(isCur&&days>2&&paceRatio>1.03)st='warn';
+    if(varPct>102||(isCur&&!isEarly&&paceRatio>1.18))st='bad';
+    else if(isCur&&!isEarly&&paceRatio>1.03)st='warn';
   }
   const varLeft=Math.max(0,varTarget-varTot);
   const diffVarClosed=avgVar?varTot-avgVar:0;
@@ -704,13 +713,12 @@ function home(){
     <div class="mp-strip" id="mstrip">${ys.map(y=>`<button class="mp-pill ${y==S.ym?'on':''}" ${y==S.ym?'data-mp-open':`data-y="${y}"`}>${y==S.ym?ymLb(y):ymShort(y)}</button>`).join('')}</div>
     <button class="mp-cal" data-mp-open title="בחירת חודש ושנה" aria-label="בחירת חודש ושנה">${SVG.cal}</button>
   </div>
-  ${monthSheet(ys,sy)}
   <div class="dpill ${st=='ok'?'':st}"><div class="dp-main"><span class="dp-dot"></span><span class="dp-txt">${pillMain}</span></div><span class="dp-sub">${pillSub}</span></div>
   <div class="card hg ${st=='ok'?'':st}"><div class="row" style="padding:0"><span class="lb">סך הוצאות החודש</span>${rentTag?`<small class="mut">${rentTag}</small>`:''}</div><div class="big">${fmt(tot)}</div>
-  <div class="chips-inline">${heroChip}${exclSum>0?`<span class="chip mut">ללא חריגים: ${fmt(tot-exclSum)}</span>`:''}</div>
+  <div class="chips-inline">${heroChip}${exclSum>0?`<span class="chip mut">ללא חריגים: ${fmt(tot-exclSum)}</span>`:''}${S.excl.size>0?`<button class="ex-btn" data-ex-share title="העתק או שתף קישור לסנכרון סימוני החד-פעמי במכשיר נוסף">שתף סימונים ↗</button>`:''}</div>
   ${isCur?`<div class="rr-box">
     <div class="rr-l">
-      <span class="rr-lbl">צפי סוף חודש</span>
+      <span class="rr-lbl">${isEarly?'צפי סוף חודש (הערכה)':'צפי סוף חודש'}</span>
       <span class="rr-val">${fmt(projectedTotal)}</span>
     </div>
     ${baselineTotal>0?`<div class="rr-r"><span class="chip ${projDiff>150?'bad':projDiff>0?'warn':''}">${projDiff>0?'↑ +':'↓ '}${fmt(Math.abs(projDiff))}</span><small class="mut" style="font-size:11px">${totBud>0?'מהתקציב':'מהממוצע'}</small></div>`:''}
@@ -728,10 +736,10 @@ function home(){
     ${isCur?`<div><span class="lb">נותר לשוטף</span><b>${fmt(varLeft)}</b></div><div><span class="lb">ממוצע ליום</span><b>${fmt(dailyVarPace)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`
            :`<div><span class="lb">הוצאות שוטפות</span><b>${fmt(varTot)}</b></div><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/daysInMonth)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`}
   </div></div>
-  <div class="car">${donut(cs,tot)}${cashflowCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">החלק על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ לפירוט · ניתן לסמן הוצאה כחד-פעמית לנטרול מהתחזית</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0;
+  <div class="car">${donut(cs,tot)}${cashflowCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">לחיצה ממושכת על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ לפירוט · סימון "חד-פעמי" (או הערה באקסל) מנטרל מהתחזית</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0;
   return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${c}</b><small>${Math.round(v/(tot||1)*100)}% מההוצאות · ${a.length} פעולות</small></span>
   <span class="ca"><b>${fmt(v)}</b>${bg?`<small class="${v>bg?'neg':'pos'}">${v>bg?'חריגה '+fmt(v-bg):'נשאר '+fmt(bg-v)} מתוך ${fmt(bg)}</small>`:av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span>${SVG.chevD}</summary>
-  <div class="ct-body"><div class="bar"><i style="width:${bg?Math.min(v/bg*100,100):v/(cs[0][1]||1)*100}%;background:${bg&&v>bg?'var(--r)':COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>{const ek=expKey(e),ex=S.excl.has(ek);return `<div class="it ${ex?'ex-off':''}"><span>${e.d?`<span class="it-day">${e.d}/${mo}</span>`:''}<span class="it-name">${e.t}</span></span><div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}" title="נטרול מהתחזית ומהממוצע (לא משנה את האקסל)">${ex?'חריג ✓':'חד-פעמי'}</button><b>${fmt(e.a)}</b></div></div>`}).join('')}</div></details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
+  <div class="ct-body"><div class="bar"><i style="width:${bg?Math.min(v/bg*100,100):v/(cs[0][1]||1)*100}%;background:${bg&&v>bg?'var(--r)':COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>{const ek=expKey(e),ex=isExcl(e);return `<div class="it ${ex?'ex-off':''}"><span>${e.d>1?`<span class="it-day">${e.d}/${mo}</span>`:''}<span class="it-name">${e.t}</span></span><div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}" data-se="${e.sheetExcl?1:0}" title="נטרול מהתחזית ומהממוצע">${ex?(e.sheetExcl?'חריג (אקסל)':'חריג ✓'):'חד-פעמי'}</button><b>${fmt(e.a)}</b></div></div>`}).join('')}</div></details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
 }
 function inv0(){
   if(!S.inv.length)return `<div class="card"><p>${S.invErr||'לא נמצאו נתוני השקעות.'}</p></div>`;
@@ -827,7 +835,7 @@ function dc0(){
     return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${d.n}${d.sens?' 🔒':''}</b><div class="mut">${[d.who,d.cat,d.x?dl(d.x):'',d.missing?'⚠ אין קובץ בדרייב':''].filter(Boolean).join(' · ')}</div></div>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:d.od?`<button class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:''}</div>`}).join('');
 }
 
-/* Living Runway + 4% Rule / 300 Months & 300 Salaries Calculator (Smooth Live Updates) */
+/* Living Runway + 4% Rule / 300 Months & 300 Salaries Calculator */
 function fireDefaults(){
   const now=new Date(),curYm=now.getFullYear()*100+now.getMonth()+1;
   const allYs=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
@@ -1045,13 +1053,21 @@ async function loadFiles(){
       res.forEach((a,k)=>a.forEach(x=>{if(x.mimeType=='application/vnd.google-apps.folder')lv.push({id:x.id,p:(cur[k].p?cur[k].p+' / ':'')+x.name});else out.push({name:x.name,webViewLink:x.webViewLink,g:cur[k].p})}))}
     S.files={root:root.id,out}}catch(e){S.files='err'}draw()}
 function dc(){return pickCard()+dc0()}
-let lastFireVib=0;
+let lastFireVib=0,qTimer=0;
 document.addEventListener('input',e=>{
   if(e.target.dataset.q!==undefined){
-    const pos=e.target.selectionStart;
-    S.pv.q=e.target.value;S.pv.dr=null;draw();
-    const inp=document.querySelector('input[data-q]');
-    if(inp){inp.focus();try{inp.setSelectionRange(pos,pos)}catch(err){}}
+    S.pv.q=e.target.value;S.pv.dr=null;
+    clearTimeout(qTimer);
+    qTimer=setTimeout(()=>{
+      const cur=document.querySelector('input[data-q]');
+      const hadFocus=document.activeElement===cur;
+      const pos=hadFocus&&cur?cur.selectionStart:null;
+      draw(true);
+      if(hadFocus){
+        const inp=document.querySelector('input[data-q]');
+        if(inp){inp.focus();if(pos!==null)try{inp.setSelectionRange(pos,pos)}catch(err){}}
+      }
+    },250);
   }
   if(e.target.dataset.fsl!==undefined&&S.fire){
     const v=+e.target.value;
@@ -1080,8 +1096,7 @@ function syncDots(car){
 function centerMonthStrip(){
   const st=document.getElementById('mstrip');if(!st)return;
   const on=st.querySelector('.mp-pill.on');if(!on)return;
-  const target=on.offsetLeft-(st.clientWidth/2)+(on.offsetWidth/2);
-  st.scrollLeft=target;
+  st.scrollLeft+=(on.getBoundingClientRect().left+on.offsetWidth/2)-(st.getBoundingClientRect().left+st.clientWidth/2);
 }
 function updateSlFloat(){
   const f=document.getElementById('slf');
@@ -1189,14 +1204,14 @@ function pxs(rs,tot,nmo,d,P,all){
   const slide4=`<div class="card sl">
     <div><h2>ההוצאות הגדולות בטווח</h2><span class="lb">5 הפעולות הגבוהות ביותר בתקופה הנבחרת</span></div>
     <div style="margin:auto 0">${big.map((e,idx)=>{
-      const ek=expKey(e),ex=S.excl.has(ek);
+      const ek=expKey(e),ex=isExcl(e);
       return `<div class="big-row">
         <div class="row" style="padding:0;gap:8px">
           <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0">
             <span class="ci" style="width:34px;height:34px;font-size:16px;border-radius:11px;background:${COL[idx%8]}1c">${ico(e.c)}</span>
             <div style="min-width:0"><b style="display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.t}</b><small class="mut" style="font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.c} · ${ymLb(e.ym)}</small></div>
           </div>
-          <div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}">${ex?'חריג ✓':'חד-פעמי'}</button><b>${fmt(e.a)}</b></div>
+          <div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}" data-se="${e.sheetExcl?1:0}">${ex?(e.sheetExcl?'חריג (אקסל)':'חריג ✓'):'חד-פעמי'}</button><b>${fmt(e.a)}</b></div>
         </div>
         <div class="bar" style="height:4px;margin:6px 0 0"><i style="width:${(e.a/mxB*100).toFixed(1)}%;background:${COL[idx%8]}"></i></div>
       </div>`;
@@ -1238,7 +1253,7 @@ function fev(f,get){
 function parseExtra(wb){S.bud={};
   const bs=wb.Sheets['תקציב'];if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1]});
   const ws=wb.Sheets['ראשי'],c={};for(let r=40;r<=75;r++)for(const l of 'KLMNO'){const x=ws[l+r];if(x)c[l+r]={v:x.v,f:x.f}}S.sal=c}
-let sv=null;try{sv=JSON.parse(ls('salv'))}catch(e){}
+let sv=null;
 function salCalc(ov){const C=S.sal||{},m={},get=a=>{if(a in ov)return ov[a];if(a in m)return m[a];const c=C[a];if(!c)return 0;m[a]=c.f?fev(c.f,get):(typeof c.v=='number'?c.v:0);return m[a]};return get}
 function salMap(){
   const C=S.sal;if(!C)return null;const f=t=>Object.keys(C).find(a=>String(C[a].v||'').includes(t)),a1=f('משמרת בוקר'),aw=f('שכר לשעה'),a2=f('הסכמי שכר'),a3=f('ברוטו');if(!a1||!aw||!a2||!a3)return null;
@@ -1264,7 +1279,7 @@ async function quotes(){
     if(n){S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});saveSnap();if(S.tab=='inv'||S.tab=='home')draw()}}catch(e){}}
 setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
 document.addEventListener('change',e=>{
-  if(e.target.dataset.sw!==undefined&&sv){sv.w=+e.target.value;ls('salv',JSON.stringify(sv));draw()}
+  if(e.target.dataset.sw!==undefined&&sv){sv.w=+e.target.value;draw()}
   if(e.target.dataset.fsl!==undefined&&S.fire){ls('fire_cfg',JSON.stringify(S.fire))}
   const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}
 });
@@ -1302,19 +1317,21 @@ function animNums(){
     requestAnimationFrame(step);
   });
 }
-function draw(){
+function draw(skipAnim=false){
   const slb=syncLabel();
+  const ys=S.tab==='home'?[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b):[];
+  const sy=y=>T(S.exp.filter(e=>e.ym==y),'a');
   $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-eye title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
-  (S.err&&!token?`<div class="bn"><span>${S.err}</span><button data-sync>סנכרן</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view">${{home,pv,inv,more}[S.tab]()}</div>`;
+  (S.err&&!token?`<div class="bn"><span>${S.err}</span><button data-sync>סנכרן</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim?' no-anim':''}">${{home,pv,inv,more}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==S.tab));
   document.querySelectorAll('.car').forEach(syncDots);
   centerMonthStrip();
   updateSlFloat();
-  animNums();
+  if(!skipAnim)animNums();
 }
 function scrubAt(box,clientX){
   let pts;try{pts=JSON.parse(decodeURIComponent(box.dataset.scrb))}catch(e){return}
-  const svg=box.querySelector('svg'),tip=box.querySelector('.scrub-tip'),ln=box.querySelector('.scrub-ln'),dot=box.querySelector('.scrub-dot');
+  const svg=box.querySelector('svg'),tip=box.querySelector('.scrub-tip'),ln=box.querySelector('.scrub-ln'),dot=box.querySelector('.scrub-dot'),ring=box.querySelector('.scrub-dot-ring');
   if(!svg||!tip||!pts||!pts.length)return;
   const r=svg.getBoundingClientRect(),relX=((clientX-r.left)/Math.max(r.width,1))*340;
   let best=pts[0],bd=1e9;pts.forEach(p=>{const d=Math.abs(p.x-relX);if(d<bd){bd=d;best=p}});
@@ -1323,18 +1340,53 @@ function scrubAt(box,clientX){
   const pctX=Math.min(Math.max((best.x/340)*100,14),86);
   tip.style.left=pctX+'%';tip.classList.add('on');
   if(ln){ln.setAttribute('x1',best.x);ln.setAttribute('x2',best.x);ln.setAttribute('opacity','0.35')}
-  if(dot){dot.setAttribute('cx',best.x);dot.setAttribute('cy',best.y);dot.setAttribute('opacity','1')}
+  const x2=+(best.x+0.001).toFixed(3);
+  if(ring){ring.setAttribute('x1',best.x);ring.setAttribute('x2',x2);ring.setAttribute('y1',best.y);ring.setAttribute('y2',best.y);ring.setAttribute('opacity','1')}
+  if(dot){dot.setAttribute('x1',best.x);dot.setAttribute('x2',x2);dot.setAttribute('y1',best.y);dot.setAttribute('y2',best.y);dot.setAttribute('opacity','1')}
 }
 function scrubEnd(box){
   if(!box)return;
+  box.style.touchAction='';
   box.querySelector('.scrub-tip')?.classList.remove('on');
   box.querySelector('.scrub-ln')?.setAttribute('opacity','0');
   box.querySelector('.scrub-dot')?.setAttribute('opacity','0');
+  box.querySelector('.scrub-dot-ring')?.setAttribute('opacity','0');
 }
-document.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-scrb]');if(b)scrubAt(b,e.clientX)});
-document.addEventListener('pointermove',e=>{const b=e.target.closest('[data-scrb]');if(b&&(e.buttons||e.pointerType==='mouse'||e.pointerType==='touch'))scrubAt(b,e.clientX)});
-document.addEventListener('pointerleave',e=>{if(e.target&&e.target.matches&&e.target.matches('[data-scrb]'))scrubEnd(e.target)},true);
-document.addEventListener('pointerup',e=>{const b=e.target.closest('[data-scrb]');if(b)setTimeout(()=>scrubEnd(b),900)});
+let scrbHold=null;
+function clearScrbHold(endVis=false){
+  if(!scrbHold)return;
+  clearTimeout(scrbHold.timer);
+  const b=scrbHold.box;
+  if(endVis)setTimeout(()=>scrubEnd(b),900);
+  else if(b)b.style.touchAction='';
+  scrbHold=null;
+}
+document.addEventListener('pointerdown',e=>{
+  const b=e.target.closest('[data-scrb]');if(!b)return;
+  if(e.pointerType==='mouse'){scrubAt(b,e.clientX);return}
+  clearScrbHold();
+  const st={box:b,x:e.clientX,y:e.clientY,active:false,timer:0};
+  st.timer=setTimeout(()=>{
+    if(!scrbHold||scrbHold!==st)return;
+    st.active=true;b.style.touchAction='none';vib(8);scrubAt(b,st.x);
+  },220);
+  scrbHold=st;
+});
+document.addEventListener('pointermove',e=>{
+  if(e.pointerType==='mouse'){const b=e.target.closest('[data-scrb]');if(b)scrubAt(b,e.clientX);return}
+  if(!scrbHold)return;
+  if(!scrbHold.active){
+    if(Math.hypot(e.clientX-scrbHold.x,e.clientY-scrbHold.y)>10)clearScrbHold(false);
+    return;
+  }
+  scrubAt(scrbHold.box,e.clientX);
+});
+document.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&e.target&&e.target.matches&&e.target.matches('[data-scrb]'))scrubEnd(e.target)},true);
+document.addEventListener('pointerup',e=>{
+  if(e.pointerType==='mouse'){const b=e.target.closest('[data-scrb]');if(b)setTimeout(()=>scrubEnd(b),900);return}
+  if(scrbHold){const wasActive=scrbHold.active;clearScrbHold(wasActive)}
+});
+document.addEventListener('pointercancel',()=>clearScrbHold(false));
 document.addEventListener('click',e=>{
   const sum=e.target.closest('details.ct > summary');
   if(sum&&!rmRed()){
@@ -1353,8 +1405,9 @@ document.addEventListener('click',e=>{
       return;
     }
   }
-  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset]');
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset]');
   if(!b){if(!token&&ls('rt'))refresh().then(ok=>ok&&load());return}
+  if(b.classList.contains('ms-back')&&e.target!==b)return;
   if('upTop'in b.dataset){scrollTo({top:0,behavior:'smooth'});return}
   if('mpOpen'in b.dataset){vib(6);S.mPick=true;draw();return}
   if('mpClose'in b.dataset){vib(6);S.mPick=false;draw();return}
@@ -1377,10 +1430,18 @@ document.addEventListener('click',e=>{
     vib(6);const k=b.dataset.ftog;S.fire[k]=!S.fire[k];ls('fire_cfg',JSON.stringify(S.fire));draw();return;
   }
   if('freset'in b.dataset){vib(8);S.fire=null;ls('fire_cfg',null);draw();return}
+  if('exShare'in b.dataset){
+    vib(8);
+    const url=location.origin+location.pathname+'#excl='+encodeURIComponent(JSON.stringify([...S.excl]));
+    if(navigator.share)navigator.share({title:'סימוני הוצאות חד-פעמיות',url}).catch(()=>{});
+    else if(navigator.clipboard){navigator.clipboard.writeText(url);b.textContent='הקישור הועתק ✓'}
+    return;
+  }
   if(b.dataset.ex!==undefined){
     e.stopPropagation();vib(8);
-    const k=decodeURIComponent(b.dataset.ex);
-    S.excl.has(k)?S.excl.delete(k):S.excl.add(k);
+    const k=decodeURIComponent(b.dataset.ex),se=b.dataset.se==='1';
+    if(se){S.unexcl.has(k)?S.unexcl.delete(k):S.unexcl.add(k)}
+    else{S.excl.has(k)?S.excl.delete(k):S.excl.add(k)}
     saveExcl();draw();return;
   }
   if(b.dataset.dot!==undefined){
@@ -1392,13 +1453,13 @@ document.addEventListener('click',e=>{
     }
     return;
   }
-  if('qclr'in b.dataset){vib(6);S.pv.q='';S.pv.dr=null;draw();return}
+  if('qclr'in b.dataset){vib(6);clearTimeout(qTimer);S.pv.q='';S.pv.dr=null;draw(true);const inp=document.querySelector('input[data-q]');if(inp)inp.focus();return}
   if('sync'in b.dataset){vib(10);login()}
   if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
   if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0)}
   if(b.dataset.dn!==undefined){vib(6);const c=decodeURIComponent(b.dataset.dn);S.dnSel=(!c||S.dnSel===c)?null:c;draw();return}
-  if(b.dataset.sc){vib(6);const [k,d]=b.dataset.sc.split(':');sv.c[+k]=Math.max(0,sv.c[+k]+ +d);ls('salv',JSON.stringify(sv));draw();return}
-  if('sreset'in b.dataset){vib(8);sv=null;ls('salv',null);draw();return}
+  if(b.dataset.sc){vib(6);const [k,d]=b.dataset.sc.split(':');sv.c[+k]=Math.max(0,sv.c[+k]+ +d);draw();return}
+  if('sreset'in b.dataset){vib(8);sv=null;draw();return}
   if(b.dataset.pr){vib(6);setPr(b.dataset.pr);draw()}
   if(b.dataset.by){vib(6);S.pv.by=b.dataset.by;S.pv.dr=null;draw()}
   if(b.dataset.rows){vib(6);S.pv.rows=b.dataset.rows;S.pv.dr=null;draw()}
@@ -1420,6 +1481,14 @@ document.addEventListener('click',e=>{
 (function boot(){
   S.hide=ls('hide')=='1';
   try{const ex=JSON.parse(ls('excl'));if(Array.isArray(ex))S.excl=new Set(ex)}catch(e){}
+  try{const uex=JSON.parse(ls('unexcl'));if(Array.isArray(uex))S.unexcl=new Set(uex)}catch(e){}
+  if(location.hash.startsWith('#excl=')){
+    try{
+      const imp=JSON.parse(decodeURIComponent(location.hash.slice(6)));
+      if(Array.isArray(imp)){imp.forEach(k=>S.excl.add(k));saveExcl()}
+      history.replaceState(null,'',location.pathname+location.search);
+    }catch(e){}
+  }
   try{const ml=JSON.parse(ls('more_layout'));if(Array.isArray(ml))S.moreLayout=ml}catch(e){}
   try{const fc=JSON.parse(ls('fire_cfg'));if(fc&&typeof fc==='object')S.fire=fc}catch(e){}
   try{const d=JSON.parse(ls('data'));if(rehydrateSnap(d)){if(!S.pv.from)setPr('12');$('nav').hidden=false;draw()}}catch(e){}
