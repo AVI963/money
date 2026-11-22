@@ -432,9 +432,27 @@ max-height: 290px; overflow-y: auto; display: none;
 .shop-dropdown.open { display: block; }
 .shop-dd-item {
 display: flex; justify-content: space-between; align-items: center; gap: 10px;
-padding: 10px 14px; border-bottom: 1px solid var(--brd, #eef1f5);
+padding: 9px 12px; border-bottom: 1px solid var(--brd, #eef1f5);
 cursor: pointer; text-align: right;
 }
+.shop-dd-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.shop-dd-thumb {
+width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+background: #fff; border: 1px solid var(--brd, #eef1f5);
+display: grid; place-items: center; overflow: hidden;
+}
+.shop-dd-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 2px; display: block; }
+.shop-thumb {
+width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0;
+background: #fff; border: 1px solid var(--brd, #eef1f5);
+display: grid; place-items: center; overflow: hidden;
+}
+.shop-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 2px; display: block; }
+.shop-thumb-fb {
+width: 100%; height: 100%; display: grid; place-items: center;
+background: var(--card2, #f6f8fd); font-size: 19px;
+}
+.shop-item.done .shop-thumb { opacity: .6; }
 .shop-dd-item:last-child { border-bottom: none; }
 .shop-dd-item:hover { background: rgba(26,115,232,.06); }
 .shop-dd-meta { font-size: 11.5px; color: var(--mut, #6b7280); margin-top: 2px; }
@@ -1684,14 +1702,26 @@ const FILE_META_KEY = "my_money_shop_drive_meta_v1";
 const DRIVE_FILE_NAME = "my_money_shopping.json";
 
 const DEPT_RULES = [
+{ dept: "🧊 קפואים", keys: ["קפוא", "קפואה", "קפואים", "שניצל תירס", "צ'יפס", "פיצה", "גלידה", "שלגון", "אפונה", "מלאווח", "ג'חנון", "בצק עלים"] },
+{ dept: "🧴 ניקיון ופארם", keys: ["נייר טואלט", "מגבונים", "סבון", "שמפו", "מרכך", "משחת שיניים", "מברשת", "כביסה", "אקונומיקה", "נוזל כלים", "ספוג", "שקיות אשפה", "נייר סופג", "דאודורנט", "קרם", "פארם", "ניקיון"] },
+{ dept: "🥤 שתייה", keys: ["מיץ", "נקטר", "משקה", "מים", "קולה", "סודה", "בירה", "יין", "ספרייט", "פאנטה", "נסטי", "פיוז", "שישיית", "לימונדה"] },
+{ dept: "🥖 מאפים ולחם", keys: ["לחם", "פיתה", "פיתות", "לחמני", "בגט", "חלה", "טורטיה", "בורקס", "קרואסון", "עוגה", "עוגת", "עוגיות", "רוגלך", "מאפ"] },
+{ dept: "🥫 מזווה ויבשים", keys: ["דגני", "קורנפלקס", "שיבולת שועל", "שוקולד", "חמאת בוטנים", "אבקת מרק", "חלב קוקוס", "קרם קוקוס", "חלב סויה", "חלב שקדים", "רוטב", "רסק", "פסטה", "אורז", "פתיתים", "קוסקוס", "שמן", "מלח", "סוכר", "קמח", "שימורים", "טונה", "תירס", "קטשופ", "מיונז", "חרדל", "קפה", "תה", "במבה", "ביסלי", "חטיף", "אגוז", "שקד", "עדשים", "שעועית", "תבלין", "פפריקה", "כמון", "מזווה"] },
 { dept: "🥬 ירקות ופירות", keys: ["עגבני", "מלפפון", "בצל", "תפוח", "בננ", "פלפל", "חסה", "לימון", "אבוקדו", "גזר", "תפו\"א", "תפוחי אדמה", "שום", "קישוא", "חציל", "פטריות", "כוסברה", "פטרוזיליה", "תות", "ענבים", "אבטיח", "מלון", "תפוז", "קלמנטינ", "ירק", "פירות"] },
 { dept: "🥛 חלב, ביצים וסלטים", keys: ["חלב", "קוטג", "גבינ", "יוגורט", "שמנת", "חמאה", "ביצים", "ביצה", "מעדן", "שוקו", "מילקי", "דני", "צהובה", "בולגרית", "מוצרלה", "טחינה", "חומוס", "מטבוחה", "סלט", "צונן"] },
-{ dept: "🥩 בשר, עוף ודגים", keys: ["עוף", "חזה", "שניצל", "כרעיים", "שוקיים", "פרגית", "בשר", "טחון", "אנטריקוט", "קבב", "המבורגר", "נקניק", "פסטרמה", "דג", "סלמון", "אמנון", "מושט", "קצביה"] },
-{ dept: "🥖 מאפים ולחם", keys: ["לחם", "פיתה", "פיתות", "לחמני", "בגט", "חלה", "טורטיה", "בורקס", "קרואסון", "עוגה", "עוגיות", "רוגלך", "מאפ"] },
-{ dept: "🧊 קפואים", keys: ["קפוא", "צ'יפס", "פיצה", "גלידה", "שלגון", "אפונה", "מלאווח", "ג'חנון", "בצק עלים"] },
-{ dept: "🥤 שתייה", keys: ["מים", "קולה", "סודה", "מיץ", "בירה", "יין", "ספרייט", "פאנטה", "נסטי", "פיוז", "משקה", "שישיית"] },
-{ dept: "🧴 ניקיון ופארם", keys: ["נייר טואלט", "מגבונים", "סבון", "שמפו", "מרכך", "משחת שיניים", "מברשת", "כביסה", "אקונומיקה", "נוזל כלים", "ספוג", "שקיות אשפה", "נייר סופג", "דאודורנט", "קרם", "פארם", "ניקיון"] },
-{ dept: "🥫 מזווה ויבשים", keys: ["פסטה", "אורז", "פתיתים", "קוסקוס", "שמן", "מלח", "סוכר", "קמח", "שימורים", "טונה", "תירס", "רסק", "רוטב", "קטשופ", "מיונז", "חרדל", "דגני", "קורנפלקס", "שיבולת שועל", "קפה", "תה", "שוקולד", "במבה", "ביסלי", "חטיף", "אגוז", "שקד", "עדשים", "שעועית", "תבלין", "פפריקה", "כמון", "מזווה"] }
+{ dept: "🥩 בשר, עוף ודגים", keys: ["עוף", "חזה", "שניצל", "כרעיים", "שוקיים", "פרגית", "בשר", "טחון", "אנטריקוט", "קבב", "המבורגר", "נקניק", "פסטרמה", "דג", "סלמון", "אמנון", "מושט", "קצביה"] }
+];
+
+const DEPT_ORDER = [
+"🥬 ירקות ופירות",
+"🥖 מאפים ולחם",
+"🥛 חלב, ביצים וסלטים",
+"🥩 בשר, עוף ודגים",
+"🧊 קפואים",
+"🥫 מזווה ויבשים",
+"🥤 שתייה",
+"🧴 ניקיון ופארם",
+"📦 כללי"
 ];
 
 function classifyDepartment(productName, ramiDept = "") {
@@ -1701,6 +1731,19 @@ if (rule.keys.some((k) => combined.includes(k))) return rule.dept;
 }
 return ramiDept ? `📦 ${ramiDept}` : "📦 כללי";
 }
+
+function deptEmoji(dept, name = "") {
+const d = dept || classifyDepartment(name);
+const m = d.match(/^(\S+)/);
+return m ? m[1] : "📦";
+}
+
+const esc = (s) => String(s ?? "")
+.replace(/&/g, "&amp;")
+.replace(/</g, "&lt;")
+.replace(/>/g, "&gt;")
+.replace(/"/g, "&quot;")
+.replace(/'/g, "&#39;");
 
 function loadJson(key, fallback) {
 try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
@@ -1721,9 +1764,19 @@ let pushTimer = null;
 let syncInFlight = false;
 let pendingPush = false;
 let syncStatus = { state: "idle", label: "מקומי בלבד" };
+const checkedImageNames = new Set();
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (typeof S !== "undefined" && S.hide) ? "₪•••" : "₪" + Number(n || 0).toFixed(2);
+
+function renderThumb(imageUrl, name, dept, cls = "shop-thumb") {
+const fb = esc(deptEmoji(dept, name));
+const src = String(imageUrl || "").trim();
+if (/^https?:\/\//i.test(src)) {
+return `<div class="${cls}"><img src="${esc(src)}" alt="${esc(name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="shop-thumb-fb" style="display:none">${fb}</span></div>`;
+}
+return `<div class="${cls}"><span class="shop-thumb-fb">${fb}</span></div>`;
+}
 
 function setSyncPill(state, label) {
 syncStatus = { state, label };
@@ -1764,13 +1817,20 @@ function markDeleted(id) {
 if (id) deletedIds[id] = Date.now();
 }
 
-function rememberProduct(name, price, dept) {
+function rememberProduct(name, price, dept, image = "") {
 const key = name.trim().toLowerCase();
 if (!key) return;
-priceMemory[key] = { name: name.trim(), price: Number(price) || 0, dept, updatedAt: Date.now() };
+const prev = priceMemory[key];
+priceMemory[key] = {
+name: name.trim(),
+price: Number(price) > 0 ? Number(price) : (prev?.price || 0),
+dept: dept || prev?.dept || "",
+image: String(image || "").trim() || prev?.image || "",
+updatedAt: Date.now()
+};
 }
 
-function addItem({ name, price = 0, qty = 1, dept = "" }) {
+function addItem({ name, price = 0, qty = 1, dept = "", image = "" }) {
 const cleanName = name.trim();
 if (!cleanName) return;
 
@@ -1778,11 +1838,13 @@ const now = Date.now();
 const mem = priceMemory[cleanName.toLowerCase()];
 const finalPrice = Number(price) > 0 ? Number(price) : (mem?.price || 0);
 const finalDept = dept || mem?.dept || classifyDepartment(cleanName);
+const finalImage = String(image || "").trim() || mem?.image || "";
 
 const existing = items.find((i) => !i.done && i.name.toLowerCase() === cleanName.toLowerCase());
 if (existing) {
 existing.qty += qty;
 if (finalPrice > 0) existing.price = finalPrice;
+if (finalImage) existing.image = finalImage;
 existing.updatedAt = now;
 } else {
 items.unshift({
@@ -1791,12 +1853,13 @@ name: cleanName,
 price: finalPrice,
 qty,
 dept: finalDept,
+image: finalImage,
 done: false,
 updatedAt: now
 });
 }
 
-if (finalPrice > 0) rememberProduct(cleanName, finalPrice, finalDept);
+if (finalPrice > 0 || finalImage) rememberProduct(cleanName, finalPrice, finalDept, finalImage);
 $("shop-search-input").value = "";
 closeDropdown();
 saveState(true);
@@ -1821,7 +1884,7 @@ searchAbort = ctrl;
 const localMatches = Object.values(priceMemory)
 .filter((m) => m.name.toLowerCase().includes(term.toLowerCase()))
 .slice(0, 4)
-.map((m) => ({ ...m, source: "זיכרון מחירים" }));
+.map((m) => ({ ...m, image: m.image || "", source: "זיכרון מחירים" }));
 
 renderDropdown(localMatches, true);
 
@@ -1838,12 +1901,16 @@ name: it.name,
 price: it.price,
 oldPrice: it.oldPrice,
 dept: classifyDepartment(it.name, it.department),
+image: it.image || "",
 source: "רמי לוי אונליין"
 }));
 renderDropdown(liveMatches, false);
 } else if (localMatches.length === 0) {
 dd.innerHTML = `<div class="shop-dd-item" onclick="window._shopAddManual()">
-<div><strong>הוסף "${term}" ידנית</strong><div class="shop-dd-meta">ללא התאמה באונליין • ישויך אוטומטית למחלקה</div></div>
+<div class="shop-dd-left">
+${renderThumb("", term, "", "shop-dd-thumb")}
+<div style="min-width:0;"><strong>הוסף "${esc(term)}" ידנית</strong><div class="shop-dd-meta">ללא התאמה באונליין • ישויך אוטומטית למחלקה</div></div>
+</div>
 <span class="shop-dd-price">+ הוסף</span>
 </div>`;
 dd.classList.add("open");
@@ -1866,9 +1933,12 @@ return;
 }
 let html = list.map((it, idx) => `
 <div class="shop-dd-item" data-idx="${idx}">
+<div class="shop-dd-left">
+${renderThumb(it.image, it.name, it.dept, "shop-dd-thumb")}
 <div style="min-width:0;">
-<div style="font-weight:600; font-size:13.5px;">${it.name}</div>
-<div class="shop-dd-meta">${it.dept} • ${it.source}</div>
+<div style="font-weight:600; font-size:13.5px;">${esc(it.name)}</div>
+<div class="shop-dd-meta">${esc(it.dept)} • ${esc(it.source)}</div>
+</div>
 </div>
 <div class="shop-dd-price">
 ${it.oldPrice ? `<span class="shop-dd-old">${fmt(it.oldPrice)}</span>` : ""}
@@ -1914,7 +1984,7 @@ const byId = new Map();
 if (!it || !it.id) return;
 const upd = Number(it.updatedAt) || 0;
 if (mergedDeleted[it.id] && mergedDeleted[it.id] >= upd) return;
-byId.set(it.id, { ...it, updatedAt: upd });
+byId.set(it.id, { ...it, image: it.image || "", updatedAt: upd });
 });
 
 (local.items || []).forEach((it) => {
@@ -1922,8 +1992,12 @@ if (!it || !it.id) return;
 const upd = Number(it.updatedAt) || 0;
 if (mergedDeleted[it.id] && mergedDeleted[it.id] >= upd) return;
 const prev = byId.get(it.id);
-if (!prev || upd >= (Number(prev.updatedAt) || 0)) {
-byId.set(it.id, { ...it, updatedAt: upd });
+if (!prev) {
+byId.set(it.id, { ...it, image: it.image || "", updatedAt: upd });
+} else if (upd >= (Number(prev.updatedAt) || 0)) {
+byId.set(it.id, { ...it, image: it.image || prev.image || "", updatedAt: upd });
+} else if (!prev.image && it.image) {
+prev.image = it.image;
 }
 });
 
@@ -1937,8 +2011,11 @@ if (dup) {
 if ((it.updatedAt || 0) >= (dup.updatedAt || 0)) {
 dup.price = it.price || dup.price;
 dup.dept = it.dept || dup.dept;
+dup.image = it.image || dup.image || "";
 dup.qty = Math.max(dup.qty, it.qty);
 dup.updatedAt = it.updatedAt;
+} else if (!dup.image && it.image) {
+dup.image = it.image;
 }
 continue;
 }
@@ -1950,8 +2027,12 @@ finalItems.push(it);
 const mergedMemory = { ...(remote.priceMemory || {}) };
 Object.entries(local.priceMemory || {}).forEach(([k, v]) => {
 const r = mergedMemory[k];
-if (!r || (Number(v.updatedAt) || 0) >= (Number(r.updatedAt) || 0)) {
+if (!r) {
 mergedMemory[k] = v;
+} else if ((Number(v.updatedAt) || 0) >= (Number(r.updatedAt) || 0)) {
+mergedMemory[k] = { ...v, image: v.image || r.image || "" };
+} else if (!r.image && v.image) {
+mergedMemory[k] = { ...r, image: v.image };
 }
 });
 
@@ -2112,6 +2193,38 @@ syncWithDrive("push", true);
 }
 }
 
+async function backfillMissingImages() {
+if (!navigator.onLine) return;
+const candidates = items
+.filter((it) => !it.image && it.name && it.name.trim().length >= 2)
+.slice(0, 5);
+let updated = false;
+for (const it of candidates) {
+const key = it.name.trim().toLowerCase();
+if (priceMemory[key]?.image) {
+it.image = priceMemory[key].image;
+updated = true;
+continue;
+}
+if (checkedImageNames.has(key)) continue;
+checkedImageNames.add(key);
+try {
+const res = await fetch(`${WORKER_BASE}/rami?q=${encodeURIComponent(it.name.trim())}`);
+const data = await res.json();
+if (data.ok && Array.isArray(data.items) && data.items.length > 0) {
+const exact = data.items.find((x) => x.name.trim().toLowerCase() === key && x.image) || data.items.find((x) => x.image);
+if (exact && exact.image) {
+it.image = exact.image;
+it.updatedAt = Date.now();
+rememberProduct(it.name, it.price, it.dept, exact.image);
+updated = true;
+}
+}
+} catch {}
+}
+if (updated) saveState(true);
+}
+
 async function handleShareClick() {
 const tok = await getDriveToken();
 if (!tok) {
@@ -2128,7 +2241,7 @@ navigator.share({ title: "רשימת קניות משותפת - הכסף שלי",
 } else {
 window.open(url, "_blank", "noopener");
 }
-showShareBanner(`קובץ הרשימה (<b>${DRIVE_FILE_NAME}</b>) מוכן! שתף אותו בדרייב עם הרשאת <b>עריכה (Editor)</b> והרשימה תסתנכרן אצל שניכם בזמן אמת.`);
+showShareBanner(`קובץ הרשימה (<b>${esc(DRIVE_FILE_NAME)}</b>) מוכן! שתף אותו בדרייב עם הרשאת <b>עריכה (Editor)</b> והרשימה תסתנכרן אצל שניכם בזמן אמת.`);
 } catch {
 setSyncPill("need_scope", "אשר גישה לדרייב ↻");
 }
@@ -2136,11 +2249,14 @@ setSyncPill("need_scope", "אשר גישה לדרייב ↻");
 
 function renderItemRow(item) {
 const lineTotal = item.price * item.qty;
+const memImg = priceMemory[item.name.trim().toLowerCase()]?.image || "";
+const imgSrc = item.image || memImg;
 return `
-<div class="shop-item ${item.done ? "done" : ""}" data-id="${item.id}">
+<div class="shop-item ${item.done ? "done" : ""}" data-id="${esc(item.id)}">
 <button class="shop-check" data-act="toggle" type="button" title="סמן נקנה">${item.done ? "✓" : ""}</button>
+${renderThumb(imgSrc, item.name, item.dept, "shop-thumb")}
 <div class="shop-mid">
-<div class="shop-name">${item.name}</div>
+<div class="shop-name">${esc(item.name)}</div>
 <div class="shop-controls">
 <button class="shop-unit-btn" data-act="edit-price" type="button">
 ${item.price > 0 ? `${fmt(item.price)} ליח׳ ✎` : "הזן מחיר ✎"}
@@ -2187,12 +2303,22 @@ if (!byDept[d]) byDept[d] = [];
 byDept[d].push(it);
 });
 
-groupsContainer.innerHTML = Object.entries(byDept).map(([dept, list]) => {
+const deptRank = (d) => {
+const idx = DEPT_ORDER.indexOf(d);
+return idx >= 0 ? idx : DEPT_ORDER.length - 1;
+};
+
+const sortedDepts = Object.entries(byDept).sort(([a], [b]) => {
+const ra = deptRank(a), rb = deptRank(b);
+return ra !== rb ? ra - rb : a.localeCompare(b, "he");
+});
+
+groupsContainer.innerHTML = sortedDepts.map(([dept, list]) => {
 const deptSum = list.reduce((s, i) => s + i.price * i.qty, 0);
 return `
 <details class="card ct shop-dept" open>
 <summary>
-<span>${dept} (${list.length})</span>
+<span>${esc(dept)} (${list.length})</span>
 <span class="shop-dept-sub">${fmt(deptSum)}</span>
 </summary>
 <div>${list.map(renderItemRow).join("")}</div>
@@ -2263,11 +2389,15 @@ saveState(true);
 if (act === "del") { markDeleted(item.id); items = items.filter((i) => i.id !== item.id); saveState(true); }
 if (act === "edit-price") {
 const val = prompt(`מחיר ליחידה עבור "${item.name}":`, item.price || "");
-if (val !== null && !isNaN(parseFloat(val))) {
-item.price = Math.max(0, parseFloat(val));
+if (val !== null) {
+const normalized = val.trim().replace(",", ".");
+const parsed = parseFloat(normalized);
+if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+item.price = Math.max(0, Math.round(parsed * 100) / 100);
 item.updatedAt = Date.now();
-rememberProduct(item.name, item.price, item.dept);
+rememberProduct(item.name, item.price, item.dept, item.image);
 saveState(true);
+}
 }
 }
 });
@@ -2306,6 +2436,6 @@ window._shopSync = syncWithDrive;
 window._shopRender = render;
 
 render();
-syncWithDrive("pull", true);
+syncWithDrive("pull", true).then(() => backfillMissingImages());
 })();
 </script></body></html>
