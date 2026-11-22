@@ -499,15 +499,25 @@ font: inherit; font-size: 12px; cursor: pointer; padding: 2px 4px; margin-top: 2
 .shop-hero-box { background: rgba(128,128,128,.09); border-radius: 10px; padding: 8px 4px; }
 .shop-hero-lbl { font-size: 11px; opacity: .85; }
 .shop-hero-val { font-size: 16px; font-weight: 800; margin-top: 2px; }
+#shop-sync-pill { cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 700; }
+#shop-sync-pill.warn { border-color: rgba(245,158,11,.45); color: #b45309; background: var(--ws); }
+@media(prefers-color-scheme:dark){ #shop-sync-pill.warn { color: var(--w); } }
+#shop-sync-pill.warn i { background: var(--w); }
+.shop-share-tip {
+  background: var(--card); border: 1px solid var(--bd); border-radius: 14px;
+  padding: 10px 13px; margin-bottom: 10px; font-size: 12.5px; color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  box-shadow: var(--sh);
+}
 </style></head><body>
 <main id="app"><div id="msg"><div class="logo-badge"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></main>
 
 <div id="page-shopping" class="page" style="display:none; padding-bottom: 84px;">
 <!-- כרטיס סיכום עליון -->
 <div class="card hg">
-<div style="display:flex; justify-content:space-between; align-items:center;">
+<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
 <span style="font-weight:800; font-size:17px;">🛒 רשימת קניות חכמה</span>
-<span id="shop-source-badge" style="font-size:11px; opacity:.85;">רמי לוי + זיכרון מקומי</span>
+<button id="shop-sync-pill" class="sync-pill off" type="button" title="לחץ לסנכרון מול Google Drive"><i></i><span id="shop-sync-txt">מקומי בלבד</span></button>
 </div>
 <div class="shop-hero-grid">
 <div class="shop-hero-box">
@@ -525,6 +535,8 @@ font: inherit; font-size: 12px; cursor: pointer; padding: 2px 4px; margin-top: 2
 </div>
 </div>
 
+<div id="shop-share-banner" class="shop-share-tip" style="display:none;"></div>
+
 <!-- שורת חיפוש והוספה חיה -->
 <div class="shop-search-wrap">
 <div class="shop-search-row">
@@ -540,7 +552,8 @@ placeholder="חפש מוצר ברמי לוי או הקלד להוספה..." auto
 <button class="shop-pill active" data-filter="all" type="button">הכל</button>
 <button class="shop-pill" data-filter="todo" type="button">לא נקנה</button>
 <button class="shop-pill" data-filter="done" type="button">נקנה ✓</button>
-<button id="shop-clear-done" class="shop-pill" style="margin-right:auto; color:#dc2626;" type="button">נקה שנקנו</button>
+<button id="shop-share-btn" class="shop-pill" style="margin-right:auto;" type="button" title="שתף רשימה בדרייב">👥 שתף</button>
+<button id="shop-clear-done" class="shop-pill" style="color:#dc2626;" type="button">נקה שנקנו</button>
 </div>
 
 <!-- רשימה מקובצת אוטומטית לפי מחלקות -->
@@ -566,7 +579,7 @@ placeholder="חפש מוצר ברמי לוי או הקלד להוספה..." auto
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
-const CLIENT_ID='579770283485-41n96q8bol22fh83dkgua1lb5fq4n70c.apps.googleusercontent.com',SC='https://www.googleapis.com/auth/drive.readonly';
+const CLIENT_ID='579770283485-41n96q8bol22fh83dkgua1lb5fq4n70c.apps.googleusercontent.com',SC='https://www.googleapis.com/auth/drive';
 const FILES={exp:'סך הוצאת משק בית',inv:'תיק השקעות',ins:'לוח תשלומים ביטוח חיים'};
 const COL=['#4f6bed','#10b981','#f59e0b','#ec4899','#06b6d4','#84cc16','#ef4444','#8b5cf6'];
 const ICO=[
@@ -665,7 +678,7 @@ async function load(){
     try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
     try{S.mort=parseMort(await getAny(['סילוקין','=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל.xlsx','=לוח_סילוקין_ומעקב_משכנתא_אביחי_ופריאל_1.xlsx','משכנתא']))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
     S.syncAt=Date.now();saveSnap();S.rt2=0;S.syncing=false;
-    $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&S.sub=='dc')loadFiles();quotes();
+    $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&S.sub=='dc')loadFiles();quotes();if(window._shopSync)window._shopSync('pull',true);
   }catch(e){S.syncing=false;if(/פג/.test(e.message)&&!S.rt2){S.rt2=1;if(await refresh())return load()}S.err=e.message;if(S.exp.length)draw();else msg('שגיאה: '+e.message+'<br><br><button class="go" data-sync>נסה שוב</button>')}
 }
 function parseIns(wb){
@@ -1262,18 +1275,25 @@ const post=async(p,b)=>(await fetch(W+p,{method:'POST',headers:{'Content-Type':'
 function setTok(j){token=j.access_token;ls('tok',JSON.stringify({t:token,e:Date.now()+((+j.expires_in||3600)-120)*1e3}))}
 async function refresh(){const rt=ls('rt');if(!rt)return false;try{const j=await post('/refresh',{refresh_token:rt});if(j.access_token){setTok(j);return true}if(j.error=='invalid_grant')ls('rt',null)}catch(e){}return false}
 const fail=m=>{S.err=m;S.exp.length?draw():msg(m+'<br><br><button class="go" data-sync>נסה שוב</button>')};
-async function login(){
-  if(await refresh()){load();return}
+async function onAuthCode(r){
+  if(!r.code)return;
+  try{const x=await post('/exchange',{code:r.code});
+    if(!x.access_token){fail('שגיאת התחברות: '+(x.error_description||x.error||''));return}
+    setTok(x);ls('gd','1');
+    if(x.refresh_token)ls('rt',x.refresh_token);else alert('ההתחברות הצליחה, אך גוגל לא העניקה התחברות קבועה. הסר את ההרשאה של האפליקציה ב-myaccount.google.com/permissions, ואז התחבר שוב.');
+    load()}
+  catch(e){fail('אין חיבור לשרת ההתחברות')}
+}
+async function login(forceConsent=false){
+  if(!forceConsent&&await refresh()){load();return}
   if(!window.google)return;
-  cc=cc||google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',callback:async r=>{
-    if(!r.code)return;
-    try{const x=await post('/exchange',{code:r.code});
-      if(!x.access_token){fail('שגיאת התחברות: '+(x.error_description||x.error||''));return}
-      setTok(x);ls('gd','1');
-      if(x.refresh_token)ls('rt',x.refresh_token);else alert('ההתחברות הצליחה, אך גוגל לא העניקה התחברות קבועה. הסר את ההרשאה של האפליקציה ב-myaccount.google.com/permissions, ואז התחבר שוב.');
-      load()}
-    catch(e){fail('אין חיבור לשרת ההתחברות')}}});
-  cc.requestCode()}
+  const client=forceConsent
+    ?google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',prompt:'consent',callback:onAuthCode})
+    :(cc=cc||google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',callback:onAuthCode}));
+  client.requestCode()}
+window._getAuthToken=()=>token;
+window._refreshAuthToken=()=>refresh();
+window._upgradeDriveScope=()=>login(true);
 const brk=it=>{const m={};it.forEach(e=>{(m[e.t]=m[e.t]||{s:0,n:0}).s+=e.a;m[e.t].n++});const tot=T(it,'a')||1;
   return Object.entries(m).sort((a,b)=>b[1].s-a[1].s).map(([t,v])=>`<div style="padding-top:12px"><div class="row" style="padding:0"><span>${t}</span><b>${fmt(v.s)}</b></div><div class="row s mut" style="padding:0"><span>${v.n} פעולות · ממוצע ${fmt(v.s/v.n)}</span><span>${Math.round(v.s/tot*100)}%</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${v.s/tot*100}%;background:var(--g)"></i></div></div>`).join('')};
 async function getAny(a){let er;for(const n of a){try{return await getFile(n)}catch(x){er=x;if(/פג/.test(x.message))throw x}}throw er}
@@ -1611,7 +1631,7 @@ document.addEventListener('click',e=>{
   if('qclr'in b.dataset){vib(6);clearTimeout(qTimer);S.pv.q='';S.pv.dr=null;draw(true);const inp=document.querySelector('input[data-q]');if(inp)inp.focus();return}
   if('sync'in b.dataset){vib(10);login()}
   if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
-  if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0)}
+  if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0);if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}
   if(b.dataset.dn!==undefined){vib(6);const c=decodeURIComponent(b.dataset.dn);S.dnSel=(!c||S.dnSel===c)?null:c;draw();return}
   if(b.dataset.sc){vib(6);const [k,d]=b.dataset.sc.split(':');sv.c[+k]=Math.max(0,sv.c[+k]+ +d);draw();return}
   if('sreset'in b.dataset){vib(8);sv=null;draw();return}
@@ -1650,7 +1670,7 @@ document.addEventListener('click',e=>{
   try{const t=JSON.parse(ls('tok'));if(t&&t.e>Date.now()){token=t.t;load()}}catch(e){}
   if(!token)refresh().then(ok=>ok&&load());
   setInterval(()=>{if(document.visibilityState=='visible'&&ls('rt'))refresh()},40*60*1e3);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&ls('rt')){let t;try{t=JSON.parse(ls('tok'))}catch(e){}if(!t||t.e<Date.now())refresh().then(ok=>ok&&load())}});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'){if(ls('rt')){let t;try{t=JSON.parse(ls('tok'))}catch(e){}if(!t||t.e<Date.now())refresh().then(ok=>ok&&load())}if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}});
 })();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
 
@@ -1659,8 +1679,10 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
 const WORKER_BASE = "https://plain-dust-203fmoney-auth.orbach222.workers.dev";
 const STORAGE_KEY = "my_money_shopping_v1";
 const MEMORY_KEY = "my_money_price_memory_v1";
+const DELETED_KEY = "my_money_shop_deleted_v1";
+const FILE_META_KEY = "my_money_shop_drive_meta_v1";
+const DRIVE_FILE_NAME = "my_money_shopping.json";
 
-// מיפוי אוטומטי למחלקות בסופר (מילות מפתח + נרמול מחלקות רמי לוי)
 const DEPT_RULES = [
 { dept: "🥬 ירקות ופירות", keys: ["עגבני", "מלפפון", "בצל", "תפוח", "בננ", "פלפל", "חסה", "לימון", "אבוקדו", "גזר", "תפו\"א", "תפוחי אדמה", "שום", "קישוא", "חציל", "פטריות", "כוסברה", "פטרוזיליה", "תות", "ענבים", "אבטיח", "מלון", "תפוז", "קלמנטינ", "ירק", "פירות"] },
 { dept: "🥛 חלב, ביצים וסלטים", keys: ["חלב", "קוטג", "גבינ", "יוגורט", "שמנת", "חמאה", "ביצים", "ביצה", "מעדן", "שוקו", "מילקי", "דני", "צהובה", "בולגרית", "מוצרלה", "טחינה", "חומוס", "מטבוחה", "סלט", "צונן"] },
@@ -1680,57 +1702,106 @@ if (rule.keys.some((k) => combined.includes(k))) return rule.dept;
 return ramiDept ? `📦 ${ramiDept}` : "📦 כללי";
 }
 
-let items = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-let priceMemory = JSON.parse(localStorage.getItem(MEMORY_KEY) || "{}");
+function loadJson(key, fallback) {
+try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+catch { return fallback; }
+}
+
+let items = loadJson(STORAGE_KEY, []);
+let priceMemory = loadJson(MEMORY_KEY, {});
+let deletedIds = loadJson(DELETED_KEY, {});
+let driveMeta = loadJson(FILE_META_KEY, null);
 let currentFilter = "all";
+
 let searchTimer = null;
+let searchSeq = 0;
+let searchAbort = null;
+
+let pushTimer = null;
+let syncInFlight = false;
+let pendingPush = false;
+let syncStatus = { state: "idle", label: "מקומי בלבד" };
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (typeof S !== "undefined" && S.hide) ? "₪•••" : "₪" + Number(n || 0).toFixed(2);
 
-function saveState() {
+function setSyncPill(state, label) {
+syncStatus = { state, label };
+const pill = $("shop-sync-pill");
+const txt = $("shop-sync-txt");
+if (!pill || !txt) return;
+pill.className = "sync-pill" + (state === "syncing" ? " busy" : state === "ok" ? "" : (state === "need_scope" || state === "warn") ? " warn" : " off");
+txt.textContent = label;
+}
+
+function showShareBanner(htmlMsg) {
+const el = $("shop-share-banner");
+if (!el) return;
+el.innerHTML = `<span>${htmlMsg}</span><button type="button" class="qclr" style="position:static;flex:none;" onclick="document.getElementById('shop-share-banner').style.display='none'">✕</button>`;
+el.style.display = "flex";
+}
+
+function persistLocal() {
 localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 localStorage.setItem(MEMORY_KEY, JSON.stringify(priceMemory));
+localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
+}
+
+function scheduleDrivePush() {
+clearTimeout(pushTimer);
+pushTimer = setTimeout(() => {
+syncWithDrive("push", true);
+}, 900);
+}
+
+function saveState(triggerSync = true) {
+persistLocal();
 render();
+if (triggerSync) scheduleDrivePush();
+}
+
+function markDeleted(id) {
+if (id) deletedIds[id] = Date.now();
 }
 
 function rememberProduct(name, price, dept) {
 const key = name.trim().toLowerCase();
 if (!key) return;
-priceMemory[key] = { name: name.trim(), price: Number(price) || 0, dept };
+priceMemory[key] = { name: name.trim(), price: Number(price) || 0, dept, updatedAt: Date.now() };
 }
 
 function addItem({ name, price = 0, qty = 1, dept = "" }) {
 const cleanName = name.trim();
 if (!cleanName) return;
 
+const now = Date.now();
 const mem = priceMemory[cleanName.toLowerCase()];
 const finalPrice = Number(price) > 0 ? Number(price) : (mem?.price || 0);
 const finalDept = dept || mem?.dept || classifyDepartment(cleanName);
 
-// אם המוצר כבר ברשימה ולא נקנה — נגדיל כמות במקום לשכפל שורה
 const existing = items.find((i) => !i.done && i.name.toLowerCase() === cleanName.toLowerCase());
 if (existing) {
 existing.qty += qty;
 if (finalPrice > 0) existing.price = finalPrice;
+existing.updatedAt = now;
 } else {
 items.unshift({
-id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+id: now.toString(36) + Math.random().toString(36).slice(2, 6),
 name: cleanName,
 price: finalPrice,
 qty,
 dept: finalDept,
-done: false
+done: false,
+updatedAt: now
 });
 }
 
 if (finalPrice > 0) rememberProduct(cleanName, finalPrice, finalDept);
 $("shop-search-input").value = "";
 closeDropdown();
-saveState();
+saveState(true);
 }
 
-// חיפוש משולב: זיכרון מקומי מיידי + קריאה חיה לרמי לוי
 async function handleSearchInput(q) {
 const term = q.trim();
 const dd = $("shop-dropdown");
@@ -1739,7 +1810,14 @@ closeDropdown();
 return;
 }
 
-// 1. הצגה מיידית מתוך זיכרון המחירים המקומי
+const reqId = ++searchSeq;
+if (searchAbort) {
+searchAbort.abort();
+searchAbort = null;
+}
+const ctrl = new AbortController();
+searchAbort = ctrl;
+
 const localMatches = Object.values(priceMemory)
 .filter((m) => m.name.toLowerCase().includes(term.toLowerCase()))
 .slice(0, 4)
@@ -1747,10 +1825,13 @@ const localMatches = Object.values(priceMemory)
 
 renderDropdown(localMatches, true);
 
-// 2. שליפה חיה מרמי לוי דרך ה-Worker
 try {
-const res = await fetch(`${WORKER_BASE}/rami?q=${encodeURIComponent(term)}`);
+const res = await fetch(`${WORKER_BASE}/rami?q=${encodeURIComponent(term)}`, { signal: ctrl.signal });
 const data = await res.json();
+
+if (reqId !== searchSeq) return;
+if ($("shop-search-input").value.trim() !== term) return;
+
 if (data.ok && Array.isArray(data.items) && data.items.length > 0) {
 const liveMatches = data.items.map((it) => ({
 name: it.name,
@@ -1766,9 +1847,14 @@ dd.innerHTML = `<div class="shop-dd-item" onclick="window._shopAddManual()">
 <span class="shop-dd-price">+ הוסף</span>
 </div>`;
 dd.classList.add("open");
+} else {
+renderDropdown(localMatches, false);
 }
-} catch {
-// במקרה שאין רשת — משאירים את התוצאות מהזיכרון המקומי
+} catch (err) {
+if (err && err.name === "AbortError") return;
+if (reqId === searchSeq && localMatches.length > 0) {
+renderDropdown(localMatches, false);
+}
 }
 }
 
@@ -1804,10 +1890,249 @@ el.onclick = () => addItem(list[i]);
 }
 
 function closeDropdown() {
+searchSeq++;
+if (searchAbort) {
+searchAbort.abort();
+searchAbort = null;
+}
 $("shop-dropdown").classList.remove("open");
 }
 
 window._shopAddManual = () => addItem({ name: $("shop-search-input").value });
+
+function mergeStates(local, remote) {
+const cutoff = Date.now() - 30 * 864e5;
+const mergedDeleted = {};
+const allDelKeys = new Set([...Object.keys(local.deletedIds || {}), ...Object.keys(remote.deletedIds || {})]);
+allDelKeys.forEach((id) => {
+const ts = Math.max(Number(local.deletedIds?.[id]) || 0, Number(remote.deletedIds?.[id]) || 0);
+if (ts > cutoff) mergedDeleted[id] = ts;
+});
+
+const byId = new Map();
+(remote.items || []).forEach((it) => {
+if (!it || !it.id) return;
+const upd = Number(it.updatedAt) || 0;
+if (mergedDeleted[it.id] && mergedDeleted[it.id] >= upd) return;
+byId.set(it.id, { ...it, updatedAt: upd });
+});
+
+(local.items || []).forEach((it) => {
+if (!it || !it.id) return;
+const upd = Number(it.updatedAt) || 0;
+if (mergedDeleted[it.id] && mergedDeleted[it.id] >= upd) return;
+const prev = byId.get(it.id);
+if (!prev || upd >= (Number(prev.updatedAt) || 0)) {
+byId.set(it.id, { ...it, updatedAt: upd });
+}
+});
+
+const finalItems = [];
+const activeByName = new Map();
+for (const it of byId.values()) {
+if (!it.done) {
+const norm = it.name.trim().toLowerCase();
+const dup = activeByName.get(norm);
+if (dup) {
+if ((it.updatedAt || 0) >= (dup.updatedAt || 0)) {
+dup.price = it.price || dup.price;
+dup.dept = it.dept || dup.dept;
+dup.qty = Math.max(dup.qty, it.qty);
+dup.updatedAt = it.updatedAt;
+}
+continue;
+}
+activeByName.set(norm, it);
+}
+finalItems.push(it);
+}
+
+const mergedMemory = { ...(remote.priceMemory || {}) };
+Object.entries(local.priceMemory || {}).forEach(([k, v]) => {
+const r = mergedMemory[k];
+if (!r || (Number(v.updatedAt) || 0) >= (Number(r.updatedAt) || 0)) {
+mergedMemory[k] = v;
+}
+});
+
+return { items: finalItems, priceMemory: mergedMemory, deletedIds: mergedDeleted };
+}
+
+async function getDriveToken() {
+let tok = window._getAuthToken ? window._getAuthToken() : null;
+if (!tok && window._refreshAuthToken) {
+const ok = await window._refreshAuthToken();
+if (ok && window._getAuthToken) tok = window._getAuthToken();
+}
+return tok;
+}
+
+async function ensureDriveFile(tok) {
+const headers = { Authorization: "Bearer " + tok };
+if (driveMeta && driveMeta.id) {
+const chk = await fetch(`https://www.googleapis.com/drive/v3/files/${driveMeta.id}?fields=id,name,trashed,webViewLink,modifiedTime`, { headers });
+if (chk.ok) {
+const meta = await chk.json();
+if (!meta.trashed) {
+driveMeta = { id: meta.id, webViewLink: meta.webViewLink || driveMeta.webViewLink };
+localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta));
+return meta;
+}
+}
+driveMeta = null;
+localStorage.removeItem(FILE_META_KEY);
+}
+
+const q = encodeURIComponent(`name = '${DRIVE_FILE_NAME}' and trashed = false`);
+const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime,webViewLink,shared)&orderBy=${encodeURIComponent("modifiedTime desc")}&q=${q}`, { headers });
+if (!listRes.ok) {
+const err = new Error("drive_list_failed");
+err.status = listRes.status;
+throw err;
+}
+const listData = await listRes.json();
+const files = listData.files || [];
+if (files.length > 0) {
+const chosen = files.find((f) => f.shared) || files[0];
+driveMeta = { id: chosen.id, webViewLink: chosen.webViewLink || `https://drive.google.com/file/d/${chosen.id}/view` };
+localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta));
+return chosen;
+}
+
+const boundary = "-------myMoneyShopBoundary" + Date.now();
+const metadata = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
+const bodyPayload = JSON.stringify({ version: 1, updatedAt: Date.now(), items, priceMemory, deletedIds });
+const multipartBody =
+`--${boundary}
+Content-Type: application/json; charset=UTF-8
+
+${JSON.stringify(metadata)}
+` +
+`--${boundary}
+Content-Type: application/json; charset=UTF-8
+
+${bodyPayload}
+` +
+`--${boundary}--`;
+
+const createRes = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,modifiedTime", {
+method: "POST",
+headers: {
+Authorization: "Bearer " + tok,
+"Content-Type": `multipart/related; boundary=${boundary}`
+},
+body: multipartBody
+});
+if (!createRes.ok) {
+const err = new Error("drive_create_failed");
+err.status = createRes.status;
+throw err;
+}
+const created = await createRes.json();
+driveMeta = { id: created.id, webViewLink: created.webViewLink || `https://drive.google.com/file/d/${created.id}/view` };
+localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta));
+return created;
+}
+
+async function syncWithDrive(mode = "pull", silent = false) {
+if (syncInFlight) {
+if (mode === "push") pendingPush = true;
+return;
+}
+const tok = await getDriveToken();
+if (!tok) {
+setSyncPill("idle", "לא מחובר לדרייב");
+return;
+}
+
+syncInFlight = true;
+if (!silent) setSyncPill("syncing", "מסנכרן...");
+
+try {
+const headers = { Authorization: "Bearer " + tok };
+const file = await ensureDriveFile(tok);
+
+const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers });
+if (!dlRes.ok) {
+const err = new Error("drive_read_failed");
+err.status = dlRes.status;
+throw err;
+}
+let remoteState = {};
+try { remoteState = await dlRes.json(); } catch { remoteState = {}; }
+
+const localSnapshot = JSON.stringify({ items, priceMemory, deletedIds });
+const remoteSnapshot = JSON.stringify({
+items: remoteState.items || [],
+priceMemory: remoteState.priceMemory || {},
+deletedIds: remoteState.deletedIds || {}
+});
+
+const merged = mergeStates({ items, priceMemory, deletedIds }, remoteState);
+const mergedSnapshot = JSON.stringify(merged);
+
+if (mergedSnapshot !== localSnapshot) {
+items = merged.items;
+priceMemory = merged.priceMemory;
+deletedIds = merged.deletedIds;
+persistLocal();
+render();
+}
+
+if (mode === "push" || mergedSnapshot !== remoteSnapshot) {
+const upRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media&fields=id,modifiedTime,webViewLink`, {
+method: "PATCH",
+headers: {
+Authorization: "Bearer " + tok,
+"Content-Type": "application/json; charset=UTF-8"
+},
+body: JSON.stringify({ version: 1, updatedAt: Date.now(), ...merged })
+});
+if (!upRes.ok) {
+const err = new Error("drive_write_failed");
+err.status = upRes.status;
+throw err;
+}
+}
+
+const hhmm = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+setSyncPill("ok", `מסונכרן · ${hhmm}`);
+} catch (err) {
+if (err && (err.status === 403 || err.status === 401)) {
+setSyncPill("need_scope", "אשר גישה לדרייב ↻");
+} else {
+setSyncPill("warn", "שגיאת סנכרון · נסה שוב");
+}
+} finally {
+syncInFlight = false;
+if (pendingPush) {
+pendingPush = false;
+syncWithDrive("push", true);
+}
+}
+}
+
+async function handleShareClick() {
+const tok = await getDriveToken();
+if (!tok) {
+showShareBanner("יש להתחבר קודם לחשבון Google כדי לשתף את הרשימה בדרייב.");
+return;
+}
+setSyncPill("syncing", "מכין שיתוף...");
+try {
+await syncWithDrive("push", true);
+const url = driveMeta?.webViewLink || (driveMeta?.id ? `https://drive.google.com/file/d/${driveMeta.id}/view` : "");
+if (!url) return;
+if (navigator.share) {
+navigator.share({ title: "רשימת קניות משותפת - הכסף שלי", text: "הוסף אותי כעורך לקובץ הרשימה בדרייב", url }).catch(() => {});
+} else {
+window.open(url, "_blank", "noopener");
+}
+showShareBanner(`קובץ הרשימה (<b>${DRIVE_FILE_NAME}</b>) מוכן! שתף אותו בדרייב עם הרשאת <b>עריכה (Editor)</b> והרשימה תסתנכרן אצל שניכם בזמן אמת.`);
+} catch {
+setSyncPill("need_scope", "אשר גישה לדרייב ↻");
+}
+}
 
 function renderItemRow(item) {
 const lineTotal = item.price * item.qty;
@@ -1849,7 +2174,6 @@ $("shop-float-left").textContent = fmt(totalLeft);
 const todoItems = items.filter((i) => !i.done);
 const doneItems = items.filter((i) => i.done);
 
-// קיבוץ פריטים שטרם נקנו לפי מחלקה
 const groupsContainer = $("shop-groups-container");
 if (currentFilter === "done") {
 groupsContainer.innerHTML = "";
@@ -1877,7 +2201,6 @@ return `
 }).join("");
 }
 
-// מקטע תחתון: פריטים שכבר בעגלה (נקנו)
 const doneContainer = $("shop-done-container");
 if (currentFilter === "todo" || doneItems.length === 0) {
 doneContainer.innerHTML = "";
@@ -1895,10 +2218,9 @@ doneContainer.innerHTML = `
 }
 }
 
-// מאזיני אירועים
 $("shop-search-input").addEventListener("input", (e) => {
 clearTimeout(searchTimer);
-searchTimer = setTimeout(() => handleSearchInput(e.target.value), 280);
+searchTimer = setTimeout(() => handleSearchInput(e.target.value), 250);
 });
 
 $("shop-search-input").addEventListener("keydown", (e) => {
@@ -1912,6 +2234,16 @@ $("shop-manual-add").addEventListener("click", () => {
 addItem({ name: $("shop-search-input").value });
 });
 
+$("shop-sync-pill").addEventListener("click", () => {
+if (syncStatus.state === "need_scope" && window._upgradeDriveScope) {
+window._upgradeDriveScope();
+} else {
+syncWithDrive("pull", false);
+}
+});
+
+$("shop-share-btn").addEventListener("click", handleShareClick);
+
 document.addEventListener("click", (e) => {
 if (!e.target.closest(".shop-search-wrap")) closeDropdown();
 
@@ -1921,20 +2253,21 @@ const item = items.find((i) => i.id === row.dataset.id);
 if (!item) return;
 
 const act = e.target.dataset.act;
-if (act === "toggle") { item.done = !item.done; saveState(); }
-if (act === "inc") { item.qty += 1; saveState(); }
+if (act === "toggle") { item.done = !item.done; item.updatedAt = Date.now(); saveState(true); }
+if (act === "inc") { item.qty += 1; item.updatedAt = Date.now(); saveState(true); }
 if (act === "dec") {
-if (item.qty > 1) item.qty -= 1;
-else items = items.filter((i) => i.id !== item.id);
-saveState();
+if (item.qty > 1) { item.qty -= 1; item.updatedAt = Date.now(); }
+else { markDeleted(item.id); items = items.filter((i) => i.id !== item.id); }
+saveState(true);
 }
-if (act === "del") { items = items.filter((i) => i.id !== item.id); saveState(); }
+if (act === "del") { markDeleted(item.id); items = items.filter((i) => i.id !== item.id); saveState(true); }
 if (act === "edit-price") {
 const val = prompt(`מחיר ליחידה עבור "${item.name}":`, item.price || "");
 if (val !== null && !isNaN(parseFloat(val))) {
 item.price = Math.max(0, parseFloat(val));
+item.updatedAt = Date.now();
 rememberProduct(item.name, item.price, item.dept);
-saveState();
+saveState(true);
 }
 }
 });
@@ -1950,20 +2283,29 @@ render();
 
 $("shop-clear-done").addEventListener("click", () => {
 if (items.some((i) => i.done) && confirm("למחוק את כל הפריטים שכבר סומנו כנקנו?")) {
+items.filter((i) => i.done).forEach((i) => markDeleted(i.id));
 items = items.filter((i) => !i.done);
-saveState();
+saveState(true);
 }
 });
 
-// חשיפת מצב הרשימה לסנכרון עתידי עם Google Drive
-window.getShoppingState = () => ({ items, priceMemory });
+setInterval(() => {
+if (document.visibilityState === "visible" && typeof S !== "undefined" && S.tab === "shop" && navigator.onLine) {
+syncWithDrive("pull", true);
+}
+}, 20000);
+
+window.getShoppingState = () => ({ items, priceMemory, deletedIds });
 window.setShoppingState = (state) => {
 if (state?.items) items = state.items;
 if (state?.priceMemory) priceMemory = state.priceMemory;
-saveState();
+if (state?.deletedIds) deletedIds = state.deletedIds;
+saveState(true);
 };
+window._shopSync = syncWithDrive;
 window._shopRender = render;
 
 render();
+syncWithDrive("pull", true);
 })();
 </script></body></html>
