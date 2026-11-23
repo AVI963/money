@@ -3112,46 +3112,35 @@ const finalItems = [];
     history.replaceState(null, "", location.pathname + location.search);
   }
 
-  function render() {
-    const totalEst = items.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
-    const cartEst = items.filter((x) => x.done).reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
-    const doneCount = items.filter((x) => x.done).length;
-    const openCount = items.length - doneCount;
+ function renderItemRow(it) {
+    const lineTot = (Number(it.price) || 0) * (Number(it.qty) || 1);
+    const isEditing = editingPriceItemId === it.id;
+    return `<div class="shop-item ${it.done ? "done" : ""}">
+      <button type="button" class="shop-check" data-stog="${esc(it.id)}" aria-label="סמן נקנה">${it.done ? "✓" : ""}</button>
+      ${renderThumb(it.image, it.name, it.dept, "shop-thumb")}
+      <div class="shop-mid">
+        <div class="shop-name">${esc(it.name)}</div>
+        <div class="shop-controls">
+          ${isEditing
+            ? `<input type="number" inputmode="decimal" step="0.01" min="0" data-price-inp="${esc(it.id)}" value="${Number(it.price) || ""}" placeholder="מחיר ליח׳" style="width:86px;padding:3px 6px;border:1px solid var(--acc);border-radius:8px;font-size:12px">`
+            : `<button type="button" class="shop-unit-btn" data-sprice="${esc(it.id)}">${Number(it.price) > 0 ? `${fmtMoney(it.price)} ליח׳` : "+ מחיר"}</button>`}
+          <div class="shop-qty-box">
+            <button type="button" class="shop-qty-btn" data-sqty="${esc(it.id)}:-1">−</button>
+            <span class="shop-qty-val">${Number(it.qty) || 1}</span>
+            <button type="button" class="shop-qty-btn" data-sqty="${esc(it.id)}:1">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="shop-end">
+        <div class="shop-line-total">${lineTot > 0 ? fmtMoney(lineTot) : "—"}</div>
+        <button type="button" class="shop-del-btn" data-sdel="${esc(it.id)}" aria-label="מחק">הסר</button>
+      </div>
+    </div>`;
+  }
 
-    const setTxt = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
-    setTxt("shop-total", fmtMoney(totalEst));
-    setTxt("shop-est-total", fmtMoney(totalEst));
-    setTxt("shop-cart-total", fmtMoney(cartEst));
-    setTxt("shop-float-tot", fmtMoney(totalEst));
-    setTxt("shop-count", String(items.length));
-    setTxt("shop-open-count", String(openCount));
-    setTxt("shop-done-count", String(doneCount));
-    setTxt("shop-float-done", String(doneCount));
-    setTxt("shop-float-all", String(items.length));
-
-    document.querySelectorAll("#page-shopping [data-filter], #page-shopping [data-sfilter]").forEach((btn) => {
-      const f = btn.dataset.filter || btn.dataset.sfilter;
-      btn.classList.toggle("on", f === currentFilter);
-    });
-
-    const listEl = byId("shop-list");
-    if (!listEl) return;
-
-    const visible = items.filter((it) => {
-      if (currentFilter === "open" || currentFilter === "active") return !it.done;
-      if (currentFilter === "done") return !!it.done;
-      return true;
-    });
-
-    if (!visible.length) {
-      listEl.innerHTML = `<div class="card"><p class="mut" style="margin:0;text-align:center">${
-        items.length ? "אין פריטים בסינון שנבחר." : "רשימת הקניות ריקה. חפש מוצר למעלה כדי להתחיל."
-      }</p></div>`;
-      return;
-    }
-
+  function renderDeptGroups(list) {
     const groups = new Map();
-    visible.forEach((it) => {
+    list.forEach((it) => {
       const d = it.dept || classifyDepartment(it.name);
       if (!groups.has(d)) groups.set(d, []);
       groups.get(d).push(it);
@@ -3166,38 +3155,82 @@ const finalItems = [];
       return a.localeCompare(b, "he");
     });
 
-    listEl.innerHTML = sortedDepts.map((dept) => {
+    return sortedDepts.map((dept) => {
       const groupItems = groups.get(dept);
       const subTot = groupItems.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
-      return `<div class="card" style="padding:12px 14px">
-        <div class="row" style="padding:0 0 8px;border-bottom:1px solid var(--line)">
-          <b>${esc(dept)} <small class="mut">(${groupItems.length})</small></b>
-          ${subTot > 0 ? `<span class="mut" style="font-size:12.5px">${fmtMoney(subTot)}</span>` : ""}
-        </div>
-        ${groupItems.map((it) => {
-          const lineTot = (Number(it.price) || 0) * (Number(it.qty) || 1);
-          const isEditing = editingPriceItemId === it.id;
-          return `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line);gap:10px;opacity:${it.done ? ".58" : "1"}">
-            <button type="button" class="chip2 ${it.done ? "on" : ""}" data-stog="${esc(it.id)}" style="width:28px;height:28px;padding:0;border-radius:999px;flex:none" aria-label="סמן נקנה">${it.done ? "✓" : ""}</button>
-            ${renderThumb(it.image, it.name, it.dept, "shop-thumb")}
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:600;font-size:14px;${it.done ? "text-decoration:line-through;" : ""}">${esc(it.name)}</div>
-              <div style="margin-top:2px;font-size:12px">
-                ${isEditing
-                  ? `<input type="number" inputmode="decimal" step="0.01" min="0" data-price-inp="${esc(it.id)}" value="${Number(it.price) || ""}" placeholder="מחיר ליח׳" style="width:86px;padding:3px 6px;border:1px solid var(--g);border-radius:8px;font-size:12px">`
-                  : `<button type="button" class="ex-btn" data-sprice="${esc(it.id)}">${lineTot > 0 ? `${fmtMoney(lineTot)}${it.qty > 1 ? ` (${fmtMoney(it.price)} ליח׳)` : ""}` : "+ מחיר"}</button>`}
-              </div>
-            </div>
-            <div class="stp" style="flex:none">
-              <button type="button" class="chip2" data-sqty="${esc(it.id)}:-1" style="padding:3px 9px">−</button>
-              <b style="min-width:18px;text-align:center">${Number(it.qty) || 1}</b>
-              <button type="button" class="chip2" data-sqty="${esc(it.id)}:1" style="padding:3px 9px">+</button>
-            </div>
-            <button type="button" class="ex-btn" data-sdel="${esc(it.id)}" style="color:var(--r);border-color:transparent;padding:4px 6px" aria-label="מחק">✕</button>
-          </div>`;
-        }).join("")}
-      </div>`;
+      return `<details class="card shop-dept" open>
+        <summary>
+          <span>${esc(dept)} <small class="mut">(${groupItems.length})</small></span>
+          ${subTot > 0 ? `<span class="shop-dept-sub">${fmtMoney(subTot)}</span>` : ""}
+        </summary>
+        ${groupItems.map(renderItemRow).join("")}
+      </details>`;
     }).join("");
+  }
+
+  function render() {
+    const totalEst = items.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const leftEst = items.filter((x) => !x.done).reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const doneCount = items.filter((x) => x.done).length;
+
+    const setTxt = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
+    setTxt("shop-total-all", fmtMoney(totalEst));
+    setTxt("shop-total-left", fmtMoney(leftEst));
+    setTxt("shop-progress", `${doneCount}/${items.length}`);
+    setTxt("shop-float-left", fmtMoney(leftEst));
+    setTxt("shop-float-all", fmtMoney(totalEst));
+
+    document.querySelectorAll("#page-shopping [data-filter]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.filter === currentFilter);
+    });
+
+    const groupsEl = byId("shop-groups-container");
+    const doneEl = byId("shop-done-container");
+    if (!groupsEl) return;
+
+    const openItems = items.filter((it) => !it.done);
+    const doneItems = items.filter((it) => !!it.done);
+
+    if (!items.length) {
+      groupsEl.innerHTML = `<div class="card"><p class="mut" style="margin:0;text-align:center">רשימת הקניות ריקה. חפש מוצר למעלה כדי להתחיל.</p></div>`;
+      if (doneEl) doneEl.innerHTML = "";
+      return;
+    }
+
+    if (currentFilter === "todo") {
+      groupsEl.innerHTML = openItems.length
+        ? renderDeptGroups(openItems)
+        : `<div class="card"><p class="mut" style="margin:0;text-align:center">כל הפריטים ברשימה כבר נאספו ✓</p></div>`;
+      if (doneEl) doneEl.innerHTML = "";
+      return;
+    }
+
+    if (currentFilter === "done") {
+      groupsEl.innerHTML = doneItems.length
+        ? renderDeptGroups(doneItems)
+        : `<div class="card"><p class="mut" style="margin:0;text-align:center">עדיין לא סומנו פריטים שנקנו.</p></div>`;
+      if (doneEl) doneEl.innerHTML = "";
+      return;
+    }
+
+    groupsEl.innerHTML = openItems.length
+      ? renderDeptGroups(openItems)
+      : `<div class="card"><p class="mut" style="margin:0;text-align:center">כל הפריטים ברשימה נאספו לעגלה ✓</p></div>`;
+
+    if (doneEl) {
+      if (doneItems.length) {
+        const doneTot = doneItems.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+        doneEl.innerHTML = `<details class="card shop-dept" open>
+          <summary>
+            <span>✅ נאספו לעגלה <small class="mut">(${doneItems.length})</small></span>
+            ${doneTot > 0 ? `<span class="shop-dept-sub">${fmtMoney(doneTot)}</span>` : ""}
+          </summary>
+          ${doneItems.map(renderItemRow).join("")}
+        </details>`;
+      } else {
+        doneEl.innerHTML = "";
+      }
+    }
   }
 
   const searchInp = byId("shop-search-input");
@@ -3225,9 +3258,13 @@ const finalItems = [];
     }
     if (!shopPage || !shopPage.contains(e.target)) return;
 
-    const btn = e.target.closest("button,[data-filter],[data-sfilter],[data-stog],[data-sqty],[data-sdel],[data-sprice]");
+    const btn = e.target.closest("button,[data-filter],[data-stog],[data-sqty],[data-sdel],[data-sprice]");
     if (!btn) return;
 
+    if (btn.id === "shop-manual-add") {
+      if (searchInp && searchInp.value.trim()) addItem({ name: searchInp.value });
+      return;
+    }
     if (btn.id === "shop-sync-pill" || btn.id === "shop-sync-btn") {
       if (syncStatus.state === "need_scope" && window._upgradeDriveScope) {
         window._upgradeDriveScope();
@@ -3237,9 +3274,9 @@ const finalItems = [];
       return;
     }
     if (btn.id === "shop-share-btn") { shareList(); return; }
-    if (btn.id === "shop-clear-done" || btn.id === "shop-clear-done-btn") { clearDoneItems(); return; }
-    if (btn.dataset.filter || btn.dataset.sfilter) {
-      currentFilter = btn.dataset.filter || btn.dataset.sfilter;
+    if (btn.id === "shop-clear-done") { clearDoneItems(); return; }
+    if (btn.dataset.filter) {
+      currentFilter = btn.dataset.filter;
       render();
       return;
     }
