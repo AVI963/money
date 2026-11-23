@@ -683,8 +683,10 @@ const ICO=[
   [/שונות/,'📦']
 ];
 const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
-let token,cc,quotesAbort=null;
+const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
+const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+  let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
 const expKey=e=>`${e.ym}|${e.d||0}|${String(e.c||'').trim()}|${String(e.t||'').trim()}|${e.a}`;
@@ -803,8 +805,8 @@ async function load(){
     try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
     try{S.mort=parseMort(await getAny(FILES.mort))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
     S.syncAt=Date.now();saveSnap();S.rt2=0;S.syncing=false;
-    $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&S.sub=='dc')loadFiles();quotes();if(window._shopSync)window._shopSync('pull',true);
-  }catch(e){
+$('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();quotes();if(window._shopSync)window._shopSync('pull',true);
+    }catch(e){
     S.syncing=false;
     if((e.code===401||/פג/.test(e.message))&&!S.rt2){S.rt2=1;if(await refresh())return load()}
     S.err=e.message;
@@ -1174,12 +1176,8 @@ function dc0(){
   usedDocs=new Set(),
   linkedFileIds=new Set(),
   linkedFileLinks=new Set(),
-  fileById=new Map(),
   mk=d=>({cat:String(d['קטגוריה']||'').trim(),who:String(d['אדם']||'').trim(),x:parseLocalDate(d['תוקף עד']),sens:String(d['רגיש']||'').trim()=='כן'});
 
-  if(files){
-    files.forEach(f=>{if(f.id)fileById.set(f.id,f)});
-  }
   wList.forEach(w=>{
     if(w.fileId)linkedFileIds.add(w.fileId);
     if(w.fileLink){
@@ -1194,25 +1192,10 @@ function dc0(){
   });
 
   let L=[];
-  wList.forEach(w=>{
-    const fObj=w.fileId?fileById.get(w.fileId):null;
-    const link=(fObj&&fObj.webViewLink)||w.fileLink||'';
-    const expDate=parseLocalDate(w.expiryDate);
-    const metaParts=[w.store||'',Number(w.price)>0?fmt(w.price):''].filter(Boolean).join(' · ');
-    L.push({
-      wId:w.id,
-      n:w.name,
-      cat:APP_CONFIG.receiptsSubFolder,
-      who:metaParts,
-      x:expDate,
-      sens:false,
-      link,
-      notes:w.notes||''
-    });
-  });
-
   if(files){
     files.forEach(f=>{
+      const gFolder=String(f.g||'').trim();
+      if(gFolder===APP_CONFIG.receiptsSubFolder||gFolder.startsWith(APP_CONFIG.receiptsSubFolder+' / '))return;
       if((f.id&&linkedFileIds.has(f.id))||(f.webViewLink&&linkedFileLinks.has(f.webViewLink)))return;
       const baseTitle=f.name.replace(/\.[^.]+$/,'');
       const tNorm=normDocKey(baseTitle);
@@ -1233,7 +1216,7 @@ function dc0(){
       });
       if(bestDoc)usedDocs.add(bestDoc);
       const displayName=bestDoc?bestDoc.rawName:baseTitle.replace(/\s*-\s*\d{4}-\d{2}-\d{2}$/,'').trim();
-      L.push({n:displayName,link:f.webViewLink,...(bestDoc?mk(bestDoc):{cat:String((f.g||'').split(' / ')[0]||'').trim()||'כללי',who:'',x:null,sens:false})});
+      L.push({n:displayName,link:f.webViewLink,...(bestDoc?mk(bestDoc):{cat:String(gFolder.split(' / ')[0]||'').trim()||'כללי',who:'',x:null,sens:false})});
     });
     docs.filter(d=>!usedDocs.has(d)).forEach(d=>L.push({n:d.rawName,link:d['קישור']||'',missing:!d['קישור'],...mk(d)}));
   }else{
@@ -1242,16 +1225,82 @@ function dc0(){
 
   const allCount=L.length;
   const cs=[...new Set(L.map(d=>d.cat).filter(Boolean))];
+  if(S.dcf&&!cs.includes(S.dcf))S.dcf='';
   L=L.filter(d=>!S.dcf||d.cat==S.dcf).sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15)||String(a.n).localeCompare(String(b.n),'he'));
 
+  return `<h2>מסמכים ותוקפים</h2><div class="chips"><button class="chip2 ${S.dcf?'':'on'}" data-dcf="">הכל (${allCount})</button>${cs.map(c=>`<button class="chip2 ${S.dcf==c?'on':''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F=='loading'?'<p class="mut">טוען קבצים מהדרייב...</p>':''}`+
+  (L.length?L.map(d=>{const n=d.x?Math.round((d.x-now)/864e5):null,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
+    return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.n)}${d.sens?' 🔒':''}</b><div class="mut">${[esc(d.who),esc(d.cat),d.x?'עד '+dl(d.x):'',d.missing?'⚠ אין קובץ בדרייב':''].filter(Boolean).join(' · ')}</div></div>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:d.od?`<button class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:''}</div>`}).join(''):'<div class="card"><p class="mut" style="margin:0;text-align:center">אין מסמכים להצגה בקטגוריה זו.</p></div>');
+}
+
+function wr(){
+  const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
+  const _wCatOf=typeof wCatOf==='function'?wCatOf:(w=>String((w&&w.category)||'').trim()||'שונות');
+  const now=new Date(),F=S.files,files=F&&typeof F==='object'&&Array.isArray(F.out)?F.out:null,
+  wList=window._getWarranties?window._getWarranties():[],
+  fileById=new Map();
+  if(files)files.forEach(f=>{if(f.id)fileById.set(f.id,f)});
+
+  const allItems=wList.map(w=>{
+    const fObj=w.fileId?fileById.get(w.fileId):null;
+    const link=(fObj&&fObj.webViewLink)||w.fileLink||'';
+    const x=parseLocalDate(w.expiryDate);
+    const n=x?Math.round((x-now)/864e5):null;
+    const status=n===null?'none':n<0?'expired':n<90?'soon':'valid';
+    const cat=_wCatOf(w);
+    return{...w,link,x,n,status,cat};
+  });
+
+  const cntAll=allItems.length;
+  const cntValid=allItems.filter(it=>it.n===null||it.n>=0).length;
+  const cntSoon=allItems.filter(it=>it.status==='soon').length;
+  const cntExpired=allItems.filter(it=>it.status==='expired').length;
+  const curStatus=S.wrStatus||'all';
+
+  const statusTabs=[
+    ['all',`הכל (${cntAll})`],
+    ['valid',`בתוקף (${cntValid})`],
+    ['soon',`עומד לפוג (${cntSoon})`],
+    ['expired',`פג תוקף (${cntExpired})`]
+  ];
+
+  const extraCats=[...new Set(allItems.map(it=>it.cat).filter(c=>c&&!_W_CATS.includes(c)))];
+  const allCats=[..._W_CATS,...extraCats];
+  if(S.wrCat&&!allCats.includes(S.wrCat))S.wrCat='';
+
+  const filtered=allItems
+    .filter(it=>{
+      if(curStatus==='valid'&&!(it.n===null||it.n>=0))return false;
+      if(curStatus==='soon'&&it.status!=='soon')return false;
+      if(curStatus==='expired'&&it.status!=='expired')return false;
+      if(S.wrCat&&it.cat!==S.wrCat)return false;
+      return true;
+    })
+    .sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15)||String(a.name).localeCompare(String(b.name),'he'));
+
   return `<div class="row" style="padding:0 0 6px;gap:8px">
-    <div><h2 style="margin:0">מסמכים ותוקפים</h2><span class="lb">דרייב, אקסל וקבלות אחריות</span></div>
+    <div><h2 style="margin:0">אחריות וקבלות</h2><span class="lb">מעקב תוקף אחריות, קבלות וקטגוריות</span></div>
     <button class="pr" data-w-open="" style="background:var(--g);color:#fff">+ קבלה / אחריות</button>
   </div>
-  <div class="chips"><button class="chip2 ${S.dcf?'':'on'}" data-dcf="">הכל (${allCount})</button>${cs.map(c=>`<button class="chip2 ${S.dcf==c?'on':''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F=='loading'?'<p class="mut">טוען קבצים מהדרייב...</p>':''}`+
-  (L.length?L.map(d=>{const n=d.x?Math.round((d.x-now)/864e5):null,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
-    return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.n)}${d.sens?' 🔒':''}</b><div class="mut">${[esc(d.who),esc(d.cat),d.x?'עד '+dl(d.x):'',d.missing?'⚠ אין קובץ בדרייב':''].filter(Boolean).join(' · ')}</div>${d.notes?`<div class="mut" style="font-size:11.5px;margin-top:2px">${esc(d.notes)}</div>`:''}</div><div class="w-acts">${d.wId?`<button class="w-edit-btn" data-w-edit="${esc(d.wId)}" title="ערוך אחריות" aria-label="ערוך אחריות">✎</button>`:''}${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:d.od?`<button class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:''}</div></div>`}).join(''):'<div class="card"><p class="mut" style="margin:0;text-align:center">אין מסמכים או קבלות להצגה בקטגוריה זו.</p></div>');
+  <div class="chips" style="margin:6px 0">
+    ${statusTabs.map(([k,lbl])=>`<button class="chip2 ${curStatus===k?'on':''}" data-wrs="${k}">${lbl}</button>`).join('')}
+  </div>
+  <div class="chips" style="margin:4px 0 10px">
+    <button class="chip2 ${S.wrCat?'':'on'}" data-wrc="">כל הקטגוריות</button>
+    ${allCats.map(c=>{
+      const cCnt=allItems.filter(it=>it.cat===c).length;
+      return `<button class="chip2 ${S.wrCat===c?'on':''}" data-wrc="${encodeURIComponent(c)}">${esc(c)}${cCnt?` (${cCnt})`:''}</button>`;
+    }).join('')}
+  </div>`+
+  (filtered.length?filtered.map(d=>{
+    const n=d.n;
+    const tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים';
+    const cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
+    const meta=[d.cat,d.store,Number(d.price)>0?fmt(d.price):'',d.x?'עד '+dl(d.x):''].filter(Boolean).map(esc).join(' · ');
+    return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.name)}</b><div class="mut">${meta}</div>${d.notes?`<div class="mut" style="font-size:11.5px;margin-top:2px">${esc(d.notes)}</div>`:''}</div><div class="w-acts"><button class="w-edit-btn" data-w-edit="${esc(d.id)}" title="ערוך אחריות" aria-label="ערוך אחריות">✎</button>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:''}</div></div>`;
+  }).join(''):`<div class="card"><p class="mut" style="margin:0;text-align:center">${allItems.length?'אין קבלות או אחריות התואמות לסינון שנבחר.':'עדיין לא נוספו קבלות או תעודות אחריות. לחץ על "+ קבלה / אחריות" למעלה.'}</p></div>`)+warrantySheet();
 }
+
 function warrantyPreviewHtml(purchaseDate,months){
   const m=Number(months)||0;
   if(m<=0)return '<span class="mut">יישמר כקבלה / מסמך ללא תאריך תפוגה</span><span class="chip mut">ללא תוקף</span>';
@@ -1277,6 +1326,7 @@ function updateWarrantyPreviewDom(){
 }
 function warrantySheet(){
   const f=S.wForm;if(!f)return '';
+  const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
   const presets=[[0,'ללא'],[12,'12 חוד׳'],[24,'24 חוד׳'],[36,'36 חוד׳'],[60,'60 חוד׳']];
   const pf=S.wPendingFile;
   const fileLabel=pf
@@ -1292,6 +1342,11 @@ function warrantySheet(){
       ${S.wErr?`<div class="bn" style="border-color:var(--r);color:var(--r);margin:6px 0">${esc(S.wErr)}</div>`:''}
       <label class="wf-lbl" for="wf-name">שם המוצר *</label>
       <input id="wf-name" class="wf-inp" type="text" placeholder="למשל: מכונת קפה Ninja / שואב אבק" value="${esc(f.name||'')}" data-wf="name">
+
+      <label class="wf-lbl" for="wf-cat">קטגוריה</label>
+      <select id="wf-cat" class="wf-inp" data-wf="category">
+        ${[...new Set([..._W_CATS,f.category||_W_CATS[0]])].map(c=>`<option value="${esc(c)}" ${(f.category||_W_CATS[0])===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
 
       <div class="wf-grid2">
         <div>
@@ -1497,8 +1552,8 @@ function getMoreList(){
   const insNx=S.ins&&S.ins.pay?S.ins.pay.find(p=>p.d>now):null;
   const cpTot=S.cp.length?fmt(T(S.cp,'a')):'';
   const wCnt=window._getWarranties?window._getWarranties().length:0;
-  const totDc=S.docs.length+wCnt;
-  const dcCnt=totDc?totDc+' מסמכים':'';
+  const dcCnt=S.docs.length?S.docs.length+' מסמכים':'';
+  const wrCnt=wCnt?wCnt+' קבלות':'';
   const def=fireDefaults();
   const liq=T(S.inv,'שווי ₪');
   const rwBadge=liq&&def.baseExp?(liq/def.baseExp).toFixed(1)+' חוד׳':'';
@@ -1508,9 +1563,10 @@ function getMoreList(){
     cp:{id:'cp',i:'🎟️',t:'קופונים',s:'יתרות זמינות וקודים',bdg:cpTot,wide:false,col:'#10b981'},
     ins:{id:'ins',i:'🛡️',t:'ביטוח חיים',s:'לוח תשלומים והתקדמות',bdg:insNx&&insNx.a?fmt(insNx.a)+'/חודש':'',wide:false,col:'#06b6d4'},
     dc:{id:'dc',i:'📁',t:'מסמכים ותוקפים',s:'דרכון, רישיון וביטוחים',bdg:dcCnt,wide:false,col:'#f59e0b'},
+    wr:{id:'wr',i:'🧾',t:'אחריות וקבלות',s:'קבלות, תוקף אחריות וקטגוריות',bdg:wrCnt,wide:false,col:'#10b981'},
     sl:{id:'sl',i:'🧮',t:'מחשבון שכר',s:'סימולטור משמרות ונטו',bdg:'',wide:false,col:'#8b5cf6'}
   };
-  const defOrder=['fire','mt','cp','ins','dc','sl'];
+  const defOrder=['fire','mt','cp','ins','dc','wr','sl'];
   let cfg=Array.isArray(S.moreLayout)?S.moreLayout.filter(x=>x&&catalog[x.id]):[];
   const seen=new Set(cfg.map(x=>x.id));
   defOrder.forEach(id=>{if(!seen.has(id))cfg.push({id,wide:catalog[id].wide})});
@@ -1521,7 +1577,7 @@ function saveMoreList(list){
   ls('more_layout',JSON.stringify(S.moreLayout));
 }
 function more(){
-  if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc,mt,sl,fire:fireView}[S.sub]();
+  if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc,wr,mt,sl,fire:fireView}[S.sub]();
   const list=getMoreList(),ed=S.moreEdit;
   return `<div class="row" style="padding:2px 2px 6px"><span class="lb">${ed?'שנה גודל (ריבוע/רחב) והזז מיקום':'כלים ומודולים נוספים'}</span><div style="display:flex;gap:6px">${ed?`<button class="chip2" data-med-reset style="padding:4px 10px;font-size:12px">איפוס</button>`:''}<button class="chip2 ${ed?'on':''}" data-med-tog style="padding:4px 12px;font-size:12px">${ed?'סיום עריכה ✓':'ערוך פריסה ✎'}</button></div></div>
   <div class="mgrid">${list.map((it,idx)=>{
@@ -1583,7 +1639,7 @@ async function loadFiles(){
   }catch(e){S.files='err'}
   if(!S.wForm)draw();
 }
-function dc(){return pickCard()+dc0()+warrantySheet()}
+function dc(){return pickCard()+dc0()}
 
 async function prepareUploadBlob(file){
   if(!file||!file.type||!file.type.startsWith('image/')||file.size<=2621440)return{blob:file,ext:(file.name.split('.').pop()||'jpg').toLowerCase(),mime:file.type||'application/octet-stream'};
@@ -1661,8 +1717,11 @@ async function uploadReceiptToDrive(file,meta){
 
 async function saveWarrantyAction(){
   const f=S.wForm;if(!f||S.wSaving)return;
+  const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
   const name=String(f.name||'').trim();
   if(!name){S.wErr='נא להזין שם מוצר';draw(true);return}
+  const catEl=document.getElementById('wf-cat');
+  const category=String((catEl?catEl.value:f.category)||_W_CATS[0]).trim();
   const purchaseDate=String(f.purchaseDate||todayISO()).trim();
   const months=Math.max(0,Math.round(Number(f.months)||0));
   const expiryDate=addMonthsISO(purchaseDate,months);
@@ -1677,6 +1736,7 @@ async function saveWarrantyAction(){
     const rec={
       id:f.id||('w_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
       name,
+      category,
       store:String(f.store||'').trim(),
       price,
       purchaseDate,
@@ -2154,25 +2214,27 @@ document.addEventListener('click',e=>{
       return;
     }
   }
-  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-unlink],[data-sync-consent]');
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-unlink],[data-wrs],[data-wrc],[data-sync-consent]');
   if(!b){if(!token&&ls('rt'))refresh().then(ok=>ok&&load());return}
   if(b.classList.contains('ms-back')&&e.target!==b)return;
   if('wOpen'in b.dataset){
     vib(8);
+    const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
     S.wPendingFile=null;S.wSaving=false;S.wErr='';
-    S.wForm={id:'',name:'',store:'',price:'',purchaseDate:todayISO(),months:24,customMode:false,notes:'',fileId:'',fileName:'',fileLink:''};
+    S.wForm={id:'',name:'',category:_W_CATS[0],store:'',price:'',purchaseDate:todayISO(),months:24,customMode:false,notes:'',fileId:'',fileName:'',fileLink:''};
     draw(true);
     setTimeout(()=>{const el=document.getElementById('wf-name');el&&el.focus()},60);
     return;
   }
   if(b.dataset.wEdit){
     vib(8);
+    const _wCatOf=typeof wCatOf==='function'?wCatOf:(w=>String((w&&w.category)||'').trim()||'שונות');
     const wList=window._getWarranties?window._getWarranties():[];
     const w=wList.find(x=>x.id===b.dataset.wEdit);
     if(w){
       const presets=[0,12,24,36,60];
       S.wPendingFile=null;S.wSaving=false;S.wErr='';
-      S.wForm={...w,customMode:!presets.includes(Number(w.months)||0)};
+      S.wForm={...w,category:_wCatOf(w),customMode:!presets.includes(Number(w.months)||0)};
       draw(true);
     }
     return;
@@ -2187,6 +2249,8 @@ document.addEventListener('click',e=>{
   if('wUnlink'in b.dataset&&S.wForm){
     vib(6);S.wForm.fileId='';S.wForm.fileName='';S.wForm.fileLink='';draw(true);return;
   }
+  if(b.dataset.wrs!==undefined){vib(6);S.wrStatus=b.dataset.wrs;draw();return}
+  if(b.dataset.wrc!==undefined){vib(6);S.wrCat=decodeURIComponent(b.dataset.wrc);draw();return}
   if(b.dataset.wm!==undefined&&S.wForm){
     vib(6);
     if(b.dataset.wm==='custom'){
@@ -2274,7 +2338,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.od)openDoc(decodeURIComponent(b.dataset.od),decodeURIComponent(b.dataset.op||''));
   if(b.dataset.r){vib(6);S.pv.dr={r:decodeURIComponent(b.dataset.r),k:b.dataset.k,p:b.dataset.p===''?null:+b.dataset.p};draw();toDr()}
   if('fl'in b.dataset)loadFiles();
-  if('sub'in b.dataset){vib(8);S.sub=b.dataset.sub;draw();scrollTo(0,0);if(S.sub=='dc'){if(token&&!S.files)loadFiles();if(window._shopSync)window._shopSync('pull',true)}}
+  if('sub'in b.dataset){vib(8);S.sub=b.dataset.sub;draw();scrollTo(0,0);if(S.sub=='dc'&&token&&!S.files)loadFiles();if(S.sub=='wr'){if(token&&!S.files)loadFiles();if(window._shopSync)window._shopSync('pull',true)}}
   if('dcf'in b.dataset){vib(6);S.dcf=decodeURIComponent(b.dataset.dcf);draw()}
   if(b.dataset.l)open(decodeURIComponent(b.dataset.l),'_blank','noopener');
 
@@ -2632,23 +2696,22 @@ if('serviceWorker'in navigator){
       }
     });
 
-    const finalItems = [];
+const finalItems = [];
     const activeByName = new Map();
     for (const it of itemsById.values()) {
       if (!it.done) {
         const norm = it.name.trim().toLowerCase();
         const dup = activeByName.get(norm);
         if (dup) {
-          if ((it.updatedAt || 0) >= (dup.updatedAt || 0)) {
-            dup.price = it.price || dup.price;
-            dup.dept = it.dept || dup.dept;
-            dup.image = it.image || dup.image || "";
-            dup.qty = Math.max(dup.qty, it.qty);
-            dup.updatedAt = it.updatedAt;
+          if ((Number(it.updatedAt) || 0) >= (Number(dup.updatedAt) || 0)) {
+            dup.qty = Math.max(Number(dup.qty) || 1, Number(it.qty) || 1);
+            if (Number(it.price) > 0) dup.price = Number(it.price);
+            if (it.dept) dup.dept = it.dept;
+            if (it.image) dup.image = it.image;
+            dup.updatedAt = Number(it.updatedAt) || dup.updatedAt;
           } else if (!dup.image && it.image) {
             dup.image = it.image;
           }
-          mergedDeleted[it.id] = Math.max(mergedDeleted[it.id] || 0, it.updatedAt || Date.now());
           continue;
         }
         activeByName.set(norm, it);
@@ -2656,52 +2719,61 @@ if('serviceWorker'in navigator){
       finalItems.push(it);
     }
 
-    const mergedMemory = { ...(remote.priceMemory || {}) };
-    Object.entries(local.priceMemory || {}).forEach(([k, v]) => {
-      const r = mergedMemory[k];
-      if (!r) {
-        mergedMemory[k] = v;
-      } else if ((Number(v.updatedAt) || 0) >= (Number(r.updatedAt) || 0)) {
-        mergedMemory[k] = { ...v, image: v.image || r.image || "" };
-      } else if (!r.image && v.image) {
-        mergedMemory[k] = { ...r, image: v.image };
-      }
+    const mergedMemory = {};
+    const allMemKeys = new Set([...Object.keys(remote.priceMemory || {}), ...Object.keys(local.priceMemory || {})]);
+    allMemKeys.forEach((k) => {
+      const r = remote.priceMemory?.[k];
+      const l = local.priceMemory?.[k];
+      if (!r) { mergedMemory[k] = { ...l, image: l.image || "" }; return; }
+      if (!l) { mergedMemory[k] = { ...r, image: r.image || "" }; return; }
+      const pick = (Number(l.updatedAt) || 0) >= (Number(r.updatedAt) || 0) ? l : r;
+      const other = pick === l ? r : l;
+      mergedMemory[k] = {
+        ...pick,
+        price: Number(pick.price) > 0 ? Number(pick.price) : (Number(other.price) || 0),
+        dept: pick.dept || other.dept || "",
+        image: pick.image || other.image || ""
+      };
     });
 
-    const wCutoff = Date.now() - 365 * 864e5;
-    const mergedDeletedWarranties = {};
-    const allDelW = new Set([...Object.keys(local.deletedWarranties || {}), ...Object.keys(remote.deletedWarranties || {})]);
-    allDelW.forEach((id) => {
+    const mergedDeletedW = {};
+    const allDelWKeys = new Set([...Object.keys(local.deletedWarranties || {}), ...Object.keys(remote.deletedWarranties || {})]);
+    allDelWKeys.forEach((id) => {
       const ts = Math.max(Number(local.deletedWarranties?.[id]) || 0, Number(remote.deletedWarranties?.[id]) || 0);
-      if (ts > wCutoff) mergedDeletedWarranties[id] = ts;
+      if (ts > cutoff) mergedDeletedW[id] = ts;
     });
 
     const wById = new Map();
     (remote.warranties || []).forEach((w) => {
       if (!w || !w.id) return;
       const upd = Number(w.updatedAt) || 0;
-      if (mergedDeletedWarranties[w.id] && mergedDeletedWarranties[w.id] >= upd) return;
-      wById.set(w.id, { ...w, updatedAt: upd });
+      if (mergedDeletedW[w.id] && mergedDeletedW[w.id] >= upd) return;
+      wById.set(w.id, { ...w, category: w.category || "", updatedAt: upd });
     });
+
     (local.warranties || []).forEach((w) => {
       if (!w || !w.id) return;
       const upd = Number(w.updatedAt) || 0;
-      if (mergedDeletedWarranties[w.id] && mergedDeletedWarranties[w.id] >= upd) return;
+      if (mergedDeletedW[w.id] && mergedDeletedW[w.id] >= upd) return;
       const prev = wById.get(w.id);
       if (!prev) {
-        wById.set(w.id, { ...w, updatedAt: upd });
+        wById.set(w.id, { ...w, category: w.category || "", updatedAt: upd });
       } else if (upd >= (Number(prev.updatedAt) || 0)) {
         wById.set(w.id, {
           ...w,
+          category: w.category || prev.category || "",
           fileId: w.fileId || prev.fileId || "",
           fileName: w.fileName || prev.fileName || "",
           fileLink: w.fileLink || prev.fileLink || "",
           updatedAt: upd
         });
-      } else if (!prev.fileLink && w.fileLink) {
-        prev.fileId = w.fileId || prev.fileId || "";
-        prev.fileName = w.fileName || prev.fileName || "";
-        prev.fileLink = w.fileLink;
+      } else {
+        if (!prev.category && w.category) prev.category = w.category;
+        if (!prev.fileLink && w.fileLink) {
+          prev.fileId = w.fileId || prev.fileId || "";
+          prev.fileName = w.fileName || prev.fileName || "";
+          prev.fileLink = w.fileLink;
+        }
       }
     });
 
@@ -2709,13 +2781,13 @@ if('serviceWorker'in navigator){
       items: finalItems,
       priceMemory: mergedMemory,
       deletedIds: mergedDeleted,
-      warranties: [...wById.values()],
-      deletedWarranties: mergedDeletedWarranties
+      warranties: Array.from(wById.values()),
+      deletedWarranties: mergedDeletedW
     };
   }
 
-  async function getDriveToken(forceRefresh = false) {
-    let tok = !forceRefresh && window._getAuthToken ? window._getAuthToken() : null;
+  async function ensureDriveToken() {
+    let tok = window._getAuthToken ? window._getAuthToken() : "";
     if (!tok && window._refreshAuthToken) {
       const ok = await window._refreshAuthToken();
       if (ok && window._getAuthToken) tok = window._getAuthToken();
@@ -2723,77 +2795,145 @@ if('serviceWorker'in navigator){
     return tok;
   }
 
-  async function ensureDriveFile(tok) {
-    const headers = { Authorization: "Bearer " + tok };
-    if (driveMeta && driveMeta.id) {
-      const chk = await fetch(`https://www.googleapis.com/drive/v3/files/${driveMeta.id}?supportsAllDrives=true&fields=id,name,trashed,webViewLink,modifiedTime`, { headers });
-      if (chk.ok) {
-        const meta = await chk.json();
-        if (!meta.trashed) {
-          driveMeta = { id: meta.id, webViewLink: meta.webViewLink || driveMeta.webViewLink };
-          try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
-          return meta;
-        }
-      } else if (chk.status === 401 || chk.status === 403) {
-        const err = new Error("drive_meta_auth");
-        err.status = chk.status;
-        throw err;
-      }
-      driveMeta = null;
-      try { localStorage.removeItem(FILE_META_KEY); } catch {}
+  async function driveApiFetch(url, options = {}) {
+    if (typeof driveFetchWithRetry === "function") {
+      return driveFetchWithRetry(url, options);
     }
-
-    const q = encodeURIComponent(`name = '${DRIVE_FILE_NAME.replace(/'/g, "\\'")}' and trashed = false`);
-    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id,name,modifiedTime,webViewLink,shared)&orderBy=${encodeURIComponent("modifiedTime desc")}&q=${q}`, { headers });
-    if (!listRes.ok) {
-      const err = new Error("drive_list_failed");
-      err.status = listRes.status;
-      throw err;
-    }
-    const listData = await listRes.json();
-    const files = listData.files || [];
-    if (files.length > 0) {
-      const chosen = files.find((f) => f.shared) || files[0];
-      driveMeta = { id: chosen.id, webViewLink: chosen.webViewLink || `https://drive.google.com/file/d/${chosen.id}/view` };
-      try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
-      return chosen;
-    }
-
-    const boundary = "-------myMoneyShopBoundary" + Date.now();
-    const metadata = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
-    const bodyPayload = JSON.stringify({ version: 1, updatedAt: Date.now(), items, priceMemory, deletedIds, warranties, deletedWarranties });
-    const multipartBody =
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${bodyPayload}\r\n` +
-      `--${boundary}--`;
-
-    const createRes = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,modifiedTime", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + tok,
-        "Content-Type": `multipart/related; boundary=${boundary}`
-      },
-      body: multipartBody
-    });
-    if (!createRes.ok) {
-      const err = new Error("drive_create_failed");
-      err.status = createRes.status;
-      throw err;
-    }
-    const created = await createRes.json();
-    driveMeta = { id: created.id, webViewLink: created.webViewLink || `https://drive.google.com/file/d/${created.id}/view` };
-    try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
-    return created;
+    const tok = await ensureDriveToken();
+    if (!tok) throw new Error("no_auth");
+    const headers = { ...(options.headers || {}), Authorization: "Bearer " + tok };
+    return fetch(url, { ...options, headers });
   }
 
-  async function syncWithDrive(mode = "pull", silent = false, retried = false) {
-    if (syncInFlight) {
-      if (mode === "push") pendingPush = true;
+  async function resolveDriveFileId() {
+    if (driveMeta && driveMeta.fileId) return driveMeta.fileId;
+    const safeName = DRIVE_FILE_NAME.replace(/'/g, "\\'");
+    const q = `name='${safeName}' and trashed=false`;
+    const res = await driveApiFetch(
+      "https://www.googleapis.com/drive/v3/files?fields=files(id,name,parents)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
+        encodeURIComponent(q)
+    );
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("need_scope");
+      err.code = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error("drive_list_" + res.status);
+    const data = await res.json();
+    if (Array.isArray(data.files) && data.files.length > 0) {
+      driveMeta = { fileId: data.files[0].id };
+      try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
+      return driveMeta.fileId;
+    }
+
+    let parentId = "";
+    try {
+      const rootSafe = APP_CONFIG.receiptsRootFolder.replace(/'/g, "\\'");
+      const rq = `name='${rootSafe}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      const rRes = await driveApiFetch(
+        "https://www.googleapis.com/drive/v3/files?fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
+          encodeURIComponent(rq)
+      );
+      if (rRes.ok) {
+        const rJson = await rRes.json();
+        if (rJson.files && rJson.files[0]) parentId = rJson.files[0].id;
+      }
+    } catch {}
+
+    const boundary = "-------myMoneyShopBoundary" + Date.now();
+    const meta = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
+    if (parentId) meta.parents = [parentId];
+    const initPayload = JSON.stringify({
+      version: 1,
+      updatedAt: Date.now(),
+      items,
+      priceMemory,
+      deletedIds,
+      warranties,
+      deletedWarranties
+    });
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${initPayload}\r\n` +
+      `--${boundary}--`;
+
+    const cRes = await driveApiFetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id",
+      {
+        method: "POST",
+        headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+        body
+      }
+    );
+    if (cRes.status === 401 || cRes.status === 403) {
+      const err = new Error("need_scope");
+      err.code = cRes.status;
+      throw err;
+    }
+    if (!cRes.ok) throw new Error("drive_create_" + cRes.status);
+    const created = await cRes.json();
+    driveMeta = { fileId: created.id };
+    try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
+    return driveMeta.fileId;
+  }
+
+  async function readRemoteState(fileId) {
+    const res = await driveApiFetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`
+    );
+    if (res.status === 404) {
+      driveMeta = null;
+      try { localStorage.removeItem(FILE_META_KEY); } catch {}
+      return null;
+    }
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("need_scope");
+      err.code = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error("drive_read_" + res.status);
+    const txt = await res.text();
+    if (!txt || !txt.trim()) return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {} };
+    try {
+      return JSON.parse(txt);
+    } catch {
+      return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {} };
+    }
+  }
+
+  async function writeRemoteState(fileId, payload) {
+    const res = await driveApiFetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&supportsAllDrives=true`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify({
+          version: 1,
+          updatedAt: Date.now(),
+          ...payload
+        })
+      }
+    );
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("need_scope");
+      err.code = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error("drive_write_" + res.status);
+  }
+
+  async function syncWithDrive(mode = "pull", silent = false) {
+    if (!navigator.onLine) {
+      setSyncPill("off", "לא מקוון");
       return;
     }
-    const tok = await getDriveToken(retried);
+    const tok = await ensureDriveToken();
     if (!tok) {
-      setSyncPill("idle", "לא מחובר לדרייב");
+      setSyncPill("off", "מקומי בלבד");
+      return;
+    }
+    if (syncInFlight) {
+      if (mode === "push") pendingPush = true;
       return;
     }
 
@@ -2801,380 +2941,357 @@ if('serviceWorker'in navigator){
     if (!silent) setSyncPill("syncing", "מסנכרן...");
 
     try {
-      const headers = { Authorization: "Bearer " + tok };
-      const file = await ensureDriveFile(tok);
-
-      const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&supportsAllDrives=true`, { headers });
-      if (!dlRes.ok) {
-        const err = new Error("drive_read_failed");
-        err.status = dlRes.status;
-        throw err;
-      }
-      let remoteState = {};
-      try { remoteState = await dlRes.json(); } catch { remoteState = {}; }
-
-      const localSnapshot = JSON.stringify({ items, priceMemory, deletedIds, warranties, deletedWarranties });
-      const remoteSnapshot = JSON.stringify({
-        items: remoteState.items || [],
-        priceMemory: remoteState.priceMemory || {},
-        deletedIds: remoteState.deletedIds || {},
-        warranties: remoteState.warranties || [],
-        deletedWarranties: remoteState.deletedWarranties || {}
-      });
-
-      const merged = mergeStates({ items, priceMemory, deletedIds, warranties, deletedWarranties }, remoteState);
-      const mergedSnapshot = JSON.stringify(merged);
-
-      if (mergedSnapshot !== localSnapshot) {
-        items = merged.items;
-        priceMemory = merged.priceMemory;
-        deletedIds = merged.deletedIds;
-        warranties = merged.warranties || [];
-        deletedWarranties = merged.deletedWarranties || {};
-        persistLocal();
-        render();
-        if (typeof S !== "undefined" && S.tab === "more" && S.sub === "dc" && !S.wForm && typeof draw === "function") {
-          draw(true);
-        }
+      let fileId = await resolveDriveFileId();
+      let remote = await readRemoteState(fileId);
+      if (remote === null) {
+        fileId = await resolveDriveFileId();
+        remote = await readRemoteState(fileId) || {};
       }
 
-      if (mode === "push" || mergedSnapshot !== remoteSnapshot) {
-        const upRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media&supportsAllDrives=true&fields=id,modifiedTime,webViewLink`, {
-          method: "PATCH",
-          headers: {
-            Authorization: "Bearer " + tok,
-            "Content-Type": "application/json; charset=UTF-8"
-          },
-          body: JSON.stringify({ version: 1, updatedAt: Date.now(), ...merged })
-        });
-        if (!upRes.ok) {
-          const err = new Error("drive_write_failed");
-          err.status = upRes.status;
-          throw err;
-        }
+      const localSnapshot = { items, priceMemory, deletedIds, warranties, deletedWarranties };
+      const merged = mergeStates(localSnapshot, remote);
+
+      const changed =
+        JSON.stringify(merged.items) !== JSON.stringify(items) ||
+        JSON.stringify(merged.warranties) !== JSON.stringify(warranties) ||
+        Object.keys(merged.priceMemory).length !== Object.keys(priceMemory).length;
+
+      items = merged.items;
+      priceMemory = merged.priceMemory;
+      deletedIds = merged.deletedIds;
+      warranties = merged.warranties;
+      deletedWarranties = merged.deletedWarranties;
+      persistLocal();
+
+      if (mode === "push" || pendingPush || changed) {
+        pendingPush = false;
+        await writeRemoteState(fileId, merged);
       }
 
-      const hhmm = new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
-      setSyncPill("ok", `מסונכרן · ${hhmm}`);
+      setSyncPill("ok", "מסונכרן בדרייב");
+      render();
+      if (typeof S !== "undefined" && S.tab === "more" && S.sub === "wr" && !S.wForm && typeof draw === "function") {
+        draw(true);
+      }
     } catch (err) {
-      if (err && err.status === 401 && !retried) {
-        syncInFlight = false;
-        return syncWithDrive(mode, silent, true);
-      }
-      if (err && (err.status === 403 || err.status === 401)) {
-        setSyncPill("need_scope", "אשר גישה לדרייב ↻");
+      if (err && (err.message === "need_scope" || err.code === 401 || err.code === 403)) {
+        setSyncPill("need_scope", "נדרשת הרשאת דרייב");
       } else {
-        setSyncPill("warn", "שגיאת סנכרון · נסה שוב");
+        setSyncPill("warn", "שגיאת סנכרון");
       }
     } finally {
       syncInFlight = false;
       if (pendingPush) {
         pendingPush = false;
-        syncWithDrive("push", true);
+        scheduleDrivePush();
       }
     }
   }
 
   async function backfillMissingImages() {
     if (!navigator.onLine) return;
-    const candidates = items
-      .filter((it) => !it.image && it.name && it.name.trim().length >= 2)
-      .slice(0, 5);
+    const candidates = items.filter((it) => !it.image && it.name && !checkedImageNames.has(it.name.trim().toLowerCase())).slice(0, 6);
+    if (!candidates.length) return;
+
     let updated = false;
     for (const it of candidates) {
       const key = it.name.trim().toLowerCase();
-      if (priceMemory[key]?.image) {
-        it.image = priceMemory[key].image;
-        updated = true;
-        continue;
-      }
-      if (checkedImageNames.has(key)) continue;
       checkedImageNames.add(key);
       try {
         const res = await fetch(`${WORKER_BASE}/rami?q=${encodeURIComponent(it.name.trim())}`);
         if (!res.ok) continue;
         const data = await res.json();
-        if (data.ok && Array.isArray(data.items) && data.items.length > 0) {
-          const exact = data.items.find((x) => x.name.trim().toLowerCase() === key && x.image) || data.items.find((x) => x.image);
-          if (exact && exact.image) {
-            it.image = exact.image;
-            it.updatedAt = Date.now();
-            rememberProduct(it.name, it.price, it.dept, exact.image);
-            updated = true;
-          }
+        const hit = data && Array.isArray(data.items) ? data.items.find((x) => x && x.image) : null;
+        if (hit && hit.image) {
+          it.image = hit.image;
+          it.updatedAt = Date.now();
+          rememberProduct(it.name, it.price || hit.price || 0, it.dept, hit.image);
+          updated = true;
         }
       } catch {}
     }
-    if (updated) saveState(true);
+
+    if (updated) {
+      persistLocal();
+      render();
+      scheduleDrivePush();
+    }
   }
 
-  async function handleShareClick() {
-    const tok = await getDriveToken();
-    if (!tok) {
-      showShareBanner("יש להתחבר קודם לחשבון Google כדי לשתף את הרשימה בדרייב.");
+  function toggleItem(id) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    it.done = !it.done;
+    it.updatedAt = Date.now();
+    saveState(true);
+  }
+
+  function changeQty(id, delta) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    const next = (Number(it.qty) || 1) + delta;
+    if (next <= 0) {
+      deleteItem(id);
       return;
     }
-    setSyncPill("syncing", "מכין שיתוף...");
-    try {
-      await syncWithDrive("push", true);
-      const url = driveMeta?.webViewLink || (driveMeta?.id ? `https://drive.google.com/file/d/${driveMeta.id}/view` : "");
-      if (!url) return;
-      if (navigator.share) {
-        navigator.share({ title: "רשימת קניות משותפת - הכסף שלי", text: "הוסף אותי כעורך לקובץ הרשימה בדרייב", url }).catch(() => {});
-      } else {
-        window.open(url, "_blank", "noopener");
-      }
-      showShareBanner(`קובץ הרשימה (<b>${esc(DRIVE_FILE_NAME)}</b>) מוכן! שתף אותו בדרייב עם הרשאת <b>עריכה (Editor)</b> והרשימה תסתנכרן אצל שניכם בזמן אמת.`);
-    } catch {
-      setSyncPill("need_scope", "אשר גישה לדרייב ↻");
-    }
+    it.qty = next;
+    it.updatedAt = Date.now();
+    saveState(true);
   }
 
-  function openPriceModal(item) {
-    editingPriceItemId = item.id;
-    const modal = byId("shop-price-modal");
-    const title = byId("shop-pm-title");
-    const inp = byId("shop-pm-input");
-    if (!modal || !inp) return;
-    if (title) title.textContent = `מחיר ליחידה · ${item.name}`;
-    inp.value = item.price > 0 ? String(item.price) : "";
-    modal.style.display = "flex";
-    setTimeout(() => { inp.focus(); inp.select(); }, 40);
+  function deleteItem(id) {
+    items = items.filter((x) => x.id !== id);
+    markDeleted(id);
+    if (editingPriceItemId === id) editingPriceItemId = null;
+    saveState(true);
   }
 
-  function closePriceModal() {
+  function startEditPrice(id) {
+    editingPriceItemId = id;
+    render();
+    setTimeout(() => {
+      const inp = document.querySelector(`[data-price-inp="${id}"]`);
+      if (inp) { inp.focus(); inp.select(); }
+    }, 30);
+  }
+
+  function commitEditPrice(id, rawVal) {
+    const it = items.find((x) => x.id === id);
     editingPriceItemId = null;
-    const modal = byId("shop-price-modal");
-    if (modal) modal.style.display = "none";
+    if (!it) { render(); return; }
+    const val = Math.max(0, Math.round((parseFloat(String(rawVal || "0").replace(",", ".")) || 0) * 100) / 100);
+    it.price = val;
+    it.updatedAt = Date.now();
+    if (val > 0) rememberProduct(it.name, val, it.dept, it.image);
+    saveState(true);
   }
 
-  function savePriceFromModal() {
-    if (!editingPriceItemId) return;
-    const item = items.find((i) => i.id === editingPriceItemId);
-    const inp = byId("shop-pm-input");
-    if (item && inp) {
-      const normalized = inp.value.trim().replace(",", ".");
-      const parsed = normalized === "" ? 0 : parseFloat(normalized);
-      if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
-        item.price = Math.max(0, Math.round(parsed * 100) / 100);
-        item.updatedAt = Date.now();
-        rememberProduct(item.name, item.price, item.dept, item.image);
-        saveState(true);
-      }
+  function clearDoneItems() {
+    const doneList = items.filter((x) => x.done);
+    if (!doneList.length) return;
+    doneList.forEach((x) => markDeleted(x.id));
+    items = items.filter((x) => !x.done);
+    saveState(true);
+  }
+
+  function shareList() {
+    const active = items.filter((x) => !x.done);
+    if (!active.length) {
+      showShareBanner("אין מוצרים פתוחים ברשימה לשיתוף.");
+      return;
     }
-    closePriceModal();
+    const lines = active.map((x) => `• ${x.name}${x.qty > 1 ? ` (×${x.qty})` : ""}${x.price > 0 ? ` — ${fmtMoney(x.price * x.qty)}` : ""}`);
+    const total = active.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const payload = active.map((x) => ({ n: x.name, q: x.qty, p: x.price, d: x.dept }));
+    const shareUrl = `${location.origin}${location.pathname}#shop=${encodeURIComponent(JSON.stringify(payload))}`;
+    const text = `רשימת קניות (${active.length} פריטים):\n${lines.join("\n")}${total > 0 ? `\nסה״כ משוער: ${fmtMoney(total)}` : ""}\n\nלייבוא לאפליקציה:\n${shareUrl}`;
+
+    if (navigator.share) {
+      navigator.share({ title: "רשימת קניות", text }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        showShareBanner("הרשימה וקישור הייבוא הועתקו ללוח ✓");
+      }).catch(() => {});
+    }
   }
 
-  function renderItemRow(item) {
-    const lineTotal = item.price * item.qty;
-    const memImg = priceMemory[item.name.trim().toLowerCase()]?.image || "";
-    const imgSrc = item.image || memImg;
-    return `
-      <div class="shop-item ${item.done ? "done" : ""}" data-id="${esc(item.id)}">
-        <button class="shop-check" data-act="toggle" type="button" title="סמן נקנה">${item.done ? "✓" : ""}</button>
-        ${renderThumb(imgSrc, item.name, item.dept, "shop-thumb")}
-        <div class="shop-mid">
-          <div class="shop-name">${esc(item.name)}</div>
-          <div class="shop-controls">
-            <button class="shop-unit-btn" data-act="edit-price" type="button">
-              ${item.price > 0 ? `${fmtMoney(item.price)} ליח׳ ✎` : "הזן מחיר ✎"}
-            </button>
-            <div class="shop-qty-box">
-              <button class="shop-qty-btn" data-act="dec" type="button">−</button>
-              <span class="shop-qty-val">${item.qty}</span>
-              <button class="shop-qty-btn" data-act="inc" type="button">+</button>
-            </div>
-          </div>
-        </div>
-        <div class="shop-end">
-          <div class="shop-line-total">${fmtMoney(lineTotal)}</div>
-          <button class="shop-del-btn" data-act="del" type="button">הסר</button>
-        </div>
-      </div>
-    `;
+  function importFromHashIfPresent() {
+    if (!location.hash.startsWith("#shop=")) return;
+    try {
+      const raw = decodeURIComponent(location.hash.slice(6));
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) {
+        arr.forEach((x) => {
+          if (x && x.n) {
+            addItem({ name: String(x.n), qty: Number(x.q) || 1, price: Number(x.p) || 0, dept: String(x.d || "") });
+          }
+        });
+        showShareBanner(`יובאו ${arr.length} פריטים לרשימת הקניות ✓`);
+      }
+    } catch {}
+    history.replaceState(null, "", location.pathname + location.search);
   }
 
   function render() {
-    const totalAll = items.reduce((s, i) => s + i.price * i.qty, 0);
-    const totalLeft = items.filter((i) => !i.done).reduce((s, i) => s + i.price * i.qty, 0);
-    const doneCount = items.filter((i) => i.done).length;
+    const totalEst = items.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const cartEst = items.filter((x) => x.done).reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const doneCount = items.filter((x) => x.done).length;
+    const openCount = items.length - doneCount;
 
-    byId("shop-total-all").textContent = fmtMoney(totalAll);
-    byId("shop-total-left").textContent = fmtMoney(totalLeft);
-    byId("shop-progress").textContent = `${doneCount}/${items.length}`;
-    byId("shop-float-all").textContent = fmtMoney(totalAll);
-    byId("shop-float-left").textContent = fmtMoney(totalLeft);
+    const setTxt = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
+    setTxt("shop-total", fmtMoney(totalEst));
+    setTxt("shop-est-total", fmtMoney(totalEst));
+    setTxt("shop-cart-total", fmtMoney(cartEst));
+    setTxt("shop-float-tot", fmtMoney(totalEst));
+    setTxt("shop-count", String(items.length));
+    setTxt("shop-open-count", String(openCount));
+    setTxt("shop-done-count", String(doneCount));
+    setTxt("shop-float-done", String(doneCount));
+    setTxt("shop-float-all", String(items.length));
 
-    const todoItems = items.filter((i) => !i.done);
-    const doneItems = items.filter((i) => i.done);
+    document.querySelectorAll("#page-shopping [data-filter], #page-shopping [data-sfilter]").forEach((btn) => {
+      const f = btn.dataset.filter || btn.dataset.sfilter;
+      btn.classList.toggle("on", f === currentFilter);
+    });
 
-    const groupsContainer = byId("shop-groups-container");
-    if (currentFilter === "done") {
-      groupsContainer.innerHTML = "";
-    } else if (todoItems.length === 0) {
-      groupsContainer.innerHTML = `<div class="card" style="text-align:center; padding:24px; color:var(--mut,#6b7280);">אין פריטים ממתינים ברשימה 🎉</div>`;
-    } else {
-      const byDept = {};
-      todoItems.forEach((it) => {
-        const d = it.dept || "📦 כללי";
-        if (!byDept[d]) byDept[d] = [];
-        byDept[d].push(it);
-      });
+    const listEl = byId("shop-list");
+    if (!listEl) return;
 
-      const deptRank = (d) => {
-        const idx = DEPT_ORDER.indexOf(d);
-        return idx >= 0 ? idx : DEPT_ORDER.length - 1;
-      };
+    const visible = items.filter((it) => {
+      if (currentFilter === "open" || currentFilter === "active") return !it.done;
+      if (currentFilter === "done") return !!it.done;
+      return true;
+    });
 
-      const sortedDepts = Object.entries(byDept).sort(([a], [b]) => {
-        const ra = deptRank(a), rb = deptRank(b);
-        return ra !== rb ? ra - rb : a.localeCompare(b, "he");
-      });
-
-      groupsContainer.innerHTML = sortedDepts.map(([dept, list]) => {
-        const deptSum = list.reduce((s, i) => s + i.price * i.qty, 0);
-        return `
-          <details class="card ct shop-dept" open>
-            <summary>
-              <span>${esc(dept)} (${list.length})</span>
-              <span class="shop-dept-sub">${fmtMoney(deptSum)}</span>
-            </summary>
-            <div>${list.map(renderItemRow).join("")}</div>
-          </details>
-        `;
-      }).join("");
+    if (!visible.length) {
+      listEl.innerHTML = `<div class="card"><p class="mut" style="margin:0;text-align:center">${
+        items.length ? "אין פריטים בסינון שנבחר." : "רשימת הקניות ריקה. חפש מוצר למעלה כדי להתחיל."
+      }</p></div>`;
+      return;
     }
 
-    const doneContainer = byId("shop-done-container");
-    if (currentFilter === "todo" || doneItems.length === 0) {
-      doneContainer.innerHTML = "";
-    } else {
-      const doneSum = doneItems.reduce((s, i) => s + i.price * i.qty, 0);
-      doneContainer.innerHTML = `
-        <details class="card ct shop-dept" open>
-          <summary>
-            <span>✅ בעגלה / נקנה (${doneItems.length})</span>
-            <span class="shop-dept-sub">${fmtMoney(doneSum)}</span>
-          </summary>
-          <div>${doneItems.map(renderItemRow).join("")}</div>
-        </details>
-      `;
-    }
+    const groups = new Map();
+    visible.forEach((it) => {
+      const d = it.dept || classifyDepartment(it.name);
+      if (!groups.has(d)) groups.set(d, []);
+      groups.get(d).push(it);
+    });
+
+    const sortedDepts = [...groups.keys()].sort((a, b) => {
+      const ia = DEPT_ORDER.indexOf(a);
+      const ib = DEPT_ORDER.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return a.localeCompare(b, "he");
+    });
+
+    listEl.innerHTML = sortedDepts.map((dept) => {
+      const groupItems = groups.get(dept);
+      const subTot = groupItems.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+      return `<div class="card" style="padding:12px 14px">
+        <div class="row" style="padding:0 0 8px;border-bottom:1px solid var(--line)">
+          <b>${esc(dept)} <small class="mut">(${groupItems.length})</small></b>
+          ${subTot > 0 ? `<span class="mut" style="font-size:12.5px">${fmtMoney(subTot)}</span>` : ""}
+        </div>
+        ${groupItems.map((it) => {
+          const lineTot = (Number(it.price) || 0) * (Number(it.qty) || 1);
+          const isEditing = editingPriceItemId === it.id;
+          return `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line);gap:10px;opacity:${it.done ? ".58" : "1"}">
+            <button type="button" class="chip2 ${it.done ? "on" : ""}" data-stog="${esc(it.id)}" style="width:28px;height:28px;padding:0;border-radius:999px;flex:none" aria-label="סמן נקנה">${it.done ? "✓" : ""}</button>
+            ${renderThumb(it.image, it.name, it.dept, "shop-thumb")}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px;${it.done ? "text-decoration:line-through;" : ""}">${esc(it.name)}</div>
+              <div style="margin-top:2px;font-size:12px">
+                ${isEditing
+                  ? `<input type="number" inputmode="decimal" step="0.01" min="0" data-price-inp="${esc(it.id)}" value="${Number(it.price) || ""}" placeholder="מחיר ליח׳" style="width:86px;padding:3px 6px;border:1px solid var(--g);border-radius:8px;font-size:12px">`
+                  : `<button type="button" class="ex-btn" data-sprice="${esc(it.id)}">${lineTot > 0 ? `${fmtMoney(lineTot)}${it.qty > 1 ? ` (${fmtMoney(it.price)} ליח׳)` : ""}` : "+ מחיר"}</button>`}
+              </div>
+            </div>
+            <div class="stp" style="flex:none">
+              <button type="button" class="chip2" data-sqty="${esc(it.id)}:-1" style="padding:3px 9px">−</button>
+              <b style="min-width:18px;text-align:center">${Number(it.qty) || 1}</b>
+              <button type="button" class="chip2" data-sqty="${esc(it.id)}:1" style="padding:3px 9px">+</button>
+            </div>
+            <button type="button" class="ex-btn" data-sdel="${esc(it.id)}" style="color:var(--r);border-color:transparent;padding:4px 6px" aria-label="מחק">✕</button>
+          </div>`;
+        }).join("")}
+      </div>`;
+    }).join("");
   }
 
-  byId("shop-search-input").addEventListener("input", (e) => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => handleSearchInput(e.target.value), 250);
-  });
-
-  byId("shop-search-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addItem({ name: e.target.value });
-    }
-  });
-
-  byId("shop-manual-add").addEventListener("click", () => {
-    addItem({ name: byId("shop-search-input").value });
-  });
-
-  byId("shop-sync-pill").addEventListener("click", () => {
-    if (syncStatus.state === "need_scope" && window._upgradeDriveScope) {
-      window._upgradeDriveScope();
-    } else {
-      syncWithDrive("pull", false);
-    }
-  });
-
-  byId("shop-share-btn").addEventListener("click", handleShareClick);
-
-  byId("shop-pm-close").addEventListener("click", closePriceModal);
-  byId("shop-pm-cancel").addEventListener("click", closePriceModal);
-  byId("shop-pm-save").addEventListener("click", savePriceFromModal);
-  byId("shop-price-modal").addEventListener("click", (e) => {
-    if (e.target === byId("shop-price-modal")) closePriceModal();
-  });
-  byId("shop-pm-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      savePriceFromModal();
-    } else if (e.key === "Escape") {
-      closePriceModal();
-    }
-  });
+  const searchInp = byId("shop-search-input");
+  if (searchInp) {
+    searchInp.addEventListener("input", (e) => {
+      clearTimeout(searchTimer);
+      const val = e.target.value;
+      searchTimer = setTimeout(() => handleSearchInput(val), 220);
+    });
+    searchInp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (searchInp.value.trim()) addItem({ name: searchInp.value });
+      } else if (e.key === "Escape") {
+        closeDropdown();
+      }
+    });
+  }
 
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".shop-search-wrap")) closeDropdown();
-
-    const row = e.target.closest(".shop-item");
-    if (!row) return;
-    const item = items.find((i) => i.id === row.dataset.id);
-    if (!item) return;
-
-    const act = e.target.dataset.act;
-    if (act === "toggle") { item.done = !item.done; item.updatedAt = Date.now(); saveState(true); }
-    if (act === "inc") { item.qty += 1; item.updatedAt = Date.now(); saveState(true); }
-    if (act === "dec") {
-      if (item.qty > 1) { item.qty -= 1; item.updatedAt = Date.now(); }
-      else { markDeleted(item.id); items = items.filter((i) => i.id !== item.id); }
-      saveState(true);
+    const shopPage = byId("page-shopping");
+    if (!e.target.closest("#shop-search-input, #shop-dropdown")) {
+      const dd = byId("shop-dropdown");
+      if (dd && dd.classList.contains("open")) closeDropdown();
     }
-    if (act === "del") { markDeleted(item.id); items = items.filter((i) => i.id !== item.id); saveState(true); }
-    if (act === "edit-price") { openPriceModal(item); }
-  });
+    if (!shopPage || !shopPage.contains(e.target)) return;
 
-  document.querySelectorAll(".shop-pill[data-filter]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".shop-pill[data-filter]").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentFilter = btn.dataset.filter;
+    const btn = e.target.closest("button,[data-filter],[data-sfilter],[data-stog],[data-sqty],[data-sdel],[data-sprice]");
+    if (!btn) return;
+
+    if (btn.id === "shop-sync-pill" || btn.id === "shop-sync-btn") {
+      if (syncStatus.state === "need_scope" && window._upgradeDriveScope) {
+        window._upgradeDriveScope();
+      } else {
+        syncWithDrive("pull", false);
+      }
+      return;
+    }
+    if (btn.id === "shop-share-btn") { shareList(); return; }
+    if (btn.id === "shop-clear-done" || btn.id === "shop-clear-done-btn") { clearDoneItems(); return; }
+    if (btn.dataset.filter || btn.dataset.sfilter) {
+      currentFilter = btn.dataset.filter || btn.dataset.sfilter;
       render();
-    });
+      return;
+    }
+    if (btn.dataset.stog) { toggleItem(btn.dataset.stog); return; }
+    if (btn.dataset.sqty) {
+      const [id, d] = btn.dataset.sqty.split(":");
+      changeQty(id, Number(d));
+      return;
+    }
+    if (btn.dataset.sdel) { deleteItem(btn.dataset.sdel); return; }
+    if (btn.dataset.sprice) { startEditPrice(btn.dataset.sprice); return; }
   });
 
-  byId("shop-clear-done").addEventListener("click", () => {
-    if (items.some((i) => i.done) && confirm("למחוק את כל הפריטים שכבר סומנו כנקנו?")) {
-      items.filter((i) => i.done).forEach((i) => markDeleted(i.id));
-      items = items.filter((i) => !i.done);
-      saveState(true);
+  document.addEventListener("keydown", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.priceInp) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitEditPrice(e.target.dataset.priceInp, e.target.value);
+      } else if (e.key === "Escape") {
+        editingPriceItemId = null;
+        render();
+      }
     }
   });
 
-  setInterval(() => {
-    if (document.visibilityState === "visible" && typeof S !== "undefined" && S.tab === "shop" && navigator.onLine) {
-      syncWithDrive("pull", true);
+  document.addEventListener("focusout", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.priceInp) {
+      commitEditPrice(e.target.dataset.priceInp, e.target.value);
     }
-  }, 20000);
+  });
 
-  window.getShoppingState = () => ({ items, priceMemory, deletedIds, warranties, deletedWarranties });
-  window.setShoppingState = (state) => {
-    if (state?.items) items = state.items;
-    if (state?.priceMemory) priceMemory = state.priceMemory;
-    if (state?.deletedIds) deletedIds = state.deletedIds;
-    if (state?.warranties) warranties = state.warranties;
-    if (state?.deletedWarranties) deletedWarranties = state.deletedWarranties;
-    saveState(true);
-  };
   window._getWarranties = () => warranties;
-  window._saveWarranty = (wObj) => {
-    if (!wObj || !wObj.id) return;
-    const idx = warranties.findIndex((x) => x.id === wObj.id);
-    if (idx >= 0) warranties[idx] = { ...warranties[idx], ...wObj };
-    else warranties.unshift(wObj);
-    delete deletedWarranties[wObj.id];
+  window._saveWarranty = (rec) => {
+    if (!rec || !rec.id) return;
+    delete deletedWarranties[rec.id];
+    const idx = warranties.findIndex((w) => w.id === rec.id);
+    if (idx >= 0) warranties[idx] = rec;
+    else warranties.unshift(rec);
     persistLocal();
     scheduleDrivePush();
   };
   window._deleteWarranty = (id) => {
     if (!id) return;
+    warranties = warranties.filter((w) => w.id !== id);
     deletedWarranties[id] = Date.now();
-    warranties = warranties.filter((x) => x.id !== id);
     persistLocal();
     scheduleDrivePush();
   };
-  window._shopSync = syncWithDrive;
-  window._shopRender = render;
+  window._shopSync = (mode = "pull", silent = false) => syncWithDrive(mode, silent);
+  window._shopRender = () => render();
 
+  importFromHashIfPresent();
   render();
   syncWithDrive("pull", true).then(() => backfillMissingImages());
 })();
