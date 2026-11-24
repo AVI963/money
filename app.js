@@ -1412,16 +1412,43 @@ function fev(f,get){
   return E();
 }
 
-function parseExtra(wb){S.bud={};
-  const bs=wb.Sheets['תקציב'];if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1]});
-  const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],c={};if(ws)for(let r=40;r<=75;r++)for(const l of 'KLMNO'){const x=ws[l+r];if(x)c[l+r]={v:x.v,f:x.f}}S.sal=c}
+function parseExtra(wb){
+  S.bud={};
+  const bs=wb.Sheets['תקציב'];
+  if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{
+    if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1];
+  });
+  const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],c={};
+  if(ws)for(let r=35;r<=95;r++)for(const l of 'KLMNOPQR'){
+    const x=ws[l+r];
+    if(x)c[l+r]={v:x.v,f:x.f};
+  }
+  S.sal=c;
+}
+
 let sv=null;
 function salCalc(ov){const C=S.sal||{},m={},vis=new Set(),get=a=>{if(a in ov)return ov[a];if(a in m)return m[a];if(vis.has(a))return 0;const c=C[a];if(!c)return 0;vis.add(a);m[a]=c.f?fev(c.f,get):(typeof c.v=='number'?c.v:0);vis.delete(a);return m[a]};return get}
+
 function salMap(){
-  const C=S.sal;if(!C)return null;const f=t=>Object.keys(C).find(a=>String(C[a].v||'').includes(t)),a1=f('משמרת בוקר'),aw=f('שכר לשעה'),a2=f('הסכמי שכר'),a3=f('ברוטו');if(!a1||!aw||!a2||!a3)return null;
-  const r1=+a1.slice(1),r2=+a2.slice(1),r3=+a3.slice(1),L='KLMNO',wa=L.slice(L.indexOf(aw[0])+1).split('').map(c=>c+aw.slice(1)).find(a=>C[a]&&typeof C[a].v=='number'),nm=(c,r)=>String(C[c+r]&&C[c+r].v||'').trim();
-  return{wage:wa,sh:'KLMN'.split('').map(c=>({n:nm(c,r1),cA:c+(r1+1),rA:c+(r1+2),tA:c+(r1+3)})).filter(s=>s.n),shiftTot:'O'+(r1+3),
-    ad:'KLMN'.split('').map(c=>({n:nm(c,r2),a:c+(r2+1)})).filter(x=>x.n),addTot:'O'+(r2+1),ded:'LMN'.split('').map(c=>({n:nm(c,r3),a:c+(r3+1)})).filter(x=>x.n),gross:'K'+(r3+1),net:'O'+(r3+1)}}
+  const C=S.sal;if(!C)return null;
+  const f=t=>Object.keys(C).find(a=>String(C[a].v||'').includes(t)),
+    a1=f('משמרת בוקר'),aw=f('שכר לשעה'),a2=f('הסכמי שכר'),a3=f('ברוטו');
+  if(!a1||!aw||!a2||!a3)return null;
+  const r1=+a1.slice(1),r2=+a2.slice(1),r3=+a3.slice(1),
+    L='KLMNOPQR',
+    wa=L.slice(L.indexOf(aw[0])+1).split('').map(c=>c+aw.slice(1)).find(a=>C[a]&&typeof C[a].v=='number'),
+    nm=(c,r)=>String(C[c+r]&&C[c+r].v||'').trim();
+  return{
+    wage:wa,
+    sh:'KLMNO'.split('').map(c=>({n:nm(c,r1),cA:c+(r1+1),rA:c+(r1+2),tA:c+(r1+3)})).filter(s=>s.n),
+    shiftTot:'P'+(r1+3),
+    ad:'KLMN'.split('').map(c=>({n:nm(c,r2),a:c+(r2+1)})).filter(x=>x.n),
+    addTot:'O'+(r2+1),
+    ded:'LMNO'.split('').map(c=>({n:nm(c,r3),a:c+(r3+1)})).filter(x=>x.n),
+    gross:'K'+(r3+1),
+    net:'P'+(r3+1)
+  };
+}
 function sl(){
   const M=salMap();if(!M)return `<div class="card"><p>לא נמצא מחשבון השכר בגיליון ראשי של קובץ ההוצאות.${S.exp.length?'':' סנכרן עם הדרייב.'}</p></div>`;
   const base=salCalc({}),w0=+base(M.wage)||0;
