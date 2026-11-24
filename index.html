@@ -755,6 +755,9 @@ async function driveFetchWithRetry(url,opts={},retried=false){
     throw err;
   }
   if(res.status===403){
+    let reason='';try{const j=await res.clone().json();reason=String((j.error&&j.error.errors&&j.error.errors[0]&&j.error.errors[0].reason)||'')}catch(e){}
+    if(/ratelimit/i.test(reason)&&!retried){await new Promise(r=>setTimeout(r,1200));return driveFetchWithRetry(url,opts,true)}
+    if(reason==='insufficientFilePermissions'){const e2=new Error('אין לך הרשאת עריכה לקובץ או לתיקייה הזאת (צפייה בלבד)');e2.code=403;e2.readOnly=true;throw e2}
     const err=new Error('חסרה הרשאת גישה מלאה ל-Google Drive (403) — לחץ על סנכרן לאישור מחדש');
     err.code=403;
     err.needScope=true;
@@ -783,6 +786,7 @@ async function load(){
   try{
     const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
     S.exp=[];S.mon=[];S.cp=[];S.err='';S.scopeErr=false;S.bud={};S.sal=null;
+    const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
     rows.slice(1).forEach(x=>{
       if(!x)return;
       if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
@@ -791,7 +795,7 @@ async function load(){
         S.exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
       }
       if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
-      if(x[23]&&typeof x[24]==='number'&&!String(x[23]).startsWith('סה'))S.cp.push({n:String(x[23]),a:x[24],c:String(x[25]||'')});
+      if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))S.cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
     });
     parseExtra(wb);
     const allYms=S.exp.map(e=>e.ym);
