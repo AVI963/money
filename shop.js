@@ -65,8 +65,10 @@
   let searchAbort = null;
 
   let pushTimer = null;
+  let startupSyncTimer = null;
   let syncInFlight = false;
   let pendingPush = false;
+  let initialPullDone = false;
   let syncStatus = { state: "idle", label: "מקומי בלבד" };
   const checkedImageNames = new Set();
 
@@ -291,6 +293,42 @@
 
   window._shopAddManual = () => addItem({ name: byId("shop-search-input").value });
 
+  function hasStateChanged(prev, next) {
+    if (prev.items.length !== next.items.length) return true;
+    const prevItemsMap = new Map(prev.items.map((it) => [it.id, it]));
+    for (const it of next.items) {
+      const p = prevItemsMap.get(it.id);
+      if (!p) return true;
+      if (
+        (Number(p.updatedAt) || 0) !== (Number(it.updatedAt) || 0) ||
+        !!p.done !== !!it.done ||
+        (Number(p.qty) || 1) !== (Number(it.qty) || 1) ||
+        (Number(p.price) || 0) !== (Number(it.price) || 0) ||
+        (p.image || "") !== (it.image || "")
+      ) {
+        return true;
+      }
+    }
+
+    if (prev.warranties.length !== next.warranties.length) return true;
+    const prevWMap = new Map(prev.warranties.map((w) => [w.id, w]));
+    for (const w of next.warranties) {
+      const p = prevWMap.get(w.id);
+      if (!p || (Number(p.updatedAt) || 0) !== (Number(w.updatedAt) || 0)) return true;
+    }
+
+    const prevMemKeys = Object.keys(prev.priceMemory);
+    const nextMemKeys = Object.keys(next.priceMemory);
+    if (prevMemKeys.length !== nextMemKeys.length) return true;
+    for (const k of nextMemKeys) {
+      const p = prev.priceMemory[k];
+      const n = next.priceMemory[k];
+      if (!p || (Number(p.updatedAt) || 0) !== (Number(n.updatedAt) || 0)) return true;
+    }
+
+    return false;
+  }
+
   function mergeStates(local, remote) {
     const cutoff = Date.now() - 30 * 864e5;
     const mergedDeleted = {};
@@ -322,7 +360,7 @@
       }
     });
 
-const finalItems = [];
+    const finalItems = [];
     const activeByName = new Map();
     for (const it of itemsById.values()) {
       if (!it.done) {
@@ -433,7 +471,7 @@ const finalItems = [];
 
   async function resolveDriveFileId() {
     if (driveMeta && driveMeta.fileId) return driveMeta.fileId;
-    const safeName = DRIVE_FILE_NAME.replace(/'/g, "\\'");
+    const safeName = DRIVE_FILE_NAME.replace(/'/g, "\'");
     const q = `name='${safeName}' and trashed=false`;
     const res = await driveApiFetch(
       "https://www.googleapis.com/drive/v3/files?fields=files(id,name,parents)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
@@ -454,7 +492,7 @@ const finalItems = [];
 
     let parentId = "";
     try {
-      const rootSafe = APP_CONFIG.receiptsRootFolder.replace(/'/g, "\\'");
+      const rootSafe = APP_CONFIG.receiptsRootFolder.replace(/'/g, "\'");
       const rq = `name='${rootSafe}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
       const rRes = await driveApiFetch(
         "https://www.googleapis.com/drive/v3/files?fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
@@ -479,8 +517,16 @@ const finalItems = [];
       deletedWarranties
     });
     const body =
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${initPayload}\r\n` +
+      `--${boundary}
+Content-Type: application/json; charset=UTF-8
+
+${JSON.stringify(meta)}
+` +
+      `--${boundary}
+Content-Type: application/json; charset=UTF-8
+
+${initPayload}
+` +
       `--${boundary}--`;
 
     const cRes = await driveApiFetch(
@@ -549,6 +595,7 @@ const finalItems = [];
   }
 
   async function syncWithDrive(mode = "pull", silent = false) {
+    clearTimeout(startupSyncTimer);
     if (!navigator.onLine) {
       setSyncPill("off", "לא מקוון");
       return;
@@ -576,11 +623,7 @@ const finalItems = [];
 
       const localSnapshot = { items, priceMemory, deletedIds, warranties, deletedWarranties };
       const merged = mergeStates(localSnapshot, remote);
-
-      const changed =
-        JSON.stringify(merged.items) !== JSON.stringify(items) ||
-        JSON.stringify(merged.warranties) !== JSON.stringify(warranties) ||
-        Object.keys(merged.priceMemory).length !== Object.keys(priceMemory).length;
+      const changed = hasStateChanged(localSnapshot, merged);
 
       items = merged.items;
       priceMemory = merged.priceMemory;
@@ -594,10 +637,13 @@ const finalItems = [];
         await writeRemoteState(fileId, merged);
       }
 
+      initialPullDone = true;
       setSyncPill("ok", "מסונכרן בדרייב");
-      render();
-      if (typeof S !== "undefined" && S.tab === "more" && S.sub === "wr" && !S.wForm && typeof draw === "function") {
-        draw(true);
+      if (changed) {
+        render();
+        if (typeof S !== "undefined" && S.tab === "more" && S.sub === "wr" && !S.wForm && typeof draw === "function") {
+          draw(true);
+        }
       }
     } catch (err) {
       if (err && (err.message === "need_scope" || err.code === 401 || err.code === 403)) {
@@ -616,6 +662,7 @@ const finalItems = [];
 
   async function backfillMissingImages() {
     if (!navigator.onLine) return;
+    if (typeof S !== "undefined" && S.tab !== "shop") return;
     const candidates = items.filter((it) => !it.image && it.name && !checkedImageNames.has(it.name.trim().toLowerCase())).slice(0, 6);
     if (!candidates.length) return;
 
@@ -710,7 +757,13 @@ const finalItems = [];
     const total = active.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
     const payload = active.map((x) => ({ n: x.name, q: x.qty, p: x.price, d: x.dept }));
     const shareUrl = `${location.origin}${location.pathname}#shop=${encodeURIComponent(JSON.stringify(payload))}`;
-    const text = `רשימת קניות (${active.length} פריטים):\n${lines.join("\n")}${total > 0 ? `\nסה״כ משוער: ${fmtMoney(total)}` : ""}\n\nלייבוא לאפליקציה:\n${shareUrl}`;
+    const text = `רשימת קניות (${active.length} פריטים):
+${lines.join("
+")}${total > 0 ? `
+סה״כ משוער: ${fmtMoney(total)}` : ""}
+
+לייבוא לאפליקציה:
+${shareUrl}`;
 
     if (navigator.share) {
       navigator.share({ title: "רשימת קניות", text }).catch(() => {});
@@ -738,7 +791,7 @@ const finalItems = [];
     history.replaceState(null, "", location.pathname + location.search);
   }
 
- function renderItemRow(it) {
+  function renderItemRow(it) {
     const lineTot = (Number(it.price) || 0) * (Number(it.qty) || 1);
     const isEditing = editingPriceItemId === it.id;
     return `<div class="shop-item ${it.done ? "done" : ""}">
@@ -877,6 +930,15 @@ const finalItems = [];
   }
 
   document.addEventListener("click", (e) => {
+    const shopNavBtn = e.target.closest('nav button[data-t="shop"]');
+    if (shopNavBtn) {
+      if (!initialPullDone) {
+        syncWithDrive("pull", true).then(() => backfillMissingImages());
+      } else {
+        backfillMissingImages();
+      }
+    }
+
     const shopPage = byId("page-shopping");
     if (!e.target.closest("#shop-search-input, #shop-dropdown")) {
       const dd = byId("shop-dropdown");
@@ -956,5 +1018,9 @@ const finalItems = [];
 
   importFromHashIfPresent();
   render();
-  syncWithDrive("pull", true).then(() => backfillMissingImages());
+  startupSyncTimer = setTimeout(() => {
+    syncWithDrive("pull", true).then(() => {
+      if (typeof S !== "undefined" && S.tab === "shop") backfillMissingImages();
+    });
+  }, 2500);
 })();
