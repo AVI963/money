@@ -81,19 +81,6 @@ header button.spin svg{animation:rot .8s linear infinite}
 .bn{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:10px 14px;font-size:13px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;box-shadow:inset 0 1px 0 var(--in-hi),var(--sh)}
 .bn button{border:0;background:var(--g);color:#fff;border-radius:11px;padding:6px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap}
 
-/* Unified Toast */
-.app-toast{
-  position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));
-  transform:translate(-50%,16px);opacity:0;pointer-events:none;z-index:90;
-  max-width:min(92vw,420px);padding:10px 18px;border-radius:99px;
-  background:var(--ink);color:var(--card);font-size:13.5px;font-weight:700;
-  box-shadow:0 14px 32px -8px rgba(0,0,0,.35);
-  transition:opacity .22s ease,transform .24s cubic-bezier(.22,1,.36,1);
-  display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
-}
-.app-toast.on{opacity:1;transform:translate(-50%,0)}
-.app-toast.err{background:var(--r);color:#fff}
-
 /* Elevated Premium Cards */
 .card{
   background:var(--card);border:1px solid var(--bd);border-radius:26px;padding:19px;margin:12px 0;
@@ -241,7 +228,7 @@ header button.spin svg{animation:rot .8s linear infinite}
 /* Legacy Bars (Mortgage actual charges) */
 .bars{display:flex;gap:8px;height:130px;direction:rtl;position:relative;margin-top:10px}
 .bars>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;gap:5px;height:100%;position:relative;z-index:1}
-.bars b{width:100%;max-width:34px;border-radius:10px;background:var(--line);transform-origin:bottom center;animation:growY .5s cubic-bezier(.22,1,.36,1) both;transition:.25s}.bars small{font-size:11px;color:var(--mut)}
+.bars b{width:100%;max-width:34px;border-radius:10px;background:var(--line);transform-origin:bottom center;animation:growY .5s cubic-bezier(.22,1,.36,1) both;transition:.25s}.bars .on b{background:var(--g)}.bars small{font-size:11px;color:var(--mut)}
 
 /* Interactive SVG Area Chart */
 .svgc{position:relative;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:auto}
@@ -620,9 +607,23 @@ input[data-sw]{width:100px;font:inherit;padding:6px 10px;border-radius:10px;bord
     <span>נותר לשלם: <strong id="shop-float-left">₪0.00</strong></span>
     <span>סה״כ: <strong id="shop-float-all">₪0.00</strong></span>
   </div>
-</div>
 
-<div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+  <div id="shop-price-modal" class="ms-back" style="display:none;">
+    <div class="ms-sheet" style="max-width:440px;">
+      <div class="ms-grab"></div>
+      <div class="row" style="padding:0 0 6px">
+        <h2 style="margin:0;font-size:16px;" id="shop-pm-title">עדכון מחיר</h2>
+        <button type="button" class="chip2" id="shop-pm-close" style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <label class="wf-lbl" for="shop-pm-input">מחיר ליחידה (₪)</label>
+      <input id="shop-pm-input" class="wf-inp" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+      <div class="row" style="margin-top:14px;padding:0;gap:8px">
+        <button type="button" class="pr" id="shop-pm-save" style="flex:1;background:var(--g);color:#fff;padding:11px">שמור מחיר ✓</button>
+        <button type="button" class="chip2" id="shop-pm-cancel" style="padding:10px 15px">ביטול</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <nav hidden>
   <button data-t="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 20v-6h6v6"/></svg>בית</button>
@@ -631,14 +632,13 @@ input[data-sw]{width:100px;font:inherit;padding:6px 10px;border-radius:10px;bord
   <button data-t="shop"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>קניות</button>
   <button data-t="more"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>עוד</button>
 </nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
 const APP_CONFIG = Object.assign({
   clientId: '579770283485-41n96q8bol22fh83dkgua1lb5fq4n70c.apps.googleusercontent.com',
   workerUrl: 'https://plain-dust-203fmoney-auth.orbach222.workers.dev',
   driveScope: 'https://www.googleapis.com/auth/drive',
-  xlsxUrl: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  xlsxSri: 'sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==',
   files: {
     exp: 'סך הוצאת משק בית',
     inv: 'תיק השקעות',
@@ -661,45 +661,6 @@ const esc = s => String(s ?? '')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
-
-const num = v => {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (v === null || v === undefined || v === '') return 0;
-  const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.\-+eE]/g, '').trim());
-  return Number.isFinite(n) ? n : 0;
-};
-
-let toastTimer = 0;
-function showToast(text, type = 'ok') {
-  const el = document.getElementById('app-toast');
-  if (!el || !text) return;
-  el.textContent = String(text);
-  el.className = 'app-toast on' + (type === 'err' ? ' err' : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('on'), 2800);
-}
-
-let xlsxPromise = null;
-function ensureXlsx() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
-  if (xlsxPromise) return xlsxPromise;
-  xlsxPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = APP_CONFIG.xlsxUrl;
-    if (APP_CONFIG.xlsxSri) {
-      s.integrity = APP_CONFIG.xlsxSri;
-      s.crossOrigin = 'anonymous';
-    }
-    s.async = true;
-    s.onload = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('טעינת ספריית Excel נכשלה'));
-    s.onerror = () => {
-      xlsxPromise = null;
-      reject(new Error('לא ניתן לטעון את ספריית קריאת האקסל'));
-    };
-    document.head.appendChild(s);
-  });
-  return xlsxPromise;
-}
 
 const COL=['#4f6bed','#10b981','#f59e0b','#ec4899','#06b6d4','#84cc16','#ef4444','#8b5cf6'];
 const ICO=[
@@ -725,7 +686,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
-let token,cc,quotesAbort=null,prevViewKey='';
+  let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
 const expKey=e=>`${e.ym}|${e.d||0}|${String(e.c||'').trim()}|${String(e.t||'').trim()}|${e.a}`;
@@ -743,13 +704,7 @@ const shortK=n=>{if(S.hide)return '••';const a=Math.abs(n);return a>=1000?(a
 const fix=d=>new Date(d.getTime()+432e5),ymOf=d=>{d=fix(d);return d.getFullYear()*100+d.getMonth()+1};
 const ymLb=y=>y&&Number.isFinite(y)?new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'long',year:'numeric'}):'';
 const ymShort=y=>y&&Number.isFinite(y)?new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'short',year:'2-digit'}):'';
-const T=(a,k)=>a.reduce((s,r)=>s+num(r[k]),0),dl=d=>d instanceof Date&&!isNaN(+d)?d.toLocaleDateString('he-IL'):'—';
-
-function parseExcelDate(val){
-  if(!val)return null;
-  if(val instanceof Date)return isNaN(+val)?null:fix(val);
-  return parseLocalDate(val);
-}
+const T=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0),dl=d=>d instanceof Date&&!isNaN(+d)?d.toLocaleDateString('he-IL'):'—';
 
 function msg(t,isHtml=false){
   $('#app').innerHTML='<div id="msg"><p>'+(isHtml?t:esc(t))+'</p></div>';
@@ -812,10 +767,8 @@ async function driveFetchWithRetry(url,opts={},retried=false){
 }
 
 async function getFile(name){
-  const [XLSXLib, listRes] = await Promise.all([
-    ensureXlsx(),
-    driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+encodeURIComponent((name[0]=='='?"name = '"+name.slice(1)+"'":"name contains '"+name+"'")+" and trashed=false and mimeType!='application/vnd.google-apps.folder'"))
-  ]);
+  const q=encodeURIComponent((name[0]=='='?"name = '"+name.slice(1)+"'":"name contains '"+name+"'")+" and trashed=false and mimeType!='application/vnd.google-apps.folder'");
+  const listRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+q);
   const l=await listRes.json();
   if(l.error){
     const e=new Error(l.error.message||'שגיאת Google Drive');
@@ -825,47 +778,24 @@ async function getFile(name){
   if(!l.files||!l.files.length)throw new Error('לא נמצא בדרייב קובץ ששמו כולל: '+name);
   const mediaRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files/'+l.files[0].id+'?alt=media&supportsAllDrives=true');
   if(!mediaRes.ok)throw new Error('שגיאה בהורדת הקובץ מהדרייב ('+mediaRes.status+')');
-  return XLSXLib.read(await mediaRes.arrayBuffer(),{type:'array',cellDates:true});
+  return XLSX.read(await mediaRes.arrayBuffer(),{type:'array',cellDates:true});
 }
 
 async function load(){
-  S.syncing=true;if(S.exp.length)draw(true);else msg('טוען נתונים מהדרייב...');
+  S.syncing=true;if(S.exp.length)draw();else msg('טוען נתונים מהדרייב...');
   try{
     const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
     S.exp=[];S.mon=[];S.cp=[];S.err='';S.scopeErr=false;S.bud={};S.sal=null;
-    const hdr=(rows[0]||[]).map(c=>String(c||'').trim());
-    const findCol=(re,fb,from=0,to=hdr.length)=>{
-      for(let idx=from;idx<Math.min(to,hdr.length);idx++){if(re.test(hdr[idx]))return idx}
-      return fb;
-    };
-    const ciDesc=findCol(/תיאור|הוצאה|פירוט|שם|סוג/,0,0,8);
-    const ciAmt=findCol(/סכום|עלות|מחיר/,1,0,8);
-    const ciCat=findCol(/קטגוריה|תחום|סיווג/,2,0,8);
-    const ciDate=findCol(/תאריך/,4,0,8);
-    const ciNote=findCol(/הערה|הערות|חריג|חד[\s-]?פעמי/,-1,0,8);
-    const ciMonDate=findCol(/חודש|תאריך/,9,6,20);
-    const ciMonExp=findCol(/סך|הוצא/,11,6,20);
-    const ciMonInc=findCol(/הכנסה|משכורת|נטו/,13,6,20);
-    const gi=hdr.findIndex(c=>c.includes('גיפט')||c.includes('קופון')),cj=gi>=0?gi:23;
-
+    const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
     rows.slice(1).forEach(x=>{
       if(!x)return;
-      const rawAmt=x[ciAmt];
-      const hasAmt=typeof rawAmt==='number'||(typeof rawAmt==='string'&&/\d/.test(rawAmt));
-      const fd=parseExcelDate(x[ciDate]);
-      if(hasAmt&&x[ciCat]&&fd){
-        const amt=num(rawAmt);
-        const noteTxt=[x[ciDesc],ciNote>=0?x[ciNote]:'',x[3],x[5]].filter(Boolean).join(' ');
-        const sheetExcl=/חד[\s-]?פעמי|חריג/.test(noteTxt);
-        S.exp.push({t:String(x[ciDesc]||''),a:amt,c:String(x[ciCat]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
+      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
+        const fd=fix(x[4]);
+        const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
+        S.exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
       }
-      const md=parseExcelDate(x[ciMonDate]);
-      const hasMonExp=typeof x[ciMonExp]==='number'||(typeof x[ciMonExp]==='string'&&/\d/.test(x[ciMonExp]));
-      if(md&&hasMonExp)S.mon.push({ym:md.getFullYear()*100+md.getMonth()+1,inc:num(x[ciMonInc])});
-      const cpAmt=x[cj+1];
-      if(x[cj]&&(typeof cpAmt==='number'||(typeof cpAmt==='string'&&/\d/.test(cpAmt)))&&!String(x[cj]).startsWith('סה')){
-        S.cp.push({n:String(x[cj]),a:num(cpAmt),c:String(x[cj+2]||'')});
-      }
+      if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
+      if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))S.cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
     });
     parseExtra(wb);
     const allYms=S.exp.map(e=>e.ym);
@@ -875,12 +805,12 @@ async function load(){
       S.ym=Math.max(...allYms);
     }
     if(!S.pv.from)setPr('12');
-    try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>num(r['שווי ₪'])>0).map(r=>({...r,'שווי ₪':num(r['שווי ₪']),'עלות ₪':num(r['עלות ₪'])}));S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
+    try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
     try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
     try{S.mort=parseMort(await getAny(FILES.mort))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
     S.syncAt=Date.now();saveSnap();S.rt2=0;S.syncing=false;
-    $('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();quotes();if(window.CloudStore)window.CloudStore.sync('pull',true);
-  }catch(e){
+$('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();quotes();if(window._shopSync)window._shopSync('pull',true);
+    }catch(e){
     S.syncing=false;
     if((e.code===401||/פג/.test(e.message))&&!S.rt2){S.rt2=1;if(await refresh())return load()}
     S.err=e.message;
@@ -892,9 +822,8 @@ async function load(){
 
 function parseIns(wb){
   const sm=wb.Sheets['סיכום'];if(!sm||!sm.C6||!sm.C7)throw new Error('מבנה גיליון ביטוח חיים לא תקין');
-  const pr=XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות']||wb.Sheets[wb.SheetNames[1]],{header:1,raw:true}).slice(4,36),st=parseExcelDate(sm.C6.v),yrs=num(sm.C7.v),pay=[];
-  if(!st)throw new Error('תאריך התחלה לא תקין בגיליון ביטוח חיים');
-  for(let n=0;n<yrs*12;n++){const y=Math.floor(n/12),r=pr[y]||[],t=num(r[6])+num(r[7]);pay.push({d:new Date(st.getFullYear(),st.getMonth()+n,st.getDate()),a:t?Math.floor(t/12*100)/100:null})}
+  const pr=XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות']||wb.Sheets[wb.SheetNames[1]],{header:1,raw:true}).slice(4,36),st=fix(sm.C6.v),yrs=+sm.C7.v||0,pay=[];
+  for(let n=0;n<yrs*12;n++){const y=Math.floor(n/12),r=pr[y]||[],t=(+r[6]||0)+(+r[7]||0);pay.push({d:new Date(st.getFullYear(),st.getMonth()+n,st.getDate()),a:t?Math.floor(t/12*100)/100:null})}
   return{yrs,pay,pr,end:new Date(st.getFullYear(),st.getMonth()+yrs*12,st.getDate())};
 }
 
@@ -1117,24 +1046,22 @@ function home(){
            :`<div><span class="lb">הוצאות שוטפות</span><b>${fmt(varTot)}</b></div><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/daysInMonth)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`}
   </div></div>
   <div class="car">${donut(cs,tot)}${cashflowCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">לחיצה ממושכת על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ לפירוט · סימון "חד-פעמי" (או הערה באקסל) מנטרל מהתחזית</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0,topC=(cs[0]&&cs[0][1])||1;
-  return `<details class="ct" data-ct="${encodeURIComponent(c)}"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${esc(c)}</b><small>${Math.round(v/(tot||1)*100)}% מההוצאות · ${a.length} פעולות</small></span>
+  return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${esc(c)}</b><small>${Math.round(v/(tot||1)*100)}% מההוצאות · ${a.length} פעולות</small></span>
   <span class="ca"><b>${fmt(v)}</b>${bg?`<small class="${v>bg?'neg':'pos'}">${v>bg?'חריגה '+fmt(v-bg):'נשאר '+fmt(bg-v)} מתוך ${fmt(bg)}</small>`:av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span>${SVG.chevD}</summary>
   <div class="ct-body"><div class="bar"><i style="width:${bg?Math.min(v/bg*100,100):v/topC*100}%;background:${bg&&v>bg?'var(--r)':COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>{const ek=expKey(e),ex=isExcl(e);return `<div class="it ${ex?'ex-off':''}"><span>${e.d>1?`<span class="it-day">${e.d}/${mo}</span>`:''}<span class="it-name">${esc(e.t)}</span></span><div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}" data-se="${e.sheetExcl?1:0}" title="נטרול מהתחזית ומהממוצע">${ex?(e.sheetExcl?'חריג (אקסל)':'חריג ✓'):'חד-פעמי'}</button><b>${fmt(e.a)}</b></div></div>`}).join('')}</div></details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
 }
 
 function inv0(){
   if(!S.inv.length)return `<div class="card"><p>${esc(S.invErr||'לא נמצאו נתוני השקעות.')}</p></div>`;
-  const val=T(S.inv,'שווי ₪'),cost=T(S.inv,'עלות ₪'),gain=val-cost,tax=Math.max(0,gain)*.25,acc={},top=[...S.inv].sort((a,b)=>num(b['שווי ₪'])-num(a['שווי ₪']));
+  const val=T(S.inv,'שווי ₪'),cost=T(S.inv,'עלות ₪'),gain=val-cost,tax=Math.max(0,gain)*.25,acc={},top=[...S.inv].sort((a,b)=>b['שווי ₪']-a['שווי ₪']);
   S.inv.forEach(r=>(acc[r['חשבון']||'כללי']=acc[r['חשבון']||'כללי']||[]).push(r));
-  const restVal=top.slice(6).reduce((s,r)=>s+num(r['שווי ₪']),0);
-  const segs=[...top.slice(0,6).map((r,k)=>[String(r['שם']||''),num(r['שווי ₪']),COL[k]]),...(restVal>0?[['אחר',restVal,'#94a3b8']]:[])];
   return `<div class="card hg"><div class="lb">סך השקעות</div><div class="big">${fmt(val)}</div><span class="chip ${gain<0?'bad':''}">${cost>0?pct(gain/cost*100)+' · ':''}${fmt(gain)} רווח</span>
-  <div class="stack">${segs.map(([,v,col])=>`<i style="width:${(v/(val||1)*100).toFixed(2)}%;background:${col}"></i>`).join('')}</div><div class="lg2">${segs.map(([name,v,col])=>`<span><i class="dot" style="background:${col}"></i>${esc(name)} ${Math.round(v/(val||1)*100)}%</span>`).join('')}</div>
+  <div class="stack">${top.slice(0,6).map((r,k)=>`<i style="width:${r['שווי ₪']/(val||1)*100}%;background:${COL[k]}"></i>`).join('')}</div><div class="lg2">${top.slice(0,6).map((r,k)=>`<span><i class="dot" style="background:${COL[k]}"></i>${esc(r['שם'])} ${Math.round(r['שווי ₪']/(val||1)*100)}%</span>`).join('')}</div>
   <div class="trio"><div><span class="lb">מס משוער</span><b>${fmt(-tax)}</b></div><div><span class="lb">אחרי מס</span><b>${fmt(val-tax)}</b></div></div>
   <p class="mut" style="margin:10px 0 0">הערכה בלבד: מס 25% על הרווח הכולל, בלי הצמדה למדד ובלי עמלות.</p></div>`+
   Object.entries(acc).map(([n,a],k)=>{const v=T(a,'שווי ₪'),c=T(a,'עלות ₪');
   return `<div class="card"><div class="row"><h2 style="margin:0">${esc(n)}</h2><b>${fmt(v)}</b></div><div class="row s"><span class="mut">תשואה</span><b class="${v<c?'neg':'pos'}">${c>0?pct((v-c)/c*100):'—'}</b></div>
-  ${a.sort((x,y)=>num(y['שווי ₪'])-num(x['שווי ₪'])).map(r=>{const rv=num(r['שווי ₪']),g=rv-num(r['עלות ₪']),sh=rv/(v||1)*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${esc(r['שם'])}${r.live?' <small class="pos">● חי</small>':''}</span><b>${fmt(rv)}</b></div>
+  ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-(+r['עלות ₪']||0),sh=r['שווי ₪']/(v||1)*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${esc(r['שם'])}${r.live?' <small class="pos">● חי</small>':''}</span><b>${fmt(r['שווי ₪'])}</b></div>
   <div class="row s mut" style="padding:0"><span>${sh.toFixed(0)}% מהחשבון</span><span class="${g<0?'neg':'pos'}">${fmt(g)}</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${sh}%;background:${COL[k*3%8]}"></i></div></div>`}).join('')}</div>`}).join('');
 }
 
@@ -1202,7 +1129,7 @@ function pv(){
 function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
   return `<div class="card hg"><div class="lb">סך שווי נקי (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
   <div class="trio"><div><span class="lb">השקעות (${Math.round(v/(v+p)*100)}%)</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה והשתלמות (${Math.round(p/(v+p)*100)}%)</span><b>${fmt(p)}</b></div></div></div>`}
-function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${esc(r['שם'])} <span class="mut">${esc(r['סוג']||'')}</span></span><b>${fmt(num(r['שווי ₪']))}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
+function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${esc(r['שם'])} <span class="mut">${esc(r['סוג']||'')}</span></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
 function inv(){return (S.qt?`<p class="mut" style="margin:4px 6px">● מחירים חיים עודכנו ב-${esc(S.qt)}</p>`:'')+nw()+inv0()+penCard()}
 
 function todayISO(){
@@ -1828,7 +1755,6 @@ async function saveWarrantyAction(){
     if(window._saveWarranty)window._saveWarranty(rec);
     S.wForm=null;S.wPendingFile=null;S.wSaving=false;S.wErr='';
     draw();
-    showToast('האחריות נשמרה בהצלחה ✓');
   }catch(err){
     S.wSaving=false;
     S.wErr=(err&&err.message)?err.message:'שגיאה בשמירת האחריות';
@@ -1958,31 +1884,19 @@ const brk=it=>{const m={};it.forEach(e=>{(m[e.t]=m[e.t]||{s:0,n:0}).s+=e.a;m[e.t
 async function getAny(a){let er;for(const n of a){try{return await getFile(n)}catch(x){er=x;if(x.code===401||x.code===403||/פג/.test(x.message))throw x}}throw er||new Error('לא נמצא קובץ תואם')}
 
 function parseMort(wb){
-  const J=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,range:'A1:O600'}):[],
+  const J=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,range:'A1:O400'}):[],
   sm=J('סיכום ומצב נוכחי'),pl=J('פעימות ואימות מול הבנק'),sc=J('לוח סילוקין חודשי'),si=J('סימולטור תרחישים ומחזור'),
-  D=x=>parseExcelDate(x),hr=(a,t)=>a.findIndex(r=>r&&r.some(c=>String(c||'').trim()==t)),
+  D=x=>x instanceof Date?fix(x):null,hr=(a,t)=>a.findIndex(r=>r&&r.some(c=>String(c||'').trim()==t)),
   va=(a,t)=>{for(const r of a){const i=r?r.findIndex(c=>String(c||'').includes(t)):-1;if(i>=0)return r.slice(i+1).find(c=>c!==undefined&&c!==null&&c!=='')}},
-  readRows=(arr,startIdx,maxRows=50)=>{
-    const out=[];
-    if(startIdx<0)return out;
-    for(let k=1;k<=maxRows;k++){
-      const r=arr[startIdx+k];
-      if(!r||!r.some(c=>c!==undefined&&c!==null&&String(c).trim()!==''))break;
-      const first=String(r[0]||'').trim();
-      if(/^סה["״']?כ|^סיכום|^סך הכל/.test(first))break;
-      out.push(r);
-    }
-    return out;
-  },
-  frame=num(va(sm,'סך מסגרת משכנתא מאושרת')),mi=hr(sm,'מסלול הלוואה'),pi=hr(pl,'מועד משיכה משוער'),hi=hr(pl,'תאריך חיוב בפועל'),ci=hr(sc,'תאריך חיוב'),ti=hr(si,'תרחיש כלכלי'),
+  frame=+va(sm,'סך מסגרת משכנתא מאושרת')||0,mi=hr(sm,'מסלול הלוואה'),pi=hr(pl,'מועד משיכה משוער'),hi=hr(pl,'תאריך חיוב בפועל'),ci=hr(sc,'תאריך חיוב'),ti=hr(si,'תרחיש כלכלי'),
   ni=sm.findIndex(r=>r&&String(r[0]||'').includes('סה"כ תשלומים כוללים'));let cum=0;
-  const mix=readRows(sm,mi,30).filter(r=>r[0]&&num(r[1])>0).map(r=>({n:String(r[0]),a:num(r[1]),r:num(r[3]),ix:String(r[4]||''),mech:String(r[5]||''),dr:num(r[6])}));
-  const pulses=readRows(pl,pi,40).filter(r=>r[0]&&num(r[2])>0).map(r=>{const a=num(r[2]);cum+=a;return{n:String(r[0]),d:D(r[1]),a,cum,t:String(r[5]||''),st:String(r[6]||''),note:String(r[7]||'')}});
-  const hist=hi>=0?pl.slice(hi+1,hi+120).filter(r=>r&&typeof r[2]=='number'&&typeof r[3]=='number').map(r=>({m:r[1],i:r[2],p:r[3],b:r[5],pu:r[6],e:r[7]})):[];
-  const pay=ci>=0?sc.slice(ci+1).map(r=>({r,d:r?D(r[1]):null})).filter(x=>x.r&&typeof x.r[0]=='number'&&x.d).map(({r,d})=>({n:r[0],d,y:r[2],dr:num(r[3]),pr:num(r[5]),it:num(r[6]),ix:num(r[7]),tot:num(r[5])+num(r[6])+num(r[7]),bal:num(r[11])})):[];
-  const sim=readRows(si,ti,30).filter(r=>r[0]).map(r=>({n:String(r[0]),mo:num(r[5]),cost:num(r[6])}));
+  const mix=mi>=0?[1,2,3,4].map(k=>sm[mi+k]).filter(r=>r&&r[0]&&typeof +r[1]==='number'&&!isNaN(+r[1])&&+r[1]>0).map(r=>({n:String(r[0]),a:+r[1],r:+r[3]||0,ix:String(r[4]||''),mech:String(r[5]||''),dr:+r[6]||0})):[];
+  const pulses=pi>=0?[1,2,3,4,5,6].map(k=>pl[pi+k]).filter(r=>r&&r[0]&&typeof +r[2]==='number'&&!isNaN(+r[2])&&+r[2]>0).map(r=>{const a=+r[2];cum+=a;return{n:String(r[0]),d:D(r[1]),a,cum,t:String(r[5]||''),st:String(r[6]||''),note:String(r[7]||'')}}):[];
+  const hist=hi>=0?pl.slice(hi+1,hi+40).filter(r=>r&&typeof r[2]=='number'&&typeof r[3]=='number').map(r=>({m:r[1],i:r[2],p:r[3],b:r[5],pu:r[6],e:r[7]})):[];
+  const pay=ci>=0?sc.slice(ci+1).filter(r=>r&&typeof r[0]=='number'&&r[1] instanceof Date).map(r=>({n:r[0],d:fix(r[1]),y:r[2],dr:+r[3]||0,pr:+r[5]||0,it:+r[6]||0,ix:+r[7]||0,tot:(+r[5]||0)+(+r[6]||0)+(+r[7]||0),bal:+r[11]||0})):[];
+  const sim=ti>=0?[1,2,3,4].map(k=>si[ti+k]||[]).filter(r=>r[0]).map(r=>({n:String(r[0]),mo:+r[5]||0,cost:+r[6]||0})):[];
   if(!pay.length&&!mix.length)throw new Error('מבנה גיליונות המשכנתא לא זוהה');
-  return{bank:String(va(sm,'בנק וסניף')||''),val:num(va(sm,'שווי נכס')),frame,note:ni>=0?[...sm[ni]].reverse().find(c=>typeof c=='string'&&c.length>20)||'':'',mix,pulses,hist,pay,sim};
+  return{bank:String(va(sm,'בנק וסניף')||''),val:+va(sm,'שווי נכס')||0,frame,note:ni>=0?[...sm[ni]].reverse().find(c=>typeof c=='string'&&c.length>20)||'':'',mix,pulses,hist,pay,sim};
 }
 
 function mt(){
@@ -2003,10 +1917,10 @@ function mt(){
   `<div class="card"><h2>תמהיל המשכנתא</h2>${M.mix.map((x,k)=>`<div style="padding-top:12px"><div class="row" style="padding:0"><b>${esc(x.n)}</b><b>${fmt(x.a)}</b></div><div class="row s mut" style="padding:0"><span>${(x.r*100).toFixed(2)}% · ${esc(x.ix)}</span><span>${Math.round(x.a/(M.frame||1)*100)}% מהתמהיל</span></div><div class="bar" style="margin:4px 0"><i style="width:${x.dr/(x.a||1)*100}%;background:${COL[k%8]}"></i></div><div class="mut" style="font-size:12px">נמשך ${fmt(x.dr)}${x.a>x.dr?' · נותר '+fmt(x.a-x.dr):''} · ${esc(x.mech)}</div></div>`).join('')}</div>`,
   `<div class="card"><h2>פעימות (משיכות לקבלן)</h2>${M.pulses.map(p=>`<div class="row" style="align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)"><span style="font-size:20px">${/בוצע/.test(p.st)?'✅':'⏳'}</span><div style="flex:1;margin:0 10px"><b>${esc(p.n)}</b><div class="mut">${p.d?dl(p.d):''} · ${esc(p.t)}</div><div class="mut" style="font-size:12px">${esc(p.note||'')}</div></div><div style="text-align:end"><b>${fmt(p.a)}</b><div class="mut">${Math.round(p.cum/(M.frame||1)*100)}%</div></div></div>`).join('')}</div>`,
   `<div class="card"><h2>חיובים בפועל בבנק</h2><span class="lb">אדום ריבית ועמלות · ירוק החזר קרן</span><div class="bars">${hs.map(h=>{const sumH=(h.i+h.p)||1;return `<div title="${esc(h.m)}: ${fmt(h.i+h.p)}"><b style="height:${(h.i+h.p)/hx*80}%;background:linear-gradient(var(--r) ${h.i/sumH*100}%,var(--g) 0)"></b><small>${esc(String(h.m).slice(0,2))}</small></div>`}).join('')}</div>
-  <details class="ct" data-ct="mt-hist"><summary><span>פירוט חודשי</span><b>${hs.length} חודשים</b>${SVG.chevD}</summary><div class="ct-body">${hs.map(h=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><div class="row s" style="padding:0"><b>${esc(h.m)}</b><span>${fmt(h.i+h.p)} · יתרה משוכה ${fmt(h.b)}</span></div><div class="mut" style="font-size:12px">${esc(h.pu||'')}: ${esc(h.e||'')}</div></div>`).join('')}</div></details></div>`,
+  <details class="ct"><summary><span>פירוט חודשי</span><b>${hs.length} חודשים</b>${SVG.chevD}</summary><div class="ct-body">${hs.map(h=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><div class="row s" style="padding:0"><b>${esc(h.m)}</b><span>${fmt(h.i+h.p)} · יתרה משוכה ${fmt(h.b)}</span></div><div class="mut" style="font-size:12px">${esc(h.pu||'')}: ${esc(h.e||'')}</div></div>`).join('')}</div></details></div>`,
   `<div class="card"><h2>עלות כוללת לכל חיי ההלוואה</h2><div class="big" style="font-size:34px">${fmt(al.pr+al.it+al.ix)}</div><span class="lb">על מסגרת של ${fmt(M.frame)} · עלות מימון ${fmt(al.it+al.ix)}</span><div class="stack">${LT.map(x=>`<i style="width:${x[2]/gt*100}%;background:${x[3]}"></i>`).join('')}</div>${LT.map(x=>`<div class="row s"><span><i class="dot" style="background:${x[3]}"></i>${x[0]}</span><span class="mut">שולם ${fmt(x[1])} · נותר ${fmt(x[2]-x[1])}</span><b>${fmt(x[2])}</b></div>`).join('')}</div>`,
   `<div class="card"><h2>סיכום שנתי</h2><div class="tw"><table><tr><th>שנה</th><th>תקופה</th><th>חודשי</th><th>קרן</th><th>ריבית</th><th>הצמדה</th><th>סה״כ</th><th>יתרה</th><th>סילוק</th></tr>${yrs.map(y=>{const a=gy(y),e=a[a.length-1];return `<tr style="${cur(a)?'font-weight:700':''}"><td>${y}</td><td>${mm(a[0].d)}–${mm(e.d)}</td><td>${nf(T(a,'tot')/(a.length||1))}</td><td>${nf(T(a,'pr'))}</td><td>${nf(T(a,'it'))}</td><td>${nf(T(a,'ix'))}</td><td>${nf(T(a,'tot'))}</td><td>${nf(e.bal)}</td><td>${Math.round((1-e.bal/(M.frame||1))*100)}%</td></tr>`}).join('')}</table></div></div>`,
-  `<div class="card"><h2>לוח סילוקין חודשי</h2><span class="lb">לחץ על שנה לפתיחה · ✓ שולם · ▶ התשלום הבא</span>${yrs.map(y=>{const a=gy(y);return `<details ${cur(a)?'open':''} class="ct" data-ct="mt-yr-${y}"><summary><span>שנה ${y} · ${mm(a[0].d)}–${mm(a[a.length-1].d)}</span><b>${fmt(a[a.length-1].bal)}</b>${SVG.chevD}</summary><div class="ct-body"><div class="tw"><table><tr><th>חודש</th><th>קרן</th><th>ריבית</th><th>הצמדה</th><th>סה״כ</th><th>יתרה</th></tr>${a.map(p=>`<tr><td>${p.d<=now?'✓':p==nx?'▶':''} ${mm(p.d)}</td><td>${nf(p.pr)}</td><td>${nf(p.it)}</td><td>${nf(p.ix)}</td><td><b>${nf(p.tot)}</b></td><td>${nf(p.bal)}</td></tr>`).join('')}</table></div></div></details>`}).join('')}</div>`,
+  `<div class="card"><h2>לוח סילוקין חודשי</h2><span class="lb">לחץ על שנה לפתיחה · ✓ שולם · ▶ התשלום הבא</span>${yrs.map(y=>{const a=gy(y);return `<details ${cur(a)?'open':''} class="ct"><summary><span>שנה ${y} · ${mm(a[0].d)}–${mm(a[a.length-1].d)}</span><b>${fmt(a[a.length-1].bal)}</b>${SVG.chevD}</summary><div class="ct-body"><div class="tw"><table><tr><th>חודש</th><th>קרן</th><th>ריבית</th><th>הצמדה</th><th>סה״כ</th><th>יתרה</th></tr>${a.map(p=>`<tr><td>${p.d<=now?'✓':p==nx?'▶':''} ${mm(p.d)}</td><td>${nf(p.pr)}</td><td>${nf(p.it)}</td><td>${nf(p.ix)}</td><td><b>${nf(p.tot)}</b></td><td>${nf(p.bal)}</td></tr>`).join('')}</table></div></div></details>`}).join('')}</div>`,
   `<div class="card"><h2>סימולטור תרחישים</h2><span class="lb">רגישות לשינויי ריבית ומדד, לפי הנתונים שבקובץ</span><div style="margin-top:8px">${M.sim.map(s=>`<div class="sim-item"><b style="display:block;font-size:14px;margin-bottom:4px">${esc(s.n)}</b><div class="row s" style="padding:0"><span class="mut">החזר חודשי ממוצע: <b style="color:var(--ink)">${fmt(s.mo)}</b></span><span class="mut">עלות ריבית והצמדה: <b style="color:var(--ink)">${fmt(s.cost)}</b></span></div></div>`).join('')}</div></div>`].join('');
 }
 
@@ -2023,591 +1937,1403 @@ function pxs(rs,tot,nmo,d,P,all){
     pd.forEach(e=>catMap[e.c]=(catMap[e.c]||0)-e.a);
     const topShift=Object.entries(catMap).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
     slide3=`<div class="card sl">
-<div>
-        <div class="row" style="padding:0;gap:6px"><h2 style="font-size:16px;margin:0">השוואה לתקופה קודמת</h2><span class="chip ${diff>0?'bad':''}">${pt?pct(diff/pt*100):'—'}</span></div>
-        <span class="lb">${ymShort(prev[0])}–${ymShort(prev[prev.length-1])} מול התקופה הנבחרת</span>
+      <div>
+        <div class="row" style="padding:0;gap:6px"><h2 style="font-size:16px">לעומת התקופה הקודמת</h2><span class="chip ${diff>0?'bad':''}">${diff>0?'↑':'↓'} ${fmt(Math.abs(diff))}${pt?` (<bdi dir="ltr">${pct(diff/pt*100)}</bdi>)`:''}</span></div>
+        <span class="lb">${prev.length} החודשים שלפני הטווח שנבחר</span>
         <div class="cmp-bars">
-          <div class="cmp-row"><div class="row s" style="padding:0"><span>תקופה נוכחית</span><b>${fmt(tot)}</b></div><div class="cmp-track"><i style="width:${(tot/mxC*100).toFixed(1)}%;background:var(--g)"></i></div></div>
-          <div class="cmp-row"><div class="row s" style="padding:0"><span>תקופה קודמת</span><b>${fmt(pt)}</b></div><div class="cmp-track"><i style="width:${(pt/mxC*100).toFixed(1)}%;background:var(--b)"></i></div></div>
+          <div class="cmp-row"><div class="row s" style="padding:0"><span>בטווח הנבחר</span><b>${fmt(tot)}</b></div><div class="cmp-track"><i style="width:${(tot/mxC*100).toFixed(1)}%;background:${diff>0?'var(--r)':'var(--g)'}"></i></div></div>
+          <div class="cmp-row"><div class="row s" style="padding:0"><span class="mut">תקופה קודמת</span><b>${fmt(pt)}</b></div><div class="cmp-track"><i style="width:${(pt/mxC*100).toFixed(1)}%;background:var(--b);opacity:.65"></i></div></div>
         </div>
       </div>
-      ${topShift?`<div class="hl-box"><div><small class="mut" style="display:block">השינוי הבולט ביותר</small><b>${ico(topShift[0])} ${esc(topShift[0])}</b></div><b class="${topShift[1]>0?'neg':'pos'}">${topShift[1]>0?'+':''}${fmt(topShift[1])}</b></div>`:''}
+      <div>
+        <div class="trio" style="margin-top:4px;padding-top:10px">
+          <div><span class="lb">ממוצע חודשי</span><b>${fmt(tot/nmo)}</b><small class="mut" style="display:block;font-size:11px">קודם ${fmt(pt/prev.length)}</small></div>
+          <div><span class="lb">פעולות</span><b>${d.length}</b><small class="mut" style="display:block;font-size:11px">קודם ${pd.length}</small></div>
+          <div><span class="lb">ממוצע לפעולה</span><b>${fmt(d.length?tot/d.length:0)}</b><small class="mut" style="display:block;font-size:11px">קודם ${fmt(pd.length?pt/pd.length:0)}</small></div>
+        </div>
+        ${topShift&&Math.abs(topShift[1])>50?`<div class="hl-box"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:18px">${ico(topShift[0])}</span><div style="min-width:0"><small class="mut" style="display:block;font-size:11px">השינוי הבולט בקטגוריות</small><b style="font-size:13.5px">${esc(topShift[0])}</b></div></div><b class="${topShift[1]>0?'neg':'pos'}" style="font-size:14px;white-space:nowrap">${topShift[1]>0?'+':'-'}${fmt(Math.abs(topShift[1]))}</b></div>`:''}
+      </div>
     </div>`;
   }else{
-    slide3=`<div class="card sl"><h2>השוואה לתקופה קודמת</h2><p class="mut">אין מספיק נתונים היסטוריים לפני הטווח שנבחר.</p></div>`;
+    const byYr={};
+    d.forEach(e=>{const y=Math.floor(e.ym/100);(byYr[y]=byYr[y]||{t:0,ms:new Set()}).t+=e.a;byYr[y].ms.add(e.ym)});
+    const yArr=Object.entries(byYr).sort((a,b)=>+b[0]-+a[0]),mxY=Math.max(...yArr.map(x=>x[1].t),1);
+    slide3=`<div class="card sl">
+      <div><h2>השוואה לפי שנים</h2><span class="lb">התפלגות סך ההוצאות וממוצע חודשי בכל שנה</span></div>
+      <div style="margin:auto 0">${yArr.map(([y,v],idx)=>`<div style="padding-top:10px"><div class="row" style="padding:0"><b>${y} <small class="mut">(${v.ms.size} חוד׳)</small></b><b>${fmt(v.t)}</b></div><div class="row s mut" style="padding:0"><span>ממוצע ${fmt(v.t/(v.ms.size||1))}/חודש</span><span>${Math.round(v.t/(tot||1)*100)}%</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${(v.t/mxY*100).toFixed(1)}%;background:${COL[idx%8]}"></i></div></div>`).join('')||'<p class="mut">אין נתונים.</p>'}</div>
+      <div class="hl-box"><span class="mut" style="font-size:12.5px">סה״כ ${all.length} חודשי תיעוד</span><b>${fmt(tot/nmo)} / חודש</b></div>
+    </div>`;
   }
 
-  const slide1=`<div class="card sl"><div><h2>מובילות בטווח (${R=='c'?'קטגוריות':'סוגי הוצאה'})</h2><span class="lb">ממוצע חודשי וחלק מסך הטווח</span></div><div>${top.map(([r,v],idx)=>`<div class="big-row"><div class="row s" style="padding:0"><span>${R=='c'?ico(r)+' ':''}${esc(r)}</span><b>${fmt(v.t)}</b></div><div class="row s mut" style="padding:0;font-size:12px"><span>${Math.round(v.t/(tot||1)*100)}% מהטווח</span><span>${fmt(v.t/nmo)}/חודש</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${(v.t/((top[0]&&top[0][1].t)||1)*100).toFixed(1)}%;background:${COL[idx%8]}"></i></div></div>`).join('')||'<p class="mut">אין נתונים בטווח.</p>'}</div></div>`;
+  const bigSum=T(big,'a'),mxB=big[0]?big[0].a:1;
+  const slide4=`<div class="card sl">
+    <div><h2>ההוצאות הגדולות בטווח</h2><span class="lb">5 הפעולות הגבוהות ביותר בתקופה הנבחרת</span></div>
+    <div style="margin:auto 0">${big.map((e,idx)=>{
+      const ek=expKey(e),ex=isExcl(e);
+      return `<div class="big-row">
+        <div class="row" style="padding:0;gap:8px">
+          <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0">
+            <span class="ci" style="width:34px;height:34px;font-size:16px;border-radius:11px;background:${COL[idx%8]}1c">${ico(e.c)}</span>
+            <div style="min-width:0"><b style="display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.t)}</b><small class="mut" style="font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.c)} · ${ymLb(e.ym)}</small></div>
+          </div>
+          <div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}" data-se="${e.sheetExcl?1:0}">${ex?(e.sheetExcl?'חריג (אקסל)':'חריג ✓'):'חד-פעמי'}</button><b>${fmt(e.a)}</b></div>
+        </div>
+        <div class="bar" style="height:4px;margin:6px 0 0"><i style="width:${(e.a/mxB*100).toFixed(1)}%;background:${COL[idx%8]}"></i></div>
+      </div>`;
+    }).join('')||'<p class="mut">אין נתונים.</p>'}</div>
+    ${big.length?`<div class="hl-box"><span class="mut" style="font-size:12px">5 הגדולות מהוות ${Math.round(bigSum/(tot||1)*100)}% מהטווח</span><b>${fmt(bigSum)}</b></div>`:''}
+  </div>`;
 
-  const slide2=`<div class="card sl"><div><h2>5 ההוצאות הגדולות בטווח</h2><span class="lb">פעולות בודדות בסכום הגבוה ביותר</span></div><div>${big.map(e=>`<div class="big-row"><div class="row s" style="padding:0"><span>${ico(e.c)} ${esc(e.t)}</span><b>${fmt(e.a)}</b></div><div class="mut" style="font-size:12px">${esc(e.c)} · ${e.d?e.d+'/':''}${e.ym%100}/${String(Math.floor(e.ym/100)).slice(2)}</div></div>`).join('')||'<p class="mut">אין הוצאות בטווח.</p>'}</div></div>`;
-
-  return slide1+slide2+slide3;
+  return `<div class="card sl"><div><h2>מובילים בטווח</h2><span class="lb">הסעיפים עם ההוצאה הגבוהה ביותר</span></div><div style="margin:auto 0">${top.map(([r,v],j)=>`<div style="padding-top:8px"><div class="row" style="padding:0"><span>${R=='c'?ico(r)+' ':''}${esc(r)}</span><b>${fmt(v.t)}</b></div><div class="row s mut" style="padding:0"><span>ממוצע ${fmt(v.t/nmo)} לחודש</span><span>${Math.round(v.t/(tot||1)*100)}%</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${v.t/((top[0]&&top[0][1].t)||1)*100}%;background:${COL[j]}"></i></div></div>`).join('')||'<p class="mut">אין נתונים.</p>'}</div></div>${slide3}${slide4}`;
 }
 
 function donut(cs,tot){
-  if(!cs.length||!tot)return `<div class="card sl"><h2>התפלגות הוצאות</h2><p class="mut">אין נתונים להצגה בחודש זה.</p></div>`;
-  const top=cs.slice(0,5),rest=cs.slice(5).reduce((s,x)=>s+x[1],0);
-  const segs=[...top.map(([c,v],k)=>({c,v,col:COL[k%8]})),...(rest>0?[{c:'אחר',v:rest,col:'#94a3b8'}]:[])];
-  const R=54,C=2*Math.PI*R;let off=0;
-  const sel=segs.find(s=>s.c===S.dnSel)||null;
-  return `<div class="card sl">
-    <div class="row" style="padding:0"><h2>התפלגות הוצאות</h2><small class="mut">לחץ על פלח לפירוט</small></div>
-    <div class="dn">
-      <div class="donut-wrap">
-        <svg viewBox="0 0 154 154">
-          ${segs.map(s=>{
-            const len=(s.v/tot)*C,dash=`${Math.max(0,len-2).toFixed(2)} ${(C-Math.max(0,len-2)).toFixed(2)}`,curOff=-off;
-            off+=len;
-            const act=sel&&sel.c===s.c,dim=sel&&!act;
-            return `<circle class="seg ${act?'act':''} ${dim?'dim':''}" cx="77" cy="77" r="${R}" stroke="${s.col}" stroke-dasharray="${dash}" stroke-dashoffset="${curOff.toFixed(2)}" data-dn="${encodeURIComponent(s.c)}"/>`;
-          }).join('')}
-        </svg>
-        <div class="donut-center" data-dn="">
-          <span>${sel?esc(sel.c):'סה״כ'}</span>
-          <b>${fmt(sel?sel.v:tot)}</b>
-          ${sel?`<small>${Math.round(sel.v/tot*100)}%</small>`:''}
-        </div>
-      </div>
-      <div class="lg">${segs.map(s=>{
-        const act=sel&&sel.c===s.c,dim=sel&&!act;
-        return `<div class="lg-row ${act?'act':''} ${dim?'dim':''}" data-dn="${encodeURIComponent(s.c)}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="dot" style="background:${s.col}"></i>${esc(s.c)}</span><span>${Math.round(s.v/tot*100)}%</span></div>`;
-      }).join('')}</div>
-    </div>
-  </div>`;
+  if(!tot)return `<div class="card sl"><h2>לאן הלך הכסף</h2><p class="mut">אין הוצאות בחודש הזה.</p></div>`;
+  const rest=cs.slice(6).reduce((s,x)=>s+x[1],0),seg=[...cs.slice(0,6).map(([c,v],k)=>[c,v,COL[k]]),...(rest?[['אחר',rest,'#94a3b8']]:[])];
+  const R=56,C=2*Math.PI*R,gap=seg.length>1?2.2:0;let off=0;
+  const sel=seg.find(s=>s[0]===S.dnSel)||null;
+  const arcs=seg.map(([c,v,col])=>{
+    const len=Math.max((v/tot)*C-gap,1),curOff=off;off+=(v/tot)*C;
+    const act=sel&&sel[0]===c,dim=sel&&!act;
+    return `<circle class="seg ${act?'act':dim?'dim':''}" cx="80" cy="80" r="${R}" stroke="${col}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-curOff).toFixed(2)}" data-dn="${encodeURIComponent(c)}"/>`;
+  }).join('');
+  return `<div class="card sl"><div class="row" style="padding:0"><h2>לאן הלך הכסף</h2>${sel?`<button class="chip2" data-dn="" style="padding:3px 10px;font-size:11.5px">איפוס ✕</button>`:`<small class="mut">לחץ לפירוט</small>`}</div><div class="dn"><div class="donut-wrap"><svg viewBox="0 0 160 160">${arcs}</svg><div class="donut-center" data-dn="">${sel?`<span>${ico(sel[0])} ${esc(sel[0])}</span><b>${fmt(sel[1])}</b><small>${Math.round(sel[1]/tot*100)}%</small>`:`<span>סה״כ</span><b>${fmt(tot)}</b>`}</div></div>
+  <div class="lg">${seg.map(([c,v,col])=>{const act=sel&&sel[0]===c,dim=sel&&!act;return `<div class="lg-row ${act?'act':dim?'dim':''}" data-dn="${encodeURIComponent(c)}"><span><i class="dot" style="background:${col}"></i>${esc(c)}</span><b>${Math.round(v/tot*100)}%</b></div>`}).join('')}</div></div></div>`;
 }
 
-function parseExtra(wb){
-  const bSheet=wb.Sheets['תקציב']||wb.Sheets['יעדים'];
-  if(bSheet){
-    XLSX.utils.sheet_to_json(bSheet,{header:1,raw:true}).slice(1).forEach(r=>{
-      if(r&&r[0]&&num(r[1])>0)S.bud[String(r[0]).trim()]=num(r[1]);
-    });
-  }
-  const sSheet=wb.Sheets['שכר']||wb.Sheets['משכורת'];
-  if(sSheet){
-    const rows=XLSX.utils.sheet_to_json(sSheet,{header:1,raw:true});
-    const kv={};
-    rows.forEach(r=>{if(r&&r[0]&&r[1]!==undefined)kv[String(r[0]).trim()]=num(r[1])});
-    S.sal={base:kv['שכר בסיס']||kv['בסיס']||0,hour:kv['שעתי']||kv['שכר שעתי']||0,sh1:0,sh2:0,sh3:0,bonus:0};
-  }
+function fev(f,get){
+  const T=f.replace(/\s+/g,'').replace(/^=/,'').match(/\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?|\d*\.?\d+%?|[A-Z]+(?=\()|<=|>=|<>|[-+*\/^(),<>=]/g)||[];let i=0;
+  const cn=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s},cc=s=>s.split('').reduce((a,c)=>a*26+c.charCodeAt(0)-64,0),
+  ref=s=>{const [a,b]=s.replace(/\$/g,'').split(':'),p=x=>[cc(x.match(/[A-Z]+/)[0]),+x.match(/\d+/)[0]],A1=p(a),B1=b?p(b):A1,o=[];for(let r=A1[1];r<=B1[1];r++)for(let c=A1[0];c<=B1[0];c++)o.push(get(cn(c)+r));return o};
+  let E,A,M,P,U,V;
+  E=()=>{const a=A(),o=T[i];if(['<','<=','>','>=','=','<>'].includes(o)){i++;const b=A();return o=='<'?a<b:o=='<='?a<=b:o=='>'?a>b:o=='>='?a>=b:o=='='?a==b:a!=b}return a};
+  A=()=>{let a=M();while(T[i]=='+'||T[i]=='-'){const o=T[i++],b=M();a=o=='+'?a+b:a-b}return a};
+  M=()=>{let a=P();while(T[i]=='*'||T[i]=='/'){const o=T[i++],b=P();a=o=='*'?a*b:(b?a/b:0)}return a};
+  P=()=>{let a=U();while(T[i]=='^'){i++;a=Math.pow(a,U())}return a};
+  U=()=>T[i]=='-'?(i++,-U()):T[i]=='+'?(i++,U()):V();
+  V=()=>{const t=T[i++];if(!t)return 0;if(t=='('){const v=E();if(T[i]==')')i++;return v}
+    if(/^\d|^\./.test(t))return t.endsWith('%')?parseFloat(t)/100:parseFloat(t);
+    if(/^[A-Z]+$/.test(t)){if(T[i]=='(')i++;const args=[];if(T[i]&&T[i]!=')'){do{if(T[i]==',')i++;args.push(E())}while(T[i]==',')}if(T[i]==')')i++;const n=t,fl=args.flat().map(x=>+x||0);
+      if(n=='SUM')return fl.reduce((s,x)=>s+x,0);
+      if(n=='AVERAGE')return fl.length?fl.reduce((s,x)=>s+x,0)/fl.length:0;
+      if(n=='MAX')return fl.length?Math.max(...fl):0;
+      if(n=='MIN')return fl.length?Math.min(...fl):0;
+      if(n=='IF')return args[0]?args[1]:(args[2]??0);
+      if(n=='IFERROR')return Number.isFinite(args[0])?args[0]:(args[1]??0);
+      if(n=='ABS')return Math.abs(args[0]||0);
+      if(n=='ROUND'){const f10=Math.pow(10,args[1]||0);return Math.round((args[0]||0)*f10)/f10}
+      if(n=='ROUNDUP'){const f10=Math.pow(10,args[1]||0);return Math.ceil((args[0]||0)*f10)/f10}
+      if(n=='ROUNDDOWN'){const f10=Math.pow(10,args[1]||0);return Math.floor((args[0]||0)*f10)/f10}
+      return 0}
+    return t.includes(':')?ref(t):get(t.replace(/\$/g,''))};
+  return E();
+}
+
+function parseExtra(wb){S.bud={};
+  const bs=wb.Sheets['תקציב'];if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1]});
+  const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],c={};if(ws)for(let r=40;r<=75;r++)for(const l of 'KLMNO'){const x=ws[l+r];if(x)c[l+r]={v:x.v,f:x.f}}S.sal=c}
+let sv=null;
+function salCalc(ov){const C=S.sal||{},m={},vis=new Set(),get=a=>{if(a in ov)return ov[a];if(a in m)return m[a];if(vis.has(a))return 0;const c=C[a];if(!c)return 0;vis.add(a);m[a]=c.f?fev(c.f,get):(typeof c.v=='number'?c.v:0);vis.delete(a);return m[a]};return get}
+function salMap(){
+  const C=S.sal;if(!C)return null;const f=t=>Object.keys(C).find(a=>String(C[a].v||'').includes(t)),a1=f('משמרת בוקר'),aw=f('שכר לשעה'),a2=f('הסכמי שכר'),a3=f('ברוטו');if(!a1||!aw||!a2||!a3)return null;
+  const r1=+a1.slice(1),r2=+a2.slice(1),r3=+a3.slice(1),L='KLMNO',wa=L.slice(L.indexOf(aw[0])+1).split('').map(c=>c+aw.slice(1)).find(a=>C[a]&&typeof C[a].v=='number'),nm=(c,r)=>String(C[c+r]&&C[c+r].v||'').trim();
+  return{wage:wa,sh:'KLMN'.split('').map(c=>({n:nm(c,r1),cA:c+(r1+1),rA:c+(r1+2),tA:c+(r1+3)})).filter(s=>s.n),shiftTot:'O'+(r1+3),
+    ad:'KLMN'.split('').map(c=>({n:nm(c,r2),a:c+(r2+1)})).filter(x=>x.n),addTot:'O'+(r2+1),ded:'LMN'.split('').map(c=>({n:nm(c,r3),a:c+(r3+1)})).filter(x=>x.n),gross:'K'+(r3+1),net:'O'+(r3+1)}}
+function sl(){
+  const M=salMap();if(!M)return `<div class="card"><p>לא נמצא מחשבון השכר בגיליון ראשי של קובץ ההוצאות.${S.exp.length?'':' סנכרן עם הדרייב.'}</p></div>`;
+  const base=salCalc({}),w0=+base(M.wage)||0;
+  if(!sv||!sv.c||sv.c.length!=M.sh.length)sv={c:M.sh.map(s=>+base(s.cA)||0),w:w0};
+  const ov={[M.wage]:+sv.w||w0};M.sh.forEach((s,k)=>ov[s.cA]=sv.c[k]);
+  const g=salCalc(ov),n=g(M.net),gr=g(M.gross),n0=base(M.net),diff=n-n0,cnt=sv.c.reduce((a,b)=>a+b,0),mg=M.sh.map((s,k)=>salCalc({...ov,[s.cA]:sv.c[k]+1})(M.net)-n);
+  return [`<div class="sl-float" id="slf" data-up-top><span style="font-size:13px;font-weight:700">נטו חזוי: <b class="pos" style="font-size:15px">${fmt(n)}</b></span>${Math.abs(diff)>=1?`<span class="chip ${diff<0?'bad':''}" style="padding:2px 9px;font-size:11.5px">${diff>0?'+':''}${fmt(diff)}</span>`:`<span class="mut" style="font-size:11.5px">${cnt} משמרות</span>`}</div>`,
+  `<div class="card hg"><div class="lb">מחשבון שכר</div><div class="lb">שכר נטו חזוי</div><div class="big">${fmt(n)}</div><span class="chip">${fmt(gr)} ברוטו</span><div class="row s" style="margin-top:10px"><span class="lb">בקובץ האקסל כרגע</span><b>${fmt(n0)}</b></div></div>`,
+  `<div class="card"><h2>משמרות החודש</h2><span class="lb">שינוי כאן נשמר במכשיר בלבד ולא משנה את האקסל</span>${M.sh.map((s,k)=>`<div class="row" style="align-items:center;padding:10px 0;border-top:1px solid var(--line)"><div><b>${esc(s.n)}</b><div class="mut">${fmt(g(s.rA))} למשמרת · נטו נוסף ${fmt(mg[k])}</div></div><div class="stp"><button class="chip2" data-sc="${k}:-1">−</button><b>${sv.c[k]}</b><button class="chip2" data-sc="${k}:1">+</button></div><b style="min-width:72px;text-align:end">${fmt(g(s.tA))}</b></div>`).join('')}
+  <div class="row" style="align-items:center;margin-top:8px"><span class="lb">שכר לשעה</span><input type="number" step="0.01" data-sw value="${ov[M.wage]}"></div><button class="chip2" data-sreset style="margin-top:8px">אפס לערכי האקסל</button></div>`,
+  `<div class="card"><h2>פירוט</h2><div class="row s"><span>משמרות (${cnt})</span><b>${fmt(g(M.shiftTot))}</b></div>${M.ad.map(x=>`<div class="row s mut"><span>${esc(x.n)}</span><span>${fmt(g(x.a))}</span></div>`).join('')}<div class="row s"><span>סה״כ הוספות</span><b>${fmt(g(M.addTot))}</b></div><div class="row" style="border-top:1px solid var(--line)"><b>ברוטו</b><b>${fmt(gr)}</b></div>${M.ded.map(x=>`<div class="row s"><span>${esc(x.n)}</span><b class="neg">${fmt(g(x.a))}</b></div>`).join('')}<div class="row" style="border-top:1px solid var(--line)"><b>שכר נטו</b><b class="pos">${fmt(n)}</b></div></div>`,
+  `<div class="card"><h2>תובנות</h2><div class="row s"><span class="lb">ניכויים מהברוטו</span><b>${gr?((1-n/gr)*100).toFixed(1):0}%</b></div><div class="row s"><span class="lb">נטו ממוצע למשמרת</span><b>${cnt?fmt(n/cnt):'—'}</b></div></div>`].join('');
 }
 
 async function quotes(){
-  if(!S.inv.length)return;
-  const syms=[...new Set(S.inv.map(r=>String(r['סימול']||r['טיקר']||'').trim()).filter(Boolean))];
-  if(!syms.length)return;
+  if(!S.inv.length||!navigator.onLine)return;
+  const id=r=>String(r['מספר נייר']||'').trim();
+  const ids=[...new Set(S.inv.map(id).filter(Boolean))];
+  if(!ids.length)return;
+  if(quotesAbort)quotesAbort.abort();
+  const ctrl=new AbortController();
+  quotesAbort=ctrl;
   try{
-    if(quotesAbort)quotesAbort.abort();
-    quotesAbort=new AbortController();
-    const res=await fetch(W+'/quotes?s='+encodeURIComponent(syms.join(',')),{signal:quotesAbort.signal});
+    const res=await fetch(W+'/quote?ids='+encodeURIComponent(ids.join(',')),{signal:ctrl.signal});
     if(!res.ok)return;
-    const j=await res.json();
-    if(!j||typeof j!=='object')return;
-    let changed=false;
-    S.inv.forEach(r=>{
-      const sym=String(r['סימול']||r['טיקר']||'').trim();
-      const qty=num(r['כמות']||r['יחידות']);
-      if(sym&&qty>0&&j[sym]>0){
-        r['שווי ₪']=Math.round(qty*j[sym]*100)/100;
-        r.live=1;changed=true;
-      }
-    });
-    if(changed){
-      S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
-      if(S.tab==='inv')draw(true);
-    }
+    const j=await res.json(),fx=j.fx&&+j.fx.USDILS,Q=j.quotes||{};let n=0;
+    S.inv.forEach(r=>{const q=Q[id(r)];if(!q||!(+q.price>0))return;const u=q.cur=='USD'?(fx?q.price*fx:0):q.cur=='ILA'?q.price/100:+q.price;if(u>0){r['שווי ₪']=+(u*(+r['כמות']||0)).toFixed(2);r.live=1;n++}});
+    if(n){S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});saveSnap();if(S.tab=='inv'||S.tab=='home')draw()}
   }catch(e){}
 }
+setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
 
-function cp(){
-  if(!S.cp.length)return `<div class="card"><h2>קופונים וגיפט קארד</h2><p class="mut">לא נמצאו קופונים פעילים בקובץ ההוצאות.</p></div>`;
-  const tot=T(S.cp,'a');
-  return `<div class="card hg"><div class="lb">סך יתרת קופונים זמינה</div><div class="big">${fmt(tot)}</div><span class="chip">${S.cp.length} קופונים פעילים</span></div>`+
-  S.cp.map((c,k)=>`<div class="cp"><div class="am" style="background:${COL[k%8]}">${fmt(c.a)}</div><div><b>${esc(c.n)}</b>${c.c?`<div class="mut" style="font-size:12.5px">קוד: ${esc(c.c)}</div>`:''}</div>${c.c?`<button class="pr" data-cp="${encodeURIComponent(c.c)}">העתק קוד</button>`:''}</div>`).join('');
-}
+document.addEventListener('change',e=>{
+  if(e.target.id==='wf-file'&&S.wForm){
+    const file=e.target.files&&e.target.files[0];
+    if(file){
+      S.wPendingFile=file;
+      const trig=document.getElementById('wf-file-trig');
+      if(trig){
+        trig.classList.add('has');
+        trig.innerHTML=`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${esc(file.name)} (${(file.size/1048576).toFixed(1)} MB)</span><span style="font-weight:700;color:var(--g);flex:none">החלף</span>`;
+      }
+    }
+    return;
+  }
+  if(e.target.dataset.sw!==undefined&&sv){sv.w=+e.target.value;draw()}
+  if(e.target.dataset.fsl!==undefined&&S.fire){ls('fire_cfg',JSON.stringify(S.fire))}
+  const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}
+});
 
 function ins0(){
-  const I=S.ins;if(!I||!I.pay||!I.pay.length)return `<div class="card"><p>${esc(S.insErr||'לא נמצאו נתוני ביטוח חיים.')}</p></div>`;
-  const now=new Date(),paid=I.pay.filter(p=>p.d<=now),nx=I.pay.find(p=>p.d>now);
-  const totPaid=T(paid,'a'),totAll=T(I.pay,'a'),pctDone=paid.length/(I.pay.length||1)*100;
-  return `<div class="card hg"><div class="lb">ביטוח חיים למשכנתא</div><div class="big">${nx&&nx.a?fmt(nx.a):'—'}<span style="font-size:16px;font-weight:600;color:var(--mut)"> / חודש</span></div>
-  <span class="chip">${paid.length} מתוך ${I.pay.length} חודשים</span>
-  <div class="bar" style="height:10px;margin:14px 0 6px"><i style="width:${Math.max(1,pctDone).toFixed(1)}%;background:var(--g)"></i></div>
-  <div class="lb">מסתיים ב-${dl(I.end)}</div>
-  <div class="trio"><div><span class="lb">שולם עד כה</span><b>${fmt(totPaid)}</b></div><div><span class="lb">נותר לתשלום</span><b>${fmt(Math.max(0,totAll-totPaid))}</b></div><div><span class="lb">התשלום הבא</span><b>${nx?dl(nx.d):'—'}</b></div></div></div>`;
+  const I=S.ins;if(!I)return `<div class="card"><p>${esc(S.insErr||'הנתון זמין אחרי סנכרון עם הדרייב.')}</p></div>`;
+  const now=new Date(),pd=I.pay.filter(p=>p.d<=now),paid=T(pd,'a'),nx=I.pay.find(p=>p.d>now),pc=pd.length/(I.pay.length||1)*100,yi=Math.max(0,Math.min(Math.floor(pd.length/12),I.yrs-1)),r=I.pr[yi]||[],miss=I.pay.filter(p=>p.a===null).length;
+  return `<div class="card hg"><div class="lb">ביטוח חיים · שולם עד היום</div><div class="big">${fmt(paid)}</div><span class="chip">${pd.length} מתוך ${I.pay.length} תשלומים</span>
+  <div class="bar" style="height:10px;margin:16px 0 6px"><i style="width:${Math.max(pc,1)}%;background:var(--g)"></i></div><div class="lb">${pc.toFixed(1)}% מתקופת הביטוח · מסתיים ב-${dl(I.end)}</div></div>
+  <div class="grid"><div class="card"><span class="lb">התשלום הבא</span><b>${nx&&nx.a?fmt(nx.a):'—'}</b><span class="lb">${nx?dl(nx.d):''}</span></div><div class="card"><span class="lb">סכום ביטוח כיום</span><b>${fmt(r[5]||0)}</b><span class="lb">לכל מבוטח</span></div></div>
+  ${miss?`<p class="mut" style="margin:10px 4px">ל-${miss} תשלומים עתידיים עדיין אין פרמיה בפוליסה.</p>`:''}
+  <div class="card"><h2>פרמיה חודשית לפי שנת ביטוח</h2>${I.pr.filter(x=>x&&x[0]).map(x=>{const m=((+x[6]||0)+(+x[7]||0))/12,cur=x[0]==yi+1;return `<div class="row s" style="${cur?'font-weight:700':'color:var(--mut)'}"><span>שנה ${esc(x[0])}${cur?' (נוכחית)':''}</span><span>${m?fmt(m):'טרם פורסם'}</span></div>`}).join('')}</div>`;
+}
+function cp(){
+  if(!S.cp.length)return `<div class="card"><p>${S.exp.length?'לא נמצאו קופונים בקובץ ההוצאות.':''}הקופונים זמינים אחרי סנכרון עם הדרייב.</p></div>`;
+  return `<div class="card hg"><div class="lb">שווי קופונים</div><div class="big">${fmt(T(S.cp,'a'))}</div><span class="chip">${S.cp.length} קופונים</span></div>`+
+  S.cp.map((c,k)=>`<div class="cp"><div class="am" style="background:${COL[k%8]}">${fmt(c.a)}</div><div><b>${esc(c.n)}</b><div class="mut">${c.c.startsWith('http')?'קישור למימוש':'קוד'}</div></div><button class="pr" data-c="${k}">${c.c.startsWith('http')?'פתח':'העתק קוד'}</button></div>`).join('');
 }
 
-function sl(){
-  if(!S.sal)S.sal={base:10000,hour:65,sh1:0,sh2:0,sh3:0,bonus:0};
-  const s=S.sal;
-  const gross=(+s.base||0)+(+s.sh1||0)*(+s.hour||0)*1.25+(+s.sh2||0)*(+s.hour||0)*1.5+(+s.sh3||0)*(+s.hour||0)*2+(+s.bonus||0);
-  const net=Math.round(gross*0.78);
-  return `<div id="slf" class="sl-float" data-up-top><span>ברוטו: <b>${fmt(gross)}</b></span><span>נטו משוער: <b class="pos">${fmt(net)}</b></span></div>
-  <div class="card hg"><div class="lb">נטו משוער (הערכה)</div><div class="big">${fmt(net)}</div><span class="chip">ברוטו משוער: ${fmt(gross)}</span></div>
-  <div class="card"><h2>פרמטרי שכר</h2>
-    <div class="row"><span>שכר בסיס (₪)</span><input type="number" data-sw="base" value="${s.base}"></div>
-    <div class="row"><span>תעריף שעתי (₪)</span><input type="number" data-sw="hour" value="${s.hour}"></div>
-    <div class="row"><span>שעות 125%</span><div class="stp"><button class="chip2" data-sl="sh1:-1">−</button><b>${s.sh1}</b><button class="chip2" data-sl="sh1:1">+</button></div></div>
-    <div class="row"><span>שעות 150%</span><div class="stp"><button class="chip2" data-sl="sh2:-1">−</button><b>${s.sh2}</b><button class="chip2" data-sl="sh2:1">+</button></div></div>
-    <div class="row"><span>שעות שבת/חג 200%</span><div class="stp"><button class="chip2" data-sl="sh3:-1">−</button><b>${s.sh3}</b><button class="chip2" data-sl="sh3:1">+</button></div></div>
-    <div class="row"><span>בונוס / תוספות (₪)</span><input type="number" data-sw="bonus" value="${s.bonus}"></div>
-  </div>`;
-}
-
-function bindScrubbers(){
-  document.querySelectorAll('.svgc[data-scrb]').forEach(box=>{
-    if(box._scrbBound)return;box._scrbBound=true;
-    let pts=[];try{pts=JSON.parse(decodeURIComponent(box.dataset.scrb))}catch(e){return}
-    if(!pts.length)return;
-    const svg=box.querySelector('svg'),tip=box.querySelector('.scrub-tip'),ln=box.querySelector('.scrub-ln'),dr=box.querySelector('.scrub-dot-ring'),dt=box.querySelector('.scrub-dot');
-    const show=ev=>{
-      const r=svg.getBoundingClientRect(),cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
-      const vx=Math.max(0,Math.min(340,(cx/r.width)*340));
-      let best=pts[0],bd=1e9;
-      pts.forEach(p=>{const d=Math.abs(p.x-vx);if(d<bd){bd=d;best=p}});
-      ln.setAttribute('x1',best.x);ln.setAttribute('x2',best.x);ln.setAttribute('opacity','0.45');
-      dr.setAttribute('x1',best.x);dr.setAttribute('x2',best.x+0.001);dr.setAttribute('y1',best.y);dr.setAttribute('y2',best.y);dr.setAttribute('opacity','1');
-      dt.setAttribute('x1',best.x);dt.setAttribute('x2',best.x+0.001);dt.setAttribute('y1',best.y);dt.setAttribute('y2',best.y);dt.setAttribute('opacity','1');
-      tip.textContent=`${best.flb}: ${fmt(best.v)}`;
-      tip.style.left=Math.max(15,Math.min(85,(best.x/340)*100))+'%';
-      tip.classList.add('on');
+const prevNums={},rmRed=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
+function animNums(){
+  if(S.hide||rmRed())return;
+  document.querySelectorAll('.big').forEach((el,idx)=>{
+    const raw=el.textContent.trim(),m=raw.match(/^(-?)₪([\d,]+)$/)||raw.match(/^(-?)(\d+)%$/);
+    if(!m)return;
+    const isPct=raw.endsWith('%'),sign=m[1]==='-'?-1:1,target=sign*parseInt(m[2].replace(/,/g,''),10);
+    const key=S.tab+':'+S.sub+':'+idx,from=prevNums[key];
+    prevNums[key]=target;
+    if(from===undefined||from===target)return;
+    const t0=performance.now(),dur=320;
+    const step=now=>{
+      const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3),cur=Math.round(from+(target-from)*e);
+      if(p>=1){el.textContent=raw;return}
+      el.textContent=isPct?cur+'%':(cur<0?'-':'')+'₪'+Math.abs(cur).toLocaleString('he-IL');
+      requestAnimationFrame(step);
     };
-    const hide=()=>{ln.setAttribute('opacity','0');dr.setAttribute('opacity','0');dt.setAttribute('opacity','0');tip.classList.remove('on')};
-    svg.addEventListener('pointerdown',show);
-    svg.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='mouse')show(e)});
-    svg.addEventListener('pointerleave',hide);
-    svg.addEventListener('pointerup',hide);
+    requestAnimationFrame(step);
   });
 }
 
-function draw(noAnim=false){
-  const app=$('#app'),shopEl=$('#page-shopping');
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===S.tab));
-  if(S.tab==='shop'){
-    app.style.display='none';
-    if(shopEl)shopEl.style.display='block';
-    if(window.ShopUI)window.ShopUI.render();
-    updateSlFloat();
-    return;
-  }
-  if(shopEl)shopEl.style.display='none';
-  app.style.display='block';
-
+function draw(skipAnim=false){
   const slb=syncLabel();
-  const hdr=`<header>
-    <div class="hdr-title"><b>הכסף שלי</b><div class="hdr-meta"><span>${greet()}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div>
-    <div class="hdr-acts">
-      <button data-hide title="${S.hide?'הצג סכומים':'הסתר סכומים'}" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button>
-      <button data-sync class="${S.syncing?'spin':''}" title="סנכרן מול Google Drive" aria-label="סנכרן">${SVG.sync}</button>
-    </div>
-  </header>`;
-
-  const errBn=S.err?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:'';
-  const viewKey=`${S.tab}|${S.sub}|${S.ym}`;
-  const skipAnim=noAnim||viewKey===prevViewKey;
-  prevViewKey=viewKey;
-
-  let body='';
-  if(S.tab==='home')body=home();
-  else if(S.tab==='pv')body=pv();
-  else if(S.tab==='inv')body=inv();
-  else if(S.tab==='more')body=more();
-
-  const ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
+  const ys=S.tab==='home'?[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b):[];
   const sy=y=>T(S.exp.filter(e=>e.ym==y),'a');
-
-  app.innerHTML=hdr+errBn+`<div class="view ${skipAnim?'no-anim':''}">${body}</div>`+(S.tab==='home'?monthSheet(ys,sy):'');
-  if(S.tab==='home')requestAnimationFrame(centerMonthStrip);
-  bindScrubbers();
+  $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-eye title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
+  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim?' no-anim':''}">${{home,pv,inv,more,shop:()=>''}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
+  const sp=document.getElementById('page-shopping');
+  if(sp)sp.style.display=S.tab==='shop'?'block':'none';
+  if(window._shopRender)window._shopRender();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==S.tab));
+  document.querySelectorAll('.car').forEach(syncDots);
+  centerMonthStrip();
   updateSlFloat();
+  if(!skipAnim)animNums();
 }
 
-document.addEventListener('click',e=>{
-  const el=e.target.closest('[data-t],[data-y],[data-sync],[data-sync-consent],[data-hide],[data-mp-open],[data-mp-close],[data-dot],[data-dn],[data-ex],[data-ex-share],[data-pr],[data-by],[data-rows],[data-cat],[data-qclr],[data-x],[data-n],[data-r],[data-up],[data-sub],[data-med-tog],[data-med-reset],[data-med-sz],[data-med-mv],[data-dcf],[data-l],[data-od],[data-pk],[data-wrs],[data-wrc],[data-w-open],[data-w-edit],[data-w-close],[data-w-save],[data-w-del],[data-w-unlink],[data-wm],[data-fw],[data-ftog],[data-freset],[data-up-top],[data-cp],[data-sl],#wf-file-trig');
-  if(!el)return;
-  const d=el.dataset;
+function scrubAt(box,clientX){
+  let pts;try{pts=JSON.parse(decodeURIComponent(box.dataset.scrb))}catch(e){return}
+  const svg=box.querySelector('svg'),tip=box.querySelector('.scrub-tip'),ln=box.querySelector('.scrub-ln'),dot=box.querySelector('.scrub-dot'),ring=box.querySelector('.scrub-dot-ring');
+  if(!svg||!tip||!pts||!pts.length)return;
+  const r=svg.getBoundingClientRect(),relX=((clientX-r.left)/Math.max(r.width,1))*340;
+  let best=pts[0],bd=1e9;pts.forEach(p=>{const d=Math.abs(p.x-relX);if(d<bd){bd=d;best=p}});
+  if(tip.dataset.last!==best.flb){tip.dataset.last=best.flb;vib(4)}
+  tip.textContent=best.flb+' · '+fmt(best.v);
+  const pctX=Math.min(Math.max((best.x/340)*100,14),86);
+  tip.style.left=pctX+'%';tip.classList.add('on');
+  if(ln){ln.setAttribute('x1',best.x);ln.setAttribute('x2',best.x);ln.setAttribute('opacity','0.35')}
+  const x2=+(best.x+0.001).toFixed(3);
+  if(ring){ring.setAttribute('x1',best.x);ring.setAttribute('x2',x2);ring.setAttribute('y1',best.y);ring.setAttribute('y2',best.y);ring.setAttribute('opacity','1')}
+  if(dot){dot.setAttribute('x1',best.x);dot.setAttribute('x2',x2);dot.setAttribute('y1',best.y);dot.setAttribute('y2',best.y);dot.setAttribute('opacity','1')}
+}
+function scrubEnd(box){
+  if(!box)return;
+  box.style.touchAction='';
+  box.querySelector('.scrub-tip')?.classList.remove('on');
+  box.querySelector('.scrub-ln')?.setAttribute('opacity','0');
+  box.querySelector('.scrub-dot')?.setAttribute('opacity','0');
+  box.querySelector('.scrub-dot-ring')?.setAttribute('opacity','0');
+}
+let scrbHold=null;
+function clearScrbHold(endVis=false){
+  if(!scrbHold)return;
+  clearTimeout(scrbHold.timer);
+  const b=scrbHold.box;
+  if(endVis)setTimeout(()=>scrubEnd(b),900);
+  else if(b)b.style.touchAction='';
+  scrbHold=null;
+}
+document.addEventListener('pointerdown',e=>{
+  const b=e.target.closest('[data-scrb]');if(!b)return;
+  if(e.pointerType==='mouse'){scrubAt(b,e.clientX);return}
+  clearScrbHold();
+  const st={box:b,x:e.clientX,y:e.clientY,active:false,timer:0};
+  st.timer=setTimeout(()=>{
+    if(!scrbHold||scrbHold!==st)return;
+    st.active=true;b.style.touchAction='none';vib(8);scrubAt(b,st.x);
+  },220);
+  scrbHold=st;
+});
+document.addEventListener('pointermove',e=>{
+  if(e.pointerType==='mouse'){const b=e.target.closest('[data-scrb]');if(b)scrubAt(b,e.clientX);return}
+  if(!scrbHold)return;
+  if(!scrbHold.active){
+    if(Math.hypot(e.clientX-scrbHold.x,e.clientY-scrbHold.y)>10)clearScrbHold(false);
+    return;
+  }
+  scrubAt(scrbHold.box,e.clientX);
+});
+document.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&e.target&&e.target.matches&&e.target.matches('[data-scrb]'))scrubEnd(e.target)},true);
+document.addEventListener('pointerup',e=>{
+  if(e.pointerType==='mouse'){const b=e.target.closest('[data-scrb]');if(b)setTimeout(()=>scrubEnd(b),900);return}
+  if(scrbHold){const wasActive=scrbHold.active;clearScrbHold(wasActive)}
+});
+document.addEventListener('pointercancel',()=>clearScrbHold(false));
 
-  if(d.sync!==undefined){vib();login(false);return}
-  if(d.syncConsent!==undefined){vib();login(true);return}
-  if(d.hide!==undefined){vib();S.hide=!S.hide;draw(true);return}
-  if(d.upTop!==undefined){scrollTo({top:0,behavior:'smooth'});return}
-  if(d.t!==undefined){
-    vib();S.tab=d.t;S.sub='';S.mPick=false;
-    draw();scrollTo(0,0);return;
+document.addEventListener('click',e=>{
+  const sum=e.target.closest('details.ct > summary');
+  if(sum&&!rmRed()){
+    const det=sum.parentElement,body=det.querySelector('.ct-body');
+    if(body){
+      e.preventDefault();vib(6);
+      if(det.open){
+        const h=body.offsetHeight;
+        const a=body.animate([{height:h+'px',opacity:1},{height:'0px',opacity:0}],{duration:190,easing:'cubic-bezier(.22,1,.36,1)'});
+        a.onfinish=()=>{det.open=false};
+      }else{
+        det.open=true;
+        const h=body.offsetHeight;
+        body.animate([{height:'0px',opacity:0},{height:h+'px',opacity:1}],{duration:230,easing:'cubic-bezier(.22,1,.36,1)'});
+      }
+      return;
+    }
   }
-  if(d.y!==undefined){vib();S.ym=+d.y;S.dnSel=null;S.mPick=false;draw();return}
-  if(d.mpOpen!==undefined){vib();S.mPick=true;draw(true);return}
-  if(d.mpClose!==undefined){
-    if(el.classList.contains('ms-back')&&e.target!==el)return;
-    S.mPick=false;draw(true);return;
-  }
-  if(d.dot!==undefined){
-    const dots=el.parentElement,car=dots&&dots.previousElementSibling;
-    const sl=car&&car.querySelectorAll('.sl')[+d.dot];
-    if(sl)sl.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-unlink],[data-wrs],[data-wrc],[data-sync-consent]');
+  if(!b){if(!token&&ls('rt'))refresh().then(ok=>ok&&load());return}
+  if(b.classList.contains('ms-back')&&e.target!==b)return;
+  if('wOpen'in b.dataset){
+    vib(8);
+    const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
+    S.wPendingFile=null;S.wSaving=false;S.wErr='';
+    S.wForm={id:'',name:'',category:_W_CATS[0],store:'',price:'',purchaseDate:todayISO(),months:24,customMode:false,notes:'',fileId:'',fileName:'',fileLink:''};
+    draw(true);
+    setTimeout(()=>{const el=document.getElementById('wf-name');el&&el.focus()},60);
     return;
   }
-  if(d.dn!==undefined){
-    const c=decodeURIComponent(d.dn);
-    S.dnSel=(!c||S.dnSel===c)?null:c;
-    draw(true);return;
-  }
-  if(d.ex!==undefined){
-    vib();
-    const k=decodeURIComponent(d.ex),se=d.se==='1';
-    if(se){if(S.unexcl.has(k))S.unexcl.delete(k);else S.unexcl.add(k)}
-    else{if(S.excl.has(k))S.excl.delete(k);else S.excl.add(k)}
-    saveExcl();draw(true);return;
-  }
-  if(d.exShare!==undefined){
-    const url=location.origin+location.pathname+'#ex='+encodeURIComponent(JSON.stringify([...S.excl]));
-    if(navigator.share)navigator.share({title:'סימוני חד-פעמי',url}).catch(()=>{});
-    else if(navigator.clipboard)navigator.clipboard.writeText(url).then(()=>showToast('הקישור הועתק ללוח ✓'));
-    return;
-  }
-  if(d.pr!==undefined){vib();setPr(d.pr);draw(true);return}
-  if(d.by!==undefined){S.pv.by=d.by;S.pv.dr=null;draw(true);return}
-  if(d.rows!==undefined){S.pv.rows=d.rows;S.pv.dr=null;draw(true);return}
-  if(d.cat!==undefined){
-    const c=decodeURIComponent(d.cat),i=S.pv.sel.indexOf(c);
-    if(i>=0)S.pv.sel.splice(i,1);else S.pv.sel.push(c);
-    S.pv.dr=null;draw(true);return;
-  }
-  if(d.qclr!==undefined){S.pv.q='';S.pv.dr=null;draw(true);return}
-  if(d.x!==undefined){
-    const r=decodeURIComponent(d.x),i=S.pv.open.indexOf(r);
-    if(i>=0)S.pv.open.splice(i,1);else S.pv.open.push(r);
-    draw(true);return;
-  }
-  if(d.n!==undefined){
-    S.pv.dr={r:decodeURIComponent(d.n),k:d.k,p:null};
-    draw(true);toDr();return;
-  }
-  if(d.r!==undefined){
-    S.pv.dr={r:decodeURIComponent(d.r),k:d.k,p:d.p?+d.p:null};
-    draw(true);toDr();return;
-  }
-  if(d.up!==undefined){const tb=document.getElementById('tb');tb&&tb.scrollIntoView({behavior:'smooth'});return}
-  if(d.sub!==undefined){
-    vib();S.sub=d.sub;S.pick=null;S.wForm=null;
-    if((S.sub==='dc'||S.sub==='wr')&&!S.files)loadFiles();
-    draw();scrollTo(0,0);return;
-  }
-  if(d.medTog!==undefined){S.moreEdit=!S.moreEdit;draw(true);return}
-  if(d.medReset!==undefined){S.moreLayout=null;ls('more_layout',null);draw(true);return}
-  if(d.medSz!==undefined){
-    const list=getMoreList(),it=list.find(x=>x.id===d.medSz);
-    if(it){it.wide=!it.wide;saveMoreList(list);draw(true)}
-    return;
-  }
-  if(d.medMv!==undefined){
-    const [idx,dir]=d.medMv.split(':').map(Number),list=getMoreList(),ni=idx+dir;
-    if(ni>=0&&ni<list.length){[list[idx],list[ni]]=[list[ni],list[idx]];saveMoreList(list);draw(true)}
-    return;
-  }
-  if(d.dcf!==undefined){S.dcf=decodeURIComponent(d.dcf);draw(true);return}
-  if(d.l!==undefined){open(decodeURIComponent(d.l),'_blank','noopener');return}
-  if(d.od!==undefined){openDoc(decodeURIComponent(d.od),decodeURIComponent(d.op||''));return}
-  if(d.pk!==undefined){S.pick=null;draw(true);return}
-  if(d.wrs!==undefined){S.wrStatus=d.wrs;draw(true);return}
-  if(d.wrc!==undefined){S.wrCat=decodeURIComponent(d.wrc);draw(true);return}
-  if(d.wOpen!==undefined){
-    S.wPendingFile=null;S.wErr='';
-    S.wForm={id:'',name:'',category:W_CATS[0],store:'',price:'',purchaseDate:todayISO(),months:12,customMode:false,notes:'',fileId:'',fileName:'',fileLink:''};
-    draw(true);return;
-  }
-  if(d.wEdit!==undefined){
-    const w=(window._getWarranties?window._getWarranties():[]).find(x=>x.id===d.wEdit);
+  if(b.dataset.wEdit){
+    vib(8);
+    const _wCatOf=typeof wCatOf==='function'?wCatOf:(w=>String((w&&w.category)||'').trim()||'שונות');
+    const wList=window._getWarranties?window._getWarranties():[];
+    const w=wList.find(x=>x.id===b.dataset.wEdit);
     if(w){
-      const std=[0,12,24,36,60].includes(Number(w.months));
-      S.wPendingFile=null;S.wErr='';
-      S.wForm={...w,customMode:!std};
+      const presets=[0,12,24,36,60];
+      S.wPendingFile=null;S.wSaving=false;S.wErr='';
+      S.wForm={...w,category:_wCatOf(w),customMode:!presets.includes(Number(w.months)||0)};
       draw(true);
     }
     return;
   }
-  if(d.wClose!==undefined){
-    if(el.classList.contains('ms-back')&&e.target!==el)return;
+  if('wClose'in b.dataset){
     if(S.wSaving)return;
-    S.wForm=null;S.wPendingFile=null;S.wErr='';draw(true);return;
+    vib(6);S.wForm=null;S.wPendingFile=null;S.wErr='';draw(true);return;
   }
-  if(d.wm!==undefined&&S.wForm){
-    if(d.wm==='custom')S.wForm.customMode=true;
-    else{S.wForm.customMode=false;S.wForm.months=+d.wm}
-    updateWarrantyPreviewDom();return;
+  if(b.id==='wf-file-trig'){
+    const inp=document.getElementById('wf-file');if(inp)inp.click();return;
   }
-  if(el.id==='wf-file-trig'){const inp=document.getElementById('wf-file');inp&&inp.click();return}
-  if(d.wUnlink!==undefined&&S.wForm){S.wForm.fileId='';S.wForm.fileName='';S.wForm.fileLink='';draw(true);return}
-  if(d.wSave!==undefined){saveWarrantyAction();return}
-  if(d.wDel!==undefined){
-    if(confirm('למחוק את האחריות הזו?')){
-      if(window._deleteWarranty)window._deleteWarranty(d.wDel);
-      S.wForm=null;S.wPendingFile=null;draw();showToast('האחריות נמחקה');
+  if('wUnlink'in b.dataset&&S.wForm){
+    vib(6);S.wForm.fileId='';S.wForm.fileName='';S.wForm.fileLink='';draw(true);return;
+  }
+  if(b.dataset.wrs!==undefined){vib(6);S.wrStatus=b.dataset.wrs;draw();return}
+  if(b.dataset.wrc!==undefined){vib(6);S.wrCat=decodeURIComponent(b.dataset.wrc);draw();return}
+  if(b.dataset.wm!==undefined&&S.wForm){
+    vib(6);
+    if(b.dataset.wm==='custom'){
+      S.wForm.customMode=true;
+      updateWarrantyPreviewDom();
+      setTimeout(()=>{const el=document.getElementById('wf-custom-m');el&&el.focus()},30);
+    }else{
+      S.wForm.customMode=false;
+      S.wForm.months=Number(b.dataset.wm)||0;
+      updateWarrantyPreviewDom();
     }
     return;
   }
-  if(d.fw!==undefined&&S.fire){
-    const [k,v]=d.fw.split(':');S.fire[k]=+v;draw(true);return;
-  }
-  if(d.ftog!==undefined&&S.fire){S.fire[d.ftog]=!S.fire[d.ftog];draw(true);return}
-  if(d.freset!==undefined){S.fire=fireDefaults();draw(true);return}
-  if(d.cp!==undefined){
-    const code=decodeURIComponent(d.cp);
-    if(navigator.clipboard)navigator.clipboard.writeText(code).then(()=>showToast('הקוד הועתק: '+code));
+  if('wSave'in b.dataset){vib(10);saveWarrantyAction();return}
+  if(b.dataset.wDel){
+    if(confirm('למחוק רשומת אחריות זו? (הקובץ בדרייב יישמר)')){
+      vib(10);
+      if(window._deleteWarranty)window._deleteWarranty(b.dataset.wDel);
+      S.wForm=null;S.wPendingFile=null;S.wErr='';
+      draw();
+    }
     return;
   }
-  if(d.sl!==undefined&&S.sal){
-    const [k,delta]=d.sl.split(':');
-    S.sal[k]=Math.max(0,(+S.sal[k]||0)+(+delta));
-    draw(true);return;
+  if('upTop'in b.dataset){scrollTo({top:0,behavior:'smooth'});return}
+  if('mpOpen'in b.dataset){vib(6);S.mPick=true;draw();return}
+  if('mpClose'in b.dataset){vib(6);S.mPick=false;draw();return}
+  if('medTog'in b.dataset){vib(8);S.moreEdit=!S.moreEdit;draw();return}
+  if('medReset'in b.dataset){vib(8);S.moreLayout=null;ls('more_layout',null);draw();return}
+  if(b.dataset.medSz){
+    vib(6);const list=getMoreList(),it=list.find(x=>x.id===b.dataset.medSz);
+    if(it){it.wide=!it.wide;saveMoreList(list);draw()}
+    return;
   }
+  if(b.dataset.medMv){
+    vib(6);const [idx,dir]=b.dataset.medMv.split(':').map(Number),list=getMoreList(),ni=idx+dir;
+    if(ni>=0&&ni<list.length){const tmp=list[idx];list[idx]=list[ni];list[ni]=tmp;saveMoreList(list);draw()}
+    return;
+  }
+  if(b.dataset.fw&&S.fire){
+    vib(6);const [k,v]=b.dataset.fw.split(':');S.fire[k]=+v;ls('fire_cfg',JSON.stringify(S.fire));draw();return;
+  }
+  if(b.dataset.ftog&&S.fire){
+    vib(6);const k=b.dataset.ftog;S.fire[k]=!S.fire[k];ls('fire_cfg',JSON.stringify(S.fire));draw();return;
+  }
+  if('freset'in b.dataset){vib(8);S.fire=null;ls('fire_cfg',null);draw();return}
+  if('exShare'in b.dataset){
+    vib(8);
+    const url=location.origin+location.pathname+'#excl='+encodeURIComponent(JSON.stringify([...S.excl]));
+    if(navigator.share)navigator.share({title:'סימוני הוצאות חד-פעמיות',url}).catch(()=>{});
+    else if(navigator.clipboard){navigator.clipboard.writeText(url);b.textContent='הקישור הועתק ✓'}
+    return;
+  }
+  if(b.dataset.ex!==undefined){
+    e.stopPropagation();vib(8);
+    const k=decodeURIComponent(b.dataset.ex),se=b.dataset.se==='1';
+    if(se){S.unexcl.has(k)?S.unexcl.delete(k):S.unexcl.add(k)}
+    else{S.excl.has(k)?S.excl.delete(k):S.excl.add(k)}
+    saveExcl();draw();return;
+  }
+  if(b.dataset.dot!==undefined){
+    const k=+b.dataset.dot,car=b.parentElement?.previousElementSibling;
+    if(car&&car.classList.contains('car')){
+      vib(6);
+      const sl=car.querySelectorAll('.sl')[k];
+      if(sl)sl.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+    }
+    return;
+  }
+  if('qclr'in b.dataset){vib(6);clearTimeout(qTimer);S.pv.q='';S.pv.dr=null;draw(true);const inp=document.querySelector('input[data-q]');if(inp)inp.focus();return}
+  if('syncConsent'in b.dataset){vib(10);login(true);return}
+  if('sync'in b.dataset){vib(10);login(!!S.scopeErr);return}
+  if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
+  if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0);if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}
+  if(b.dataset.dn!==undefined){vib(6);const c=decodeURIComponent(b.dataset.dn);S.dnSel=(!c||S.dnSel===c)?null:c;draw();return}
+  if(b.dataset.sc){vib(6);const [k,d]=b.dataset.sc.split(':');sv.c[+k]=Math.max(0,sv.c[+k]+ +d);draw();return}
+  if('sreset'in b.dataset){vib(8);sv=null;draw();return}
+  if(b.dataset.pr){vib(6);setPr(b.dataset.pr);draw()}
+  if(b.dataset.by){vib(6);S.pv.by=b.dataset.by;S.pv.dr=null;draw()}
+  if(b.dataset.rows){vib(6);S.pv.rows=b.dataset.rows;S.pv.dr=null;draw()}
+  if(b.dataset.cat){vib(6);const c=decodeURIComponent(b.dataset.cat),s=S.pv.sel;s.includes(c)?s.splice(s.indexOf(c),1):s.push(c);S.pv.dr=null;draw()}
+  if(b.dataset.x){vib(6);const P=S.pv,c=decodeURIComponent(b.dataset.x),o=P.open,op=o.includes(c);op?o.splice(o.indexOf(c),1):o.push(c);P.dr=op?(P.dr&&P.dr.r==c&&P.dr.p==null?null:P.dr):{r:c,k:'c',p:null};draw();if(!op)toDr();return}
+  if(b.dataset.n){vib(6);const P=S.pv,r=decodeURIComponent(b.dataset.n),same=P.dr&&P.dr.r==r&&P.dr.k==b.dataset.k&&P.dr.p==null;P.dr=same?null:{r,k:b.dataset.k,p:null};draw();if(!same)toDr();return}
+  if('up'in b.dataset){const t=document.getElementById('tb');t&&t.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if('pk'in b.dataset){S.pick=null;draw()}
+  if(b.dataset.od)openDoc(decodeURIComponent(b.dataset.od),decodeURIComponent(b.dataset.op||''));
+  if(b.dataset.r){vib(6);S.pv.dr={r:decodeURIComponent(b.dataset.r),k:b.dataset.k,p:b.dataset.p===''?null:+b.dataset.p};draw();toDr()}
+  if('fl'in b.dataset)loadFiles();
+  if('sub'in b.dataset){vib(8);S.sub=b.dataset.sub;draw();scrollTo(0,0);if(S.sub=='dc'&&token&&!S.files)loadFiles();if(S.sub=='wr'){if(token&&!S.files)loadFiles();if(window._shopSync)window._shopSync('pull',true)}}
+  if('dcf'in b.dataset){vib(6);S.dcf=decodeURIComponent(b.dataset.dcf);draw()}
+  if(b.dataset.l)open(decodeURIComponent(b.dataset.l),'_blank','noopener');
+
+  if(b.dataset.y){vib(8);S.ym=+b.dataset.y;S.dnSel=null;S.mPick=false;draw()}
+  if(b.dataset.c){vib(10);const c=S.cp[+b.dataset.c];if(c.c.startsWith('http'))open(c.c,'_blank','noopener');else{navigator.clipboard.writeText(c.c);b.textContent='הועתק ✓';b.classList.add('ok')}}
 });
 
-document.addEventListener('change',e=>{
-  if(e.target.dataset.sel){
-    S.pv[e.target.dataset.sel]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw(true);return;
-  }
-  if(e.target.id==='wf-file'&&e.target.files&&e.target.files[0]){
-    S.wPendingFile=e.target.files[0];draw(true);return;
-  }
-  if(e.target.dataset.sw&&S.sal){
-    S.sal[e.target.dataset.sw]=Math.max(0,num(e.target.value));draw(true);return;
-  }
-});
-
-/* === CloudStore & Smart Shopping Module === */
-(function(){
-  const LS_KEY='my_money_cloud_v1';
-  let state={items:[],warranties:[],updatedAt:0};
-  let driveFileId=ls('shop_fid')||'';
-  let filter='all',syncTimer=0,isSyncing=false;
-
-  try{
-    const raw=ls(LS_KEY);
-    if(raw){const p=JSON.parse(raw);if(p&&typeof p==='object'){state.items=p.items||[];state.warranties=p.warranties||[];state.updatedAt=p.updatedAt||0}}
-  }catch(e){}
-
-  function persistLocal(){
-    state.updatedAt=Date.now();
-    ls(LS_KEY,JSON.stringify(state));
-  }
-
-  function setSyncPill(cls,txt){
-    const p=document.getElementById('shop-sync-pill'),t=document.getElementById('shop-sync-txt');
-    if(p)p.className='sync-pill '+cls;
-    if(t)t.textContent=txt;
-  }
-
-  async function findOrCreateFile(){
-    if(driveFileId)return driveFileId;
-    const q=`name='${APP_CONFIG.shoppingFileName}' and trashed=false`;
-    const r=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&q='+encodeURIComponent(q));
-    const j=await r.json();
-    if(j.files&&j.files[0]){driveFileId=j.files[0].id;ls('shop_fid',driveFileId);return driveFileId}
-    const meta={name:APP_CONFIG.shoppingFileName,mimeType:'application/json'};
-    const boundary='-------shopInit'+Date.now();
-    const body=`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(state)}\r\n--${boundary}--`;
-    const cr=await driveFetchWithRetry('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{
-      method:'POST',headers:{'Content-Type':`multipart/related; boundary=${boundary}`},body
-    });
-    const cj=await cr.json();
-    if(cj.id){driveFileId=cj.id;ls('shop_fid',driveFileId)}
-    return driveFileId;
-  }
-
-  async function sync(mode='push',silent=false){
-    if(isSyncing||!token)return;
-    isSyncing=true;
-    setSyncPill('busy','מסנכרן...');
+(function boot(){
+  S.hide=ls('hide')=='1';
+  try{const ex=JSON.parse(ls('excl'));if(Array.isArray(ex))S.excl=new Set(ex)}catch(e){}
+  try{const uex=JSON.parse(ls('unexcl'));if(Array.isArray(uex))S.unexcl=new Set(uex)}catch(e){}
+  if(location.hash.startsWith('#excl=')){
     try{
-      const fid=await findOrCreateFile();
-      if(!fid)throw new Error('לא נמצא קובץ סנכרון');
-      if(mode==='pull'){
-        const r=await driveFetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media&supportsAllDrives=true`);
-        if(r.ok){
-          const remote=await r.json();
-          if(remote&&(remote.updatedAt||0)>(state.updatedAt||0)){
-            state.items=Array.isArray(remote.items)?remote.items:state.items;
-            state.warranties=Array.isArray(remote.warranties)?remote.warranties:state.warranties;
-            state.updatedAt=remote.updatedAt||Date.now();
-            ls(LS_KEY,JSON.stringify(state));
-            render();
-            if(S.tab==='more'&&S.sub==='wr')draw(true);
-          }else if((state.updatedAt||0)>(remote.updatedAt||0)){
-            await pushContent(fid);
-          }
-        }
-      }else{
-        await pushContent(fid);
+      const imp=JSON.parse(decodeURIComponent(location.hash.slice(6)));
+      if(Array.isArray(imp)){imp.forEach(k=>S.excl.add(k));saveExcl()}
+      history.replaceState(null,'',location.pathname+location.search);
+    }catch(e){}
+  }
+  try{const ml=JSON.parse(ls('more_layout'));if(Array.isArray(ml))S.moreLayout=ml}catch(e){}
+  try{const fc=JSON.parse(ls('fire_cfg'));if(fc&&typeof fc==='object')S.fire=fc}catch(e){}
+  try{const d=JSON.parse(ls('data'));if(rehydrateSnap(d)){if(!S.pv.from)setPr('12');$('nav').hidden=false;draw()}}catch(e){}
+  try{const t=JSON.parse(ls('tok'));if(t&&t.e>Date.now()){token=t.t;load()}}catch(e){}
+  if(!token)refresh().then(ok=>ok&&load());
+  setInterval(()=>{if(document.visibilityState=='visible'&&ls('rt'))refresh()},40*60*1e3);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'){if(ls('rt')){let t;try{t=JSON.parse(ls('tok'))}catch(e){}if(!t||t.e<Date.now())refresh().then(ok=>ok&&load())}if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}});
+})();
+
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    if(reg.update)reg.update().catch(()=>{});
+  }).catch(()=>{});
+}
+
+/* === מודול רשימת קניות חכמה === */
+(() => {
+  const WORKER_BASE = APP_CONFIG.workerUrl;
+  const STORAGE_KEY = "my_money_shopping_v1";
+  const MEMORY_KEY = "my_money_price_memory_v1";
+  const DELETED_KEY = "my_money_shop_deleted_v1";
+  const WARRANTIES_KEY = "my_money_warranties_v1";
+  const DELETED_WARRANTIES_KEY = "my_money_warranties_deleted_v1";
+  const FILE_META_KEY = "my_money_shop_drive_meta_v1";
+  const DRIVE_FILE_NAME = APP_CONFIG.shoppingFileName;
+
+  const DEPT_RULES = [
+    { dept: "🧊 קפואים", keys: ["קפוא", "קפואה", "קפואים", "שניצל תירס", "צ'יפס", "פיצה", "גלידה", "שלגון", "אפונה", "מלאווח", "ג'חנון", "בצק עלים"] },
+    { dept: "🧴 ניקיון ופארם", keys: ["נייר טואלט", "מגבונים", "סבון", "שמפו", "מרכך", "משחת שיניים", "מברשת", "כביסה", "אקונומיקה", "נוזל כלים", "ספוג", "שקיות אשפה", "נייר סופג", "דאודורנט", "קרם", "פארם", "ניקיון"] },
+    { dept: "🥤 שתייה", keys: ["מיץ", "נקטר", "משקה", "מים", "קולה", "סודה", "בירה", "יין", "ספרייט", "פאנטה", "נסטי", "פיוז", "שישיית", "לימונדה"] },
+    { dept: "🥖 מאפים ולחם", keys: ["לחם", "פיתה", "פיתות", "לחמני", "בגט", "חלה", "טורטיה", "בורקס", "קרואסון", "עוגה", "עוגת", "עוגיות", "רוגלך", "מאפ"] },
+    { dept: "🥫 מזווה ויבשים", keys: ["דגני", "קורנפלקס", "שיבולת שועל", "שוקולד", "חמאת בוטנים", "אבקת מרק", "חלב קוקוס", "קרם קוקוס", "חלב סויה", "חלב שקדים", "רוטב", "רסק", "פסטה", "אורז", "פתיתים", "קוסקוס", "שמן", "מלח", "סוכר", "קמח", "שימורים", "טונה", "תירס", "קטשופ", "מיונז", "חרדל", "קפה", "תה", "במבה", "ביסלי", "חטיף", "אגוז", "שקד", "עדשים", "שעועית", "תבלין", "פפריקה", "כמון", "מזווה"] },
+    { dept: "🥬 ירקות ופירות", keys: ["עגבני", "מלפפון", "בצל", "תפוח", "בננ", "פלפל", "חסה", "לימון", "אבוקדו", "גזר", "תפו\"א", "תפוחי אדמה", "שום", "קישוא", "חציל", "פטריות", "כוסברה", "פטרוזיליה", "תות", "ענבים", "אבטיח", "מלון", "תפוז", "קלמנטינ", "ירק", "פירות"] },
+    { dept: "🥛 חלב, ביצים וסלטים", keys: ["חלב", "קוטג", "גבינ", "יוגורט", "שמנת", "חמאה", "ביצים", "ביצה", "מעדן", "שוקו", "מילקי", "דני", "צהובה", "בולגרית", "מוצרלה", "טחינה", "חומוס", "מטבוחה", "סלט", "צונן"] },
+    { dept: "🥩 בשר, עוף ודגים", keys: ["עוף", "חזה", "שניצל", "כרעיים", "שוקיים", "פרגית", "בשר", "טחון", "אנטריקוט", "קבב", "המבורגר", "נקניק", "פסטרמה", "דג", "סלמון", "אמנון", "מושט", "קצביה"] }
+  ];
+
+  const DEPT_ORDER = [
+    "🥬 ירקות ופירות",
+    "🥖 מאפים ולחם",
+    "🥛 חלב, ביצים וסלטים",
+    "🥩 בשר, עוף ודגים",
+    "🧊 קפואים",
+    "🥫 מזווה ויבשים",
+    "🥤 שתייה",
+    "🧴 ניקיון ופארם",
+    "📦 כללי"
+  ];
+
+  function classifyDepartment(productName, ramiDept = "") {
+    const combined = `${ramiDept} ${productName}`.toLowerCase();
+    for (const rule of DEPT_RULES) {
+      if (rule.keys.some((k) => combined.includes(k))) return rule.dept;
+    }
+    return ramiDept ? `📦 ${ramiDept}` : "📦 כללי";
+  }
+
+  function deptEmoji(dept, name = "") {
+    const d = dept || classifyDepartment(name);
+    const m = d.match(/^(\S+)/);
+    return m ? m[1] : "📦";
+  }
+
+  function loadJson(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch { return fallback; }
+  }
+
+  let items = loadJson(STORAGE_KEY, []);
+  let priceMemory = loadJson(MEMORY_KEY, {});
+  let deletedIds = loadJson(DELETED_KEY, {});
+  let warranties = loadJson(WARRANTIES_KEY, []);
+  let deletedWarranties = loadJson(DELETED_WARRANTIES_KEY, {});
+  let driveMeta = loadJson(FILE_META_KEY, null);
+  let currentFilter = "all";
+  let editingPriceItemId = null;
+
+  let searchTimer = null;
+  let searchSeq = 0;
+  let searchAbort = null;
+
+  let pushTimer = null;
+  let syncInFlight = false;
+  let pendingPush = false;
+  let syncStatus = { state: "idle", label: "מקומי בלבד" };
+  const checkedImageNames = new Set();
+
+  const byId = (id) => document.getElementById(id);
+  const fmtMoney = (n) => (typeof S !== "undefined" && S.hide) ? "₪•••" : "₪" + Number(n || 0).toFixed(2);
+
+  function renderThumb(imageUrl, name, dept, cls = "shop-thumb") {
+    const fb = esc(deptEmoji(dept, name));
+    const src = String(imageUrl || "").trim();
+    if (/^https?:\/\//i.test(src)) {
+      return `<div class="${cls}"><img src="${esc(src)}" alt="${esc(name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="shop-thumb-fb" style="display:none">${fb}</span></div>`;
+    }
+    return `<div class="${cls}"><span class="shop-thumb-fb">${fb}</span></div>`;
+  }
+
+  function setSyncPill(state, label) {
+    syncStatus = { state, label };
+    const pill = byId("shop-sync-pill");
+    const txt = byId("shop-sync-txt");
+    if (!pill || !txt) return;
+    pill.className = "sync-pill" + (state === "syncing" ? " busy" : state === "ok" ? "" : (state === "need_scope" || state === "warn") ? " warn" : " off");
+    txt.textContent = label;
+  }
+
+  function showShareBanner(htmlMsg) {
+    const el = byId("shop-share-banner");
+    if (!el) return;
+    el.innerHTML = `<span>${htmlMsg}</span><button type="button" class="qclr" style="position:static;flex:none;" onclick="document.getElementById('shop-share-banner').style.display='none'">✕</button>`;
+    el.style.display = "flex";
+  }
+
+  function persistLocal() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(MEMORY_KEY, JSON.stringify(priceMemory));
+      localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
+      localStorage.setItem(WARRANTIES_KEY, JSON.stringify(warranties));
+      localStorage.setItem(DELETED_WARRANTIES_KEY, JSON.stringify(deletedWarranties));
+    } catch {}
+  }
+
+  function scheduleDrivePush() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => {
+      syncWithDrive("push", true);
+    }, 900);
+  }
+
+  function saveState(triggerSync = true) {
+    persistLocal();
+    render();
+    if (triggerSync) scheduleDrivePush();
+  }
+
+  function markDeleted(id) {
+    if (id) deletedIds[id] = Date.now();
+  }
+
+  function rememberProduct(name, price, dept, image = "") {
+    const key = name.trim().toLowerCase();
+    if (!key) return;
+    const prev = priceMemory[key];
+    priceMemory[key] = {
+      name: name.trim(),
+      price: Number(price) > 0 ? Number(price) : (prev?.price || 0),
+      dept: dept || prev?.dept || "",
+      image: String(image || "").trim() || prev?.image || "",
+      updatedAt: Date.now()
+    };
+  }
+
+  function addItem({ name, price = 0, qty = 1, dept = "", image = "" }) {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    const now = Date.now();
+    const mem = priceMemory[cleanName.toLowerCase()];
+    const finalPrice = Number(price) > 0 ? Number(price) : (mem?.price || 0);
+    const finalDept = dept || mem?.dept || classifyDepartment(cleanName);
+    const finalImage = String(image || "").trim() || mem?.image || "";
+
+    const existing = items.find((i) => !i.done && i.name.toLowerCase() === cleanName.toLowerCase());
+    if (existing) {
+      existing.qty += qty;
+      if (finalPrice > 0) existing.price = finalPrice;
+      if (finalImage) existing.image = finalImage;
+      existing.updatedAt = now;
+    } else {
+      items.unshift({
+        id: now.toString(36) + Math.random().toString(36).slice(2, 6),
+        name: cleanName,
+        price: finalPrice,
+        qty,
+        dept: finalDept,
+        image: finalImage,
+        done: false,
+        updatedAt: now
+      });
+    }
+
+    if (finalPrice > 0 || finalImage) rememberProduct(cleanName, finalPrice, finalDept, finalImage);
+    byId("shop-search-input").value = "";
+    closeDropdown();
+    saveState(true);
+  }
+
+  function renderManualFallbackRow(term) {
+    const dd = byId("shop-dropdown");
+    if (!dd) return;
+    dd.innerHTML = `<div class="shop-dd-item" onclick="window._shopAddManual()">
+      <div class="shop-dd-left">
+        ${renderThumb("", term, "", "shop-dd-thumb")}
+        <div style="min-width:0;"><strong>הוסף "${esc(term)}" ידנית</strong><div class="shop-dd-meta">ללא התאמה באונליין • ישויך אוטומטית למחלקה</div></div>
+      </div>
+      <span class="shop-dd-price">+ הוסף</span>
+    </div>`;
+    dd.classList.add("open");
+  }
+
+  async function handleSearchInput(q) {
+    const term = q.trim();
+    if (term.length < 2) {
+      closeDropdown();
+      return;
+    }
+
+    const reqId = ++searchSeq;
+    if (searchAbort) {
+      searchAbort.abort();
+      searchAbort = null;
+    }
+
+    const localMatches = Object.values(priceMemory)
+      .filter((m) => m.name.toLowerCase().includes(term.toLowerCase()))
+      .slice(0, 4)
+      .map((m) => ({ ...m, image: m.image || "", source: "זיכרון מחירים" }));
+
+    if (!navigator.onLine) {
+      if (localMatches.length > 0) renderDropdown(localMatches, false);
+      else renderManualFallbackRow(term);
+      return;
+    }
+
+    const ctrl = new AbortController();
+    searchAbort = ctrl;
+
+    renderDropdown(localMatches, true);
+
+    try {
+      const res = await fetch(`${WORKER_BASE}/rami?q=${encodeURIComponent(term)}`, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("rami_http_" + res.status);
+      const data = await res.json();
+
+      if (reqId !== searchSeq) return;
+      if (byId("shop-search-input").value.trim() !== term) return;
+
+      if (data.ok && Array.isArray(data.items) && data.items.length > 0) {
+        const liveMatches = data.items.map((it) => ({
+          name: it.name,
+          price: it.price,
+          oldPrice: it.oldPrice,
+          dept: classifyDepartment(it.name, it.department),
+          image: it.image || "",
+          source: "רמי לוי אונליין"
+        }));
+        renderDropdown(liveMatches, false);
+      } else if (localMatches.length === 0) {
+        renderManualFallbackRow(term);
+      } else {
+        renderDropdown(localMatches, false);
       }
-      setSyncPill('','מסונכרן ✓');
-    }catch(e){
-      setSyncPill('warn','שגיאת סנכרון');
-      if(!silent)showToast('שגיאת סנכרון רשימת קניות','err');
-    }finally{
-      isSyncing=false;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      if (reqId !== searchSeq) return;
+      if (localMatches.length > 0) renderDropdown(localMatches, false);
+      else renderManualFallbackRow(term);
     }
   }
 
-  async function pushContent(fid){
-    await driveFetchWithRetry(`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=media&supportsAllDrives=true`,{
-      method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(state)
+  function renderDropdown(list, isLoadingMore) {
+    const dd = byId("shop-dropdown");
+    if (!list.length && !isLoadingMore) {
+      closeDropdown();
+      return;
+    }
+    let html = list.map((it, idx) => `
+      <div class="shop-dd-item" data-idx="${idx}">
+        <div class="shop-dd-left">
+          ${renderThumb(it.image, it.name, it.dept, "shop-dd-thumb")}
+          <div style="min-width:0;">
+            <div style="font-weight:600; font-size:13.5px;">${esc(it.name)}</div>
+            <div class="shop-dd-meta">${esc(it.dept)} • ${esc(it.source)}</div>
+          </div>
+        </div>
+        <div class="shop-dd-price">
+          ${it.oldPrice ? `<span class="shop-dd-old">${fmtMoney(it.oldPrice)}</span>` : ""}
+          ${fmtMoney(it.price)}
+        </div>
+      </div>
+    `).join("");
+
+    if (isLoadingMore) {
+      html += `<div style="padding:8px 14px; font-size:12px; color:var(--mut,#6b7280); text-align:center;">מחפש מחירים עדכניים ברמי לוי...</div>`;
+    }
+
+    dd.innerHTML = html;
+    dd.classList.add("open");
+
+    dd.querySelectorAll(".shop-dd-item").forEach((el, i) => {
+      el.onclick = () => addItem(list[i]);
     });
   }
 
-  function schedulePush(){
-    persistLocal();
-    clearTimeout(syncTimer);
-    if(token)syncTimer=setTimeout(()=>sync('push',true),900);
+  function closeDropdown() {
+    searchSeq++;
+    if (searchAbort) {
+      searchAbort.abort();
+      searchAbort = null;
+    }
+    byId("shop-dropdown").classList.remove("open");
   }
 
-  window.CloudStore={sync};
-  window._getWarranties=()=>state.warranties||[];
-  window._saveWarranty=rec=>{
-    const idx=state.warranties.findIndex(w=>w.id===rec.id);
-    if(idx>=0)state.warranties[idx]=rec;else state.warranties.unshift(rec);
-    schedulePush();
-  };
-  window._deleteWarranty=id=>{
-    state.warranties=state.warranties.filter(w=>w.id!==id);
-    schedulePush();
-  };
+  window._shopAddManual = () => addItem({ name: byId("shop-search-input").value });
 
-  function addItem(name,price=0,dept='כללי'){
-    const n=String(name||'').trim();if(!n)return;
-    state.items.unshift({id:'i_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:n,price:num(price),qty:1,dept:dept||'כללי',done:false});
-    schedulePush();render();
+  function mergeStates(local, remote) {
+    const cutoff = Date.now() - 30 * 864e5;
+    const mergedDeleted = {};
+    const allDelKeys = new Set([...Object.keys(local.deletedIds || {}), ...Object.keys(remote.deletedIds || {})]);
+    allDelKeys.forEach((id) => {
+      const ts = Math.max(Number(local.deletedIds?.[id]) || 0, Number(remote.deletedIds?.[id]) || 0);
+      if (ts > cutoff) mergedDeleted[id] = ts;
+    });
+
+    const itemsById = new Map();
+    (remote.items || []).forEach((it) => {
+      if (!it || !it.id) return;
+      const upd = Number(it.updatedAt) || 0;
+      if (mergedDeleted[it.id] && mergedDeleted[it.id] >= upd) return;
+      itemsById.set(it.id, { ...it, image: it.image || "", updatedAt: upd });
+    });
+
+    (local.items || []).forEach((it) => {
+      if (!it || !it.id) return;
+      const upd = Number(it.updatedAt) || 0;
+      if (mergedDeleted[it.id] && mergedDeleted[it.id] >= upd) return;
+      const prev = itemsById.get(it.id);
+      if (!prev) {
+        itemsById.set(it.id, { ...it, image: it.image || "", updatedAt: upd });
+      } else if (upd >= (Number(prev.updatedAt) || 0)) {
+        itemsById.set(it.id, { ...it, image: it.image || prev.image || "", updatedAt: upd });
+      } else if (!prev.image && it.image) {
+        prev.image = it.image;
+      }
+    });
+
+const finalItems = [];
+    const activeByName = new Map();
+    for (const it of itemsById.values()) {
+      if (!it.done) {
+        const norm = it.name.trim().toLowerCase();
+        const dup = activeByName.get(norm);
+        if (dup) {
+          if ((Number(it.updatedAt) || 0) >= (Number(dup.updatedAt) || 0)) {
+            dup.qty = Math.max(Number(dup.qty) || 1, Number(it.qty) || 1);
+            if (Number(it.price) > 0) dup.price = Number(it.price);
+            if (it.dept) dup.dept = it.dept;
+            if (it.image) dup.image = it.image;
+            dup.updatedAt = Number(it.updatedAt) || dup.updatedAt;
+          } else if (!dup.image && it.image) {
+            dup.image = it.image;
+          }
+          continue;
+        }
+        activeByName.set(norm, it);
+      }
+      finalItems.push(it);
+    }
+
+    const mergedMemory = {};
+    const allMemKeys = new Set([...Object.keys(remote.priceMemory || {}), ...Object.keys(local.priceMemory || {})]);
+    allMemKeys.forEach((k) => {
+      const r = remote.priceMemory?.[k];
+      const l = local.priceMemory?.[k];
+      if (!r) { mergedMemory[k] = { ...l, image: l.image || "" }; return; }
+      if (!l) { mergedMemory[k] = { ...r, image: r.image || "" }; return; }
+      const pick = (Number(l.updatedAt) || 0) >= (Number(r.updatedAt) || 0) ? l : r;
+      const other = pick === l ? r : l;
+      mergedMemory[k] = {
+        ...pick,
+        price: Number(pick.price) > 0 ? Number(pick.price) : (Number(other.price) || 0),
+        dept: pick.dept || other.dept || "",
+        image: pick.image || other.image || ""
+      };
+    });
+
+    const mergedDeletedW = {};
+    const allDelWKeys = new Set([...Object.keys(local.deletedWarranties || {}), ...Object.keys(remote.deletedWarranties || {})]);
+    allDelWKeys.forEach((id) => {
+      const ts = Math.max(Number(local.deletedWarranties?.[id]) || 0, Number(remote.deletedWarranties?.[id]) || 0);
+      if (ts > cutoff) mergedDeletedW[id] = ts;
+    });
+
+    const wById = new Map();
+    (remote.warranties || []).forEach((w) => {
+      if (!w || !w.id) return;
+      const upd = Number(w.updatedAt) || 0;
+      if (mergedDeletedW[w.id] && mergedDeletedW[w.id] >= upd) return;
+      wById.set(w.id, { ...w, category: w.category || "", updatedAt: upd });
+    });
+
+    (local.warranties || []).forEach((w) => {
+      if (!w || !w.id) return;
+      const upd = Number(w.updatedAt) || 0;
+      if (mergedDeletedW[w.id] && mergedDeletedW[w.id] >= upd) return;
+      const prev = wById.get(w.id);
+      if (!prev) {
+        wById.set(w.id, { ...w, category: w.category || "", updatedAt: upd });
+      } else if (upd >= (Number(prev.updatedAt) || 0)) {
+        wById.set(w.id, {
+          ...w,
+          category: w.category || prev.category || "",
+          fileId: w.fileId || prev.fileId || "",
+          fileName: w.fileName || prev.fileName || "",
+          fileLink: w.fileLink || prev.fileLink || "",
+          updatedAt: upd
+        });
+      } else {
+        if (!prev.category && w.category) prev.category = w.category;
+        if (!prev.fileLink && w.fileLink) {
+          prev.fileId = w.fileId || prev.fileId || "";
+          prev.fileName = w.fileName || prev.fileName || "";
+          prev.fileLink = w.fileLink;
+        }
+      }
+    });
+
+    return {
+      items: finalItems,
+      priceMemory: mergedMemory,
+      deletedIds: mergedDeleted,
+      warranties: Array.from(wById.values()),
+      deletedWarranties: mergedDeletedW
+    };
   }
 
-  function render(){
-    const gEl=document.getElementById('shop-groups-container');
-    const dEl=document.getElementById('shop-done-container');
-    if(!gEl||!dEl)return;
+  async function ensureDriveToken() {
+    let tok = window._getAuthToken ? window._getAuthToken() : "";
+    if (!tok && window._refreshAuthToken) {
+      const ok = await window._refreshAuthToken();
+      if (ok && window._getAuthToken) tok = window._getAuthToken();
+    }
+    return tok;
+  }
 
-    const all=state.items||[];
-    const totAll=all.reduce((s,i)=>s+(i.price||0)*(i.qty||1),0);
-    const todo=all.filter(i=>!i.done);
-    const done=all.filter(i=>i.done);
-    const totLeft=todo.reduce((s,i)=>s+(i.price||0)*(i.qty||1),0);
+  async function driveApiFetch(url, options = {}) {
+    if (typeof driveFetchWithRetry === "function") {
+      return driveFetchWithRetry(url, options);
+    }
+    const tok = await ensureDriveToken();
+    if (!tok) throw new Error("no_auth");
+    const headers = { ...(options.headers || {}), Authorization: "Bearer " + tok };
+    return fetch(url, { ...options, headers });
+  }
 
-    const setT=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
-    setT('shop-total-all','₪'+totAll.toFixed(2));
-    setT('shop-total-left','₪'+totLeft.toFixed(2));
-    setT('shop-progress',`${done.length}/${all.length}`);
-    setT('shop-float-left','₪'+totLeft.toFixed(2));
-    setT('shop-float-all','₪'+totAll.toFixed(2));
+  async function resolveDriveFileId() {
+    if (driveMeta && driveMeta.fileId) return driveMeta.fileId;
+    const safeName = DRIVE_FILE_NAME.replace(/'/g, "\\'");
+    const q = `name='${safeName}' and trashed=false`;
+    const res = await driveApiFetch(
+      "https://www.googleapis.com/drive/v3/files?fields=files(id,name,parents)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
+        encodeURIComponent(q)
+    );
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("need_scope");
+      err.code = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error("drive_list_" + res.status);
+    const data = await res.json();
+    if (Array.isArray(data.files) && data.files.length > 0) {
+      driveMeta = { fileId: data.files[0].id };
+      try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
+      return driveMeta.fileId;
+    }
 
-    const renderItem=it=>`<div class="shop-item ${it.done?'done':''}" data-sid="${it.id}">
-      <button class="shop-check" data-sact="tog" type="button">${it.done?'✓':''}</button>
+    let parentId = "";
+    try {
+      const rootSafe = APP_CONFIG.receiptsRootFolder.replace(/'/g, "\\'");
+      const rq = `name='${rootSafe}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      const rRes = await driveApiFetch(
+        "https://www.googleapis.com/drive/v3/files?fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
+          encodeURIComponent(rq)
+      );
+      if (rRes.ok) {
+        const rJson = await rRes.json();
+        if (rJson.files && rJson.files[0]) parentId = rJson.files[0].id;
+      }
+    } catch {}
+
+    const boundary = "-------myMoneyShopBoundary" + Date.now();
+    const meta = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
+    if (parentId) meta.parents = [parentId];
+    const initPayload = JSON.stringify({
+      version: 1,
+      updatedAt: Date.now(),
+      items,
+      priceMemory,
+      deletedIds,
+      warranties,
+      deletedWarranties
+    });
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${initPayload}\r\n` +
+      `--${boundary}--`;
+
+    const cRes = await driveApiFetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id",
+      {
+        method: "POST",
+        headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+        body
+      }
+    );
+    if (cRes.status === 401 || cRes.status === 403) {
+      const err = new Error("need_scope");
+      err.code = cRes.status;
+      throw err;
+    }
+    if (!cRes.ok) throw new Error("drive_create_" + cRes.status);
+    const created = await cRes.json();
+    driveMeta = { fileId: created.id };
+    try { localStorage.setItem(FILE_META_KEY, JSON.stringify(driveMeta)); } catch {}
+    return driveMeta.fileId;
+  }
+
+  async function readRemoteState(fileId) {
+    const res = await driveApiFetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`
+    );
+    if (res.status === 404) {
+      driveMeta = null;
+      try { localStorage.removeItem(FILE_META_KEY); } catch {}
+      return null;
+    }
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("need_scope");
+      err.code = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error("drive_read_" + res.status);
+    const txt = await res.text();
+    if (!txt || !txt.trim()) return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {} };
+    try {
+      return JSON.parse(txt);
+    } catch {
+      return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {} };
+    }
+  }
+
+  async function writeRemoteState(fileId, payload) {
+    const res = await driveApiFetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&supportsAllDrives=true`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify({
+          version: 1,
+          updatedAt: Date.now(),
+          ...payload
+        })
+      }
+    );
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("need_scope");
+      err.code = res.status;
+      throw err;
+    }
+    if (!res.ok) throw new Error("drive_write_" + res.status);
+  }
+
+  async function syncWithDrive(mode = "pull", silent = false) {
+    if (!navigator.onLine) {
+      setSyncPill("off", "לא מקוון");
+      return;
+    }
+    const tok = await ensureDriveToken();
+    if (!tok) {
+      setSyncPill("off", "מקומי בלבד");
+      return;
+    }
+    if (syncInFlight) {
+      if (mode === "push") pendingPush = true;
+      return;
+    }
+
+    syncInFlight = true;
+    if (!silent) setSyncPill("syncing", "מסנכרן...");
+
+    try {
+      let fileId = await resolveDriveFileId();
+      let remote = await readRemoteState(fileId);
+      if (remote === null) {
+        fileId = await resolveDriveFileId();
+        remote = await readRemoteState(fileId) || {};
+      }
+
+      const localSnapshot = { items, priceMemory, deletedIds, warranties, deletedWarranties };
+      const merged = mergeStates(localSnapshot, remote);
+
+      const changed =
+        JSON.stringify(merged.items) !== JSON.stringify(items) ||
+        JSON.stringify(merged.warranties) !== JSON.stringify(warranties) ||
+        Object.keys(merged.priceMemory).length !== Object.keys(priceMemory).length;
+
+      items = merged.items;
+      priceMemory = merged.priceMemory;
+      deletedIds = merged.deletedIds;
+      warranties = merged.warranties;
+      deletedWarranties = merged.deletedWarranties;
+      persistLocal();
+
+      if (mode === "push" || pendingPush || changed) {
+        pendingPush = false;
+        await writeRemoteState(fileId, merged);
+      }
+
+      setSyncPill("ok", "מסונכרן בדרייב");
+      render();
+      if (typeof S !== "undefined" && S.tab === "more" && S.sub === "wr" && !S.wForm && typeof draw === "function") {
+        draw(true);
+      }
+    } catch (err) {
+      if (err && (err.message === "need_scope" || err.code === 401 || err.code === 403)) {
+        setSyncPill("need_scope", "נדרשת הרשאת דרייב");
+      } else {
+        setSyncPill("warn", "שגיאת סנכרון");
+      }
+    } finally {
+      syncInFlight = false;
+      if (pendingPush) {
+        pendingPush = false;
+        scheduleDrivePush();
+      }
+    }
+  }
+
+  async function backfillMissingImages() {
+    if (!navigator.onLine) return;
+    const candidates = items.filter((it) => !it.image && it.name && !checkedImageNames.has(it.name.trim().toLowerCase())).slice(0, 6);
+    if (!candidates.length) return;
+
+    let updated = false;
+    for (const it of candidates) {
+      const key = it.name.trim().toLowerCase();
+      checkedImageNames.add(key);
+      try {
+        const res = await fetch(`${WORKER_BASE}/rami?q=${encodeURIComponent(it.name.trim())}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const hit = data && Array.isArray(data.items) ? data.items.find((x) => x && x.image) : null;
+        if (hit && hit.image) {
+          it.image = hit.image;
+          it.updatedAt = Date.now();
+          rememberProduct(it.name, it.price || hit.price || 0, it.dept, hit.image);
+          updated = true;
+        }
+      } catch {}
+    }
+
+    if (updated) {
+      persistLocal();
+      render();
+      scheduleDrivePush();
+    }
+  }
+
+  function toggleItem(id) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    it.done = !it.done;
+    it.updatedAt = Date.now();
+    saveState(true);
+  }
+
+  function changeQty(id, delta) {
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    const next = (Number(it.qty) || 1) + delta;
+    if (next <= 0) {
+      deleteItem(id);
+      return;
+    }
+    it.qty = next;
+    it.updatedAt = Date.now();
+    saveState(true);
+  }
+
+  function deleteItem(id) {
+    items = items.filter((x) => x.id !== id);
+    markDeleted(id);
+    if (editingPriceItemId === id) editingPriceItemId = null;
+    saveState(true);
+  }
+
+  function startEditPrice(id) {
+    editingPriceItemId = id;
+    render();
+    setTimeout(() => {
+      const inp = document.querySelector(`[data-price-inp="${id}"]`);
+      if (inp) { inp.focus(); inp.select(); }
+    }, 30);
+  }
+
+  function commitEditPrice(id, rawVal) {
+    const it = items.find((x) => x.id === id);
+    editingPriceItemId = null;
+    if (!it) { render(); return; }
+    const val = Math.max(0, Math.round((parseFloat(String(rawVal || "0").replace(",", ".")) || 0) * 100) / 100);
+    it.price = val;
+    it.updatedAt = Date.now();
+    if (val > 0) rememberProduct(it.name, val, it.dept, it.image);
+    saveState(true);
+  }
+
+  function clearDoneItems() {
+    const doneList = items.filter((x) => x.done);
+    if (!doneList.length) return;
+    doneList.forEach((x) => markDeleted(x.id));
+    items = items.filter((x) => !x.done);
+    saveState(true);
+  }
+
+  function shareList() {
+    const active = items.filter((x) => !x.done);
+    if (!active.length) {
+      showShareBanner("אין מוצרים פתוחים ברשימה לשיתוף.");
+      return;
+    }
+    const lines = active.map((x) => `• ${x.name}${x.qty > 1 ? ` (×${x.qty})` : ""}${x.price > 0 ? ` — ${fmtMoney(x.price * x.qty)}` : ""}`);
+    const total = active.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const payload = active.map((x) => ({ n: x.name, q: x.qty, p: x.price, d: x.dept }));
+    const shareUrl = `${location.origin}${location.pathname}#shop=${encodeURIComponent(JSON.stringify(payload))}`;
+    const text = `רשימת קניות (${active.length} פריטים):\n${lines.join("\n")}${total > 0 ? `\nסה״כ משוער: ${fmtMoney(total)}` : ""}\n\nלייבוא לאפליקציה:\n${shareUrl}`;
+
+    if (navigator.share) {
+      navigator.share({ title: "רשימת קניות", text }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        showShareBanner("הרשימה וקישור הייבוא הועתקו ללוח ✓");
+      }).catch(() => {});
+    }
+  }
+
+  function importFromHashIfPresent() {
+    if (!location.hash.startsWith("#shop=")) return;
+    try {
+      const raw = decodeURIComponent(location.hash.slice(6));
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) {
+        arr.forEach((x) => {
+          if (x && x.n) {
+            addItem({ name: String(x.n), qty: Number(x.q) || 1, price: Number(x.p) || 0, dept: String(x.d || "") });
+          }
+        });
+        showShareBanner(`יובאו ${arr.length} פריטים לרשימת הקניות ✓`);
+      }
+    } catch {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
+ function renderItemRow(it) {
+    const lineTot = (Number(it.price) || 0) * (Number(it.qty) || 1);
+    const isEditing = editingPriceItemId === it.id;
+    return `<div class="shop-item ${it.done ? "done" : ""}">
+      <button type="button" class="shop-check" data-stog="${esc(it.id)}" aria-label="סמן נקנה">${it.done ? "✓" : ""}</button>
+      ${renderThumb(it.image, it.name, it.dept, "shop-thumb")}
       <div class="shop-mid">
         <div class="shop-name">${esc(it.name)}</div>
         <div class="shop-controls">
-          <button class="shop-unit-btn" data-sact="price" type="button">${it.price>0?'₪'+it.price.toFixed(2)+' ליח׳':'+ מחיר'}</button>
+          ${isEditing
+            ? `<input type="number" inputmode="decimal" step="0.01" min="0" data-price-inp="${esc(it.id)}" value="${Number(it.price) || ""}" placeholder="מחיר ליח׳" style="width:86px;padding:3px 6px;border:1px solid var(--acc);border-radius:8px;font-size:12px">`
+            : `<button type="button" class="shop-unit-btn" data-sprice="${esc(it.id)}">${Number(it.price) > 0 ? `${fmtMoney(it.price)} ליח׳` : "+ מחיר"}</button>`}
           <div class="shop-qty-box">
-            <button class="shop-qty-btn" data-sact="dec" type="button">−</button>
-            <span class="shop-qty-val">${it.qty||1}</span>
-            <button class="shop-qty-btn" data-sact="inc" type="button">+</button>
+            <button type="button" class="shop-qty-btn" data-sqty="${esc(it.id)}:-1">−</button>
+            <span class="shop-qty-val">${Number(it.qty) || 1}</span>
+            <button type="button" class="shop-qty-btn" data-sqty="${esc(it.id)}:1">+</button>
           </div>
         </div>
       </div>
       <div class="shop-end">
-        <div class="shop-line-total">₪${((it.price||0)*(it.qty||1)).toFixed(2)}</div>
-        <button class="shop-del-btn" data-sact="del" type="button">מחק</button>
+        <div class="shop-line-total">${lineTot > 0 ? fmtMoney(lineTot) : "—"}</div>
+        <button type="button" class="shop-del-btn" data-sdel="${esc(it.id)}" aria-label="מחק">הסר</button>
       </div>
     </div>`;
-
-    if(filter!=='done'){
-      const byDept={};
-      todo.forEach(i=>{(byDept[i.dept||'כללי']=byDept[i.dept||'כללי']||[]).push(i)});
-      const depts=Object.entries(byDept);
-      gEl.innerHTML=depts.length?depts.map(([dp,arr])=>{
-        const sub=arr.reduce((s,i)=>s+(i.price||0)*(i.qty||1),0);
-        return `<details class="card shop-dept" open><summary><span>${esc(dp)} (${arr.length})</span><span class="shop-dept-sub">₪${sub.toFixed(2)}</span></summary>${arr.map(renderItem).join('')}</details>`;
-      }).join(''):'<div class="card"><p class="mut" style="text-align:center;margin:4px 0">אין מוצרים ברשימה. הוסף מוצר למעלה.</p></div>';
-    }else{
-      gEl.innerHTML='';
-    }
-
-    if(filter!=='todo'&&done.length){
-      dEl.innerHTML=`<details class="card shop-dept" ${filter==='done'?'open':''}><summary><span>נקנו (${done.length})</span><span class="shop-dept-sub">₪${(totAll-totLeft).toFixed(2)}</span></summary>${done.map(renderItem).join('')}</details>`;
-    }else{
-      dEl.innerHTML='';
-    }
   }
 
-  document.getElementById('shop-manual-add')?.addEventListener('click',()=>{
-    const inp=document.getElementById('shop-search-input');
-    if(inp&&inp.value.trim()){addItem(inp.value);inp.value=''}
-  });
-  document.getElementById('shop-search-input')?.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){e.preventDefault();document.getElementById('shop-manual-add')?.click()}
-  });
-  document.getElementById('shop-sync-pill')?.addEventListener('click',()=>sync('pull',false));
-  document.getElementById('shop-clear-done')?.addEventListener('click',()=>{
-    if(!state.items.some(i=>i.done))return;
-    state.items=state.items.filter(i=>!i.done);
-    schedulePush();render();showToast('פריטים שנקנו נוקו');
-  });
-  document.getElementById('shop-share-btn')?.addEventListener('click',()=>{
-    if(!driveFileId){showToast('סנכרן קודם מול Google Drive','err');return}
-    open(`https://drive.google.com/file/d/${driveFileId}/view`,'_blank','noopener');
-  });
-  document.querySelectorAll('#page-shopping .shop-pill[data-filter]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      filter=btn.dataset.filter;
-      document.querySelectorAll('#page-shopping .shop-pill[data-filter]').forEach(b=>b.classList.toggle('active',b===btn));
-      render();
+  function renderDeptGroups(list) {
+    const groups = new Map();
+    list.forEach((it) => {
+      const d = it.dept || classifyDepartment(it.name);
+      if (!groups.has(d)) groups.set(d, []);
+      groups.get(d).push(it);
     });
-  });
-  document.getElementById('page-shopping')?.addEventListener('click',e=>{
-    const actBtn=e.target.closest('[data-sact]');if(!actBtn)return;
-    const row=actBtn.closest('[data-sid]');if(!row)return;
-    const it=state.items.find(x=>x.id===row.dataset.sid);if(!it)return;
-    const act=actBtn.dataset.sact;
-    if(act==='tog'){vib(6);it.done=!it.done}
-    else if(act==='inc'){it.qty=(it.qty||1)+1}
-    else if(act==='dec'){it.qty=Math.max(1,(it.qty||1)-1)}
-    else if(act==='del'){state.items=state.items.filter(x=>x.id!==it.id)}
-    else if(act==='price'){
-      const p=prompt('מחיר ליחידה (₪):',it.price||'');
-      if(p!==null)it.price=Math.max(0,num(p));
+
+    const sortedDepts = [...groups.keys()].sort((a, b) => {
+      const ia = DEPT_ORDER.indexOf(a);
+      const ib = DEPT_ORDER.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return a.localeCompare(b, "he");
+    });
+
+    return sortedDepts.map((dept) => {
+      const groupItems = groups.get(dept);
+      const subTot = groupItems.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+      return `<details class="card shop-dept" open>
+        <summary>
+          <span>${esc(dept)} <small class="mut">(${groupItems.length})</small></span>
+          ${subTot > 0 ? `<span class="shop-dept-sub">${fmtMoney(subTot)}</span>` : ""}
+        </summary>
+        ${groupItems.map(renderItemRow).join("")}
+      </details>`;
+    }).join("");
+  }
+
+  function render() {
+    const totalEst = items.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const leftEst = items.filter((x) => !x.done).reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+    const doneCount = items.filter((x) => x.done).length;
+
+    const setTxt = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
+    setTxt("shop-total-all", fmtMoney(totalEst));
+    setTxt("shop-total-left", fmtMoney(leftEst));
+    setTxt("shop-progress", `${doneCount}/${items.length}`);
+    setTxt("shop-float-left", fmtMoney(leftEst));
+    setTxt("shop-float-all", fmtMoney(totalEst));
+
+    document.querySelectorAll("#page-shopping [data-filter]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.filter === currentFilter);
+    });
+
+    const groupsEl = byId("shop-groups-container");
+    const doneEl = byId("shop-done-container");
+    if (!groupsEl) return;
+
+    const openItems = items.filter((it) => !it.done);
+    const doneItems = items.filter((it) => !!it.done);
+
+    if (!items.length) {
+      groupsEl.innerHTML = `<div class="card"><p class="mut" style="margin:0;text-align:center">רשימת הקניות ריקה. חפש מוצר למעלה כדי להתחיל.</p></div>`;
+      if (doneEl) doneEl.innerHTML = "";
+      return;
     }
-    schedulePush();render();
+
+    if (currentFilter === "todo") {
+      groupsEl.innerHTML = openItems.length
+        ? renderDeptGroups(openItems)
+        : `<div class="card"><p class="mut" style="margin:0;text-align:center">כל הפריטים ברשימה כבר נאספו ✓</p></div>`;
+      if (doneEl) doneEl.innerHTML = "";
+      return;
+    }
+
+    if (currentFilter === "done") {
+      groupsEl.innerHTML = doneItems.length
+        ? renderDeptGroups(doneItems)
+        : `<div class="card"><p class="mut" style="margin:0;text-align:center">עדיין לא סומנו פריטים שנקנו.</p></div>`;
+      if (doneEl) doneEl.innerHTML = "";
+      return;
+    }
+
+    groupsEl.innerHTML = openItems.length
+      ? renderDeptGroups(openItems)
+      : `<div class="card"><p class="mut" style="margin:0;text-align:center">כל הפריטים ברשימה נאספו לעגלה ✓</p></div>`;
+
+    if (doneEl) {
+      if (doneItems.length) {
+        const doneTot = doneItems.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
+        doneEl.innerHTML = `<details class="card shop-dept" open>
+          <summary>
+            <span>✅ נאספו לעגלה <small class="mut">(${doneItems.length})</small></span>
+            ${doneTot > 0 ? `<span class="shop-dept-sub">${fmtMoney(doneTot)}</span>` : ""}
+          </summary>
+          ${doneItems.map(renderItemRow).join("")}
+        </details>`;
+      } else {
+        doneEl.innerHTML = "";
+      }
+    }
+  }
+
+  const searchInp = byId("shop-search-input");
+  if (searchInp) {
+    searchInp.addEventListener("input", (e) => {
+      clearTimeout(searchTimer);
+      const val = e.target.value;
+      searchTimer = setTimeout(() => handleSearchInput(val), 220);
+    });
+    searchInp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (searchInp.value.trim()) addItem({ name: searchInp.value });
+      } else if (e.key === "Escape") {
+        closeDropdown();
+      }
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    const shopPage = byId("page-shopping");
+    if (!e.target.closest("#shop-search-input, #shop-dropdown")) {
+      const dd = byId("shop-dropdown");
+      if (dd && dd.classList.contains("open")) closeDropdown();
+    }
+    if (!shopPage || !shopPage.contains(e.target)) return;
+
+    const btn = e.target.closest("button,[data-filter],[data-stog],[data-sqty],[data-sdel],[data-sprice]");
+    if (!btn) return;
+
+    if (btn.id === "shop-manual-add") {
+      if (searchInp && searchInp.value.trim()) addItem({ name: searchInp.value });
+      return;
+    }
+    if (btn.id === "shop-sync-pill" || btn.id === "shop-sync-btn") {
+      if (syncStatus.state === "need_scope" && window._upgradeDriveScope) {
+        window._upgradeDriveScope();
+      } else {
+        syncWithDrive("pull", false);
+      }
+      return;
+    }
+    if (btn.id === "shop-share-btn") { shareList(); return; }
+    if (btn.id === "shop-clear-done") { clearDoneItems(); return; }
+    if (btn.dataset.filter) {
+      currentFilter = btn.dataset.filter;
+      render();
+      return;
+    }
+    if (btn.dataset.stog) { toggleItem(btn.dataset.stog); return; }
+    if (btn.dataset.sqty) {
+      const [id, d] = btn.dataset.sqty.split(":");
+      changeQty(id, Number(d));
+      return;
+    }
+    if (btn.dataset.sdel) { deleteItem(btn.dataset.sdel); return; }
+    if (btn.dataset.sprice) { startEditPrice(btn.dataset.sprice); return; }
   });
 
-  window.ShopUI={render};
+  document.addEventListener("keydown", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.priceInp) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitEditPrice(e.target.dataset.priceInp, e.target.value);
+      } else if (e.key === "Escape") {
+        editingPriceItemId = null;
+        render();
+      }
+    }
+  });
+
+  document.addEventListener("focusout", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.priceInp) {
+      commitEditPrice(e.target.dataset.priceInp, e.target.value);
+    }
+  });
+
+  window._getWarranties = () => warranties;
+  window._saveWarranty = (rec) => {
+    if (!rec || !rec.id) return;
+    delete deletedWarranties[rec.id];
+    const idx = warranties.findIndex((w) => w.id === rec.id);
+    if (idx >= 0) warranties[idx] = rec;
+    else warranties.unshift(rec);
+    persistLocal();
+    scheduleDrivePush();
+  };
+  window._deleteWarranty = (id) => {
+    if (!id) return;
+    warranties = warranties.filter((w) => w.id !== id);
+    deletedWarranties[id] = Date.now();
+    persistLocal();
+    scheduleDrivePush();
+  };
+  window._shopSync = (mode = "pull", silent = false) => syncWithDrive(mode, silent);
+  window._shopRender = () => render();
+
+  importFromHashIfPresent();
+  render();
+  syncWithDrive("pull", true).then(() => backfillMissingImages());
 })();
-
-/* === App Bootstrap === */
-(function init(){
-  try{const ex=JSON.parse(ls('excl')||'[]');if(Array.isArray(ex))ex.forEach(k=>S.excl.add(k))}catch(e){}
-  try{const ux=JSON.parse(ls('unexcl')||'[]');if(Array.isArray(ux))ux.forEach(k=>S.unexcl.add(k))}catch(e){}
-  try{const ml=JSON.parse(ls('more_layout')||'null');if(Array.isArray(ml))S.moreLayout=ml}catch(e){}
-
-  if(location.hash.startsWith('#ex=')){
-    try{
-      const arr=JSON.parse(decodeURIComponent(location.hash.slice(4)));
-      if(Array.isArray(arr)){arr.forEach(k=>S.excl.add(k));saveExcl();showToast('סימוני חד-פעמי יובאו ✓')}
-    }catch(e){}
-    history.replaceState(null,'',location.pathname+location.search);
-  }
-
-  try{
-    const tk=JSON.parse(ls('tok')||'null');
-    if(tk&&tk.t&&tk.e>Date.now())token=tk.t;
-  }catch(e){}
-
-  let hasSnap=false;
-  try{
-    const snap=JSON.parse(ls('data')||'null');
-    if(rehydrateSnap(snap)){hasSnap=true;$('nav').hidden=false;setPr('12');draw()}
-  }catch(e){}
-
-  if(token||ls('rt')){
-    load();
-  }else if(!hasSnap){
-    $('nav').hidden=true;
-  }
-})();
-</script>
-</body></html>
+</script></body></html>
