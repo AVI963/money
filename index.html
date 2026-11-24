@@ -81,6 +81,19 @@ header button.spin svg{animation:rot .8s linear infinite}
 .bn{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:10px 14px;font-size:13px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;box-shadow:inset 0 1px 0 var(--in-hi),var(--sh)}
 .bn button{border:0;background:var(--g);color:#fff;border-radius:11px;padding:6px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap}
 
+/* Unified Toast */
+.app-toast{
+  position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));
+  transform:translate(-50%,16px);opacity:0;pointer-events:none;z-index:90;
+  max-width:min(92vw,420px);padding:10px 18px;border-radius:99px;
+  background:var(--ink);color:var(--card);font-size:13.5px;font-weight:700;
+  box-shadow:0 14px 32px -8px rgba(0,0,0,.35);
+  transition:opacity .22s ease,transform .24s cubic-bezier(.22,1,.36,1);
+  display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.app-toast.on{opacity:1;transform:translate(-50%,0)}
+.app-toast.err{background:var(--r);color:#fff}
+
 /* Elevated Premium Cards */
 .card{
   background:var(--card);border:1px solid var(--bd);border-radius:26px;padding:19px;margin:12px 0;
@@ -625,6 +638,8 @@ input[data-sw]{width:100px;font:inherit;padding:6px 10px;border-radius:10px;bord
   </div>
 </div>
 
+<div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+
 <nav hidden>
   <button data-t="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9 20v-6h6v6"/></svg>בית</button>
   <button data-t="pv"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 3 5-6"/></svg>ניתוח</button>
@@ -661,6 +676,23 @@ const esc = s => String(s ?? '')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
+
+const num = v => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.\-+eE]/g, '').trim());
+  return Number.isFinite(n) ? n : 0;
+};
+
+let toastTimer = 0;
+function showToast(text, type = 'ok') {
+  const el = document.getElementById('app-toast');
+  if (!el || !text) return;
+  el.textContent = String(text);
+  el.className = 'app-toast on' + (type === 'err' ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2800);
+}
 
 const COL=['#4f6bed','#10b981','#f59e0b','#ec4899','#06b6d4','#84cc16','#ef4444','#8b5cf6'];
 const ICO=[
@@ -1055,8 +1087,10 @@ function inv0(){
   if(!S.inv.length)return `<div class="card"><p>${esc(S.invErr||'לא נמצאו נתוני השקעות.')}</p></div>`;
   const val=T(S.inv,'שווי ₪'),cost=T(S.inv,'עלות ₪'),gain=val-cost,tax=Math.max(0,gain)*.25,acc={},top=[...S.inv].sort((a,b)=>b['שווי ₪']-a['שווי ₪']);
   S.inv.forEach(r=>(acc[r['חשבון']||'כללי']=acc[r['חשבון']||'כללי']||[]).push(r));
+  const restVal=top.slice(6).reduce((s,r)=>s+num(r['שווי ₪']),0);
+  const segs=[...top.slice(0,6).map((r,k)=>[String(r['שם']||''),num(r['שווי ₪']),COL[k]]),...(restVal>0?[['אחר',restVal,'#94a3b8']]:[])];
   return `<div class="card hg"><div class="lb">סך השקעות</div><div class="big">${fmt(val)}</div><span class="chip ${gain<0?'bad':''}">${cost>0?pct(gain/cost*100)+' · ':''}${fmt(gain)} רווח</span>
-  <div class="stack">${top.slice(0,6).map((r,k)=>`<i style="width:${r['שווי ₪']/(val||1)*100}%;background:${COL[k]}"></i>`).join('')}</div><div class="lg2">${top.slice(0,6).map((r,k)=>`<span><i class="dot" style="background:${COL[k]}"></i>${esc(r['שם'])} ${Math.round(r['שווי ₪']/(val||1)*100)}%</span>`).join('')}</div>
+  <div class="stack">${segs.map(([,v,col])=>`<i style="width:${(v/(val||1)*100).toFixed(2)}%;background:${col}"></i>`).join('')}</div><div class="lg2">${segs.map(([name,v,col])=>`<span><i class="dot" style="background:${col}"></i>${esc(name)} ${Math.round(v/(val||1)*100)}%</span>`).join('')}</div>
   <div class="trio"><div><span class="lb">מס משוער</span><b>${fmt(-tax)}</b></div><div><span class="lb">אחרי מס</span><b>${fmt(val-tax)}</b></div></div>
   <p class="mut" style="margin:10px 0 0">הערכה בלבד: מס 25% על הרווח הכולל, בלי הצמדה למדד ובלי עמלות.</p></div>`+
   Object.entries(acc).map(([n,a],k)=>{const v=T(a,'שווי ₪'),c=T(a,'עלות ₪');
@@ -1755,6 +1789,7 @@ async function saveWarrantyAction(){
     if(window._saveWarranty)window._saveWarranty(rec);
     S.wForm=null;S.wPendingFile=null;S.wSaving=false;S.wErr='';
     draw();
+    showToast('האחריות נשמרה בהצלחה ✓');
   }catch(err){
     S.wSaving=false;
     S.wErr=(err&&err.message)?err.message:'שגיאה בשמירת האחריות';
