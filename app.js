@@ -66,7 +66,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
-  let token,cc,quotesAbort=null;
+let token,cc,quotesAbort=null,pendingDeferredDraw=false;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
 const expKey=e=>`${e.ym}|${e.d||0}|${String(e.c||'').trim()}|${String(e.t||'').trim()}|${e.a}`;
@@ -88,6 +88,150 @@ const T=(a,k)=>a.reduce((s,r)=>s+(+r[k]||0),0),dl=d=>d instanceof Date&&!isNaN(+
 
 function msg(t,isHtml=false){
   $('#app').innerHTML='<div id="msg"><p>'+(isHtml?t:esc(t))+'</p></div>';
+}
+
+/* Background Web Worker for off-main-thread XLSX parsing */
+let xlsxWorker=null,xlsxWorkerBroken=false,xlsxJobSeq=0;
+const xlsxJobs=new Map();
+
+function getXlsxScriptUrl(){
+  const sc=document.querySelector('script[src*="xlsx"]');
+  return sc?sc.src:'';
+}
+
+function getXlsxWorker(){
+  if(xlsxWorkerBroken||typeof Worker==='undefined')return null;
+  if(xlsxWorker)return xlsxWorker;
+  try{
+    const w=new Worker('xlsx-worker.js');
+    w.onmessage=e=>{
+      const {id,ok,data,error}=e.data||{};
+      const job=xlsxJobs.get(id);
+      if(!job)return;
+      xlsxJobs.delete(id);
+      clearTimeout(job.timer);
+      if(ok)job.resolve(data);
+      else job.reject(new Error(error||'שגיאה בפענוח קובץ האקסל'));
+    };
+    w.onerror=()=>{
+      xlsxWorkerBroken=true;
+      xlsxWorker=null;
+      xlsxJobs.forEach(job=>{
+        clearTimeout(job.timer);
+        job.reject(new Error('WORKER_FALLBACK'));
+      });
+      xlsxJobs.clear();
+    };
+    w.postMessage({type:'init',xlsxUrl:getXlsxScriptUrl()});
+    xlsxWorker=w;
+    return w;
+  }catch(e){
+    xlsxWorkerBroken=true;
+    return null;
+  }
+}
+
+function parseExcelMainFallback(buffer,type){
+  const wb=XLSX.read(new Uint8Array(buffer),{type:'array',cellDates:true});
+  if(type==='exp'){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
+    const exp=[],mon=[],cp=[],bud={},sal={};
+    const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
+    rows.slice(1).forEach(x=>{
+      if(!x)return;
+      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
+        const fd=fix(x[4]);
+        const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
+        exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
+      }
+      if(x[9] instanceof Date&&typeof x[11]==='number')mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
+      if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
+    });
+    const bs=wb.Sheets['תקציב'];
+    if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{
+      if(r&&r[0]&&typeof r[1]==='number')bud[String(r[0]).trim()]=r[1];
+    });
+    const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]];
+    if(ws)for(let r=35;r<=95;r++)for(const l of 'KLMNOPQR'){
+      const x=ws[l+r];
+      if(x)sal[l+r]={v:x.v,f:x.f};
+    }
+    return{exp,mon,cp,bud,sal};
+  }
+  if(type==='inv'){
+    const g=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{cellDates:true}):[];
+    return{
+      inv:XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).filter(r=>+r['שווי ₪']>0),
+      pen:g('פנסיה'),
+      docs:g('מסמכים')
+    };
+  }
+  if(type==='ins')return parseIns(wb);
+  if(type==='mort')return parseMort(wb);
+  throw new Error('סוג פענוח לא מוכר');
+}
+
+function parseExcelBuffer(buffer,type){
+  const w=getXlsxWorker();
+  if(!w)return Promise.resolve(parseExcelMainFallback(buffer,type));
+  const copyForFallback=buffer.slice(0);
+  return new Promise((resolve,reject)=>{
+    const id=++xlsxJobSeq;
+    const timer=setTimeout(()=>{
+      xlsxJobs.delete(id);
+      reject(new Error('חריגת זמן בפענוח קובץ האקסל'));
+    },30000);
+    xlsxJobs.set(id,{
+      resolve,
+      reject:err=>{
+        if(err&&err.message==='WORKER_FALLBACK'){
+          try{resolve(parseExcelMainFallback(copyForFallback,type))}catch(fe){reject(fe)}
+        }else{
+          reject(err);
+        }
+      },
+      timer
+    });
+    try{
+      w.postMessage({id,type,buffer,xlsxUrl:getXlsxScriptUrl()},[buffer]);
+    }catch(postErr){
+      clearTimeout(timer);
+      xlsxJobs.delete(id);
+      xlsxWorkerBroken=true;
+      try{resolve(parseExcelMainFallback(copyForFallback,type))}catch(fe){reject(fe)}
+    }
+  });
+}
+
+function normalizeParsedDates(d){
+  if(!d)return d;
+  if(d.end&&!(d.end instanceof Date))d.end=new Date(d.end);
+  if(Array.isArray(d.pay))d.pay.forEach(p=>{if(p&&p.d&&!(p.d instanceof Date))p.d=new Date(p.d)});
+  if(Array.isArray(d.pulses))d.pulses.forEach(p=>{if(p&&p.d&&!(p.d instanceof Date))p.d=new Date(p.d)});
+  return d;
+}
+
+function dataFingerprint(){
+  const expSum=S.exp.reduce((s,e)=>s+e.a,0);
+  const monSum=S.mon.reduce((s,m)=>s+m.inc,0);
+  const cpSum=S.cp.reduce((s,c)=>s+c.a,0);
+  const invCost=S.inv.reduce((s,r)=>s+(+r['עלות ₪']||0),0);
+  const penSum=S.pen.reduce((s,r)=>s+(+r['שווי ₪']||0),0);
+  const insLen=S.ins&&S.ins.pay?S.ins.pay.length:0;
+  const mortLen=S.mort&&S.mort.pay?S.mort.pay.length:0;
+  const mortBal=S.mort&&S.mort.pay&&S.mort.pay.length?S.mort.pay[S.mort.pay.length-1].bal:0;
+  return [
+    S.exp.length,expSum.toFixed(2),
+    S.mon.length,monSum.toFixed(2),
+    S.cp.length,cpSum.toFixed(2),
+    Object.keys(S.bud).length,Object.values(S.bud).reduce((a,b)=>a+b,0).toFixed(2),
+    S.sal?Object.keys(S.sal).length:0,
+    S.inv.length,invCost.toFixed(2),
+    S.pen.length,penSum.toFixed(2),
+    S.docs.length,
+    insLen,mortLen,mortBal,
+    S.err||'',S.invErr||'',S.insErr||'',S.mortErr||''
+  ].join('|');
 }
 
 function saveSnap(){
@@ -116,6 +260,16 @@ function syncLabel(){
   const mins=Math.floor((Date.now()-S.syncAt)/60000);
   const t=mins<1?'עודכן עכשיו':mins<60?`לפני ${mins} דק׳`:new Date(S.syncAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   return{cls:token?'':'off',txt:t};
+}
+function updateSyncHeader(){
+  const slb=syncLabel();
+  const pill=document.querySelector('header .sync-pill');
+  if(pill){
+    pill.className='sync-pill '+slb.cls;
+    pill.innerHTML='<i></i>'+esc(slb.txt);
+  }
+  const btn=document.querySelector('header button[data-sync]');
+  if(btn)btn.classList.toggle('spin',!!S.syncing);
 }
 
 async function driveFetchWithRetry(url,opts={},retried=false){
@@ -146,7 +300,7 @@ async function driveFetchWithRetry(url,opts={},retried=false){
   return res;
 }
 
-async function getFile(name){
+async function getFileBuffer(name){
   const q=encodeURIComponent((name[0]=='='?"name = '"+name.slice(1)+"'":"name contains '"+name+"'")+" and trashed=false and mimeType!='application/vnd.google-apps.folder'");
   const listRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+q);
   const l=await listRes.json();
@@ -158,26 +312,42 @@ async function getFile(name){
   if(!l.files||!l.files.length)throw new Error('לא נמצא בדרייב קובץ ששמו כולל: '+name);
   const mediaRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files/'+l.files[0].id+'?alt=media&supportsAllDrives=true');
   if(!mediaRes.ok)throw new Error('שגיאה בהורדת הקובץ מהדרייב ('+mediaRes.status+')');
-  return XLSX.read(await mediaRes.arrayBuffer(),{type:'array',cellDates:true});
+  return mediaRes.arrayBuffer();
+}
+
+async function getAnyParsed(names,type){
+  let er;
+  for(const n of names){
+    try{
+      const buf=await getFileBuffer(n);
+      return await parseExcelBuffer(buf,type);
+    }catch(x){
+      er=x;
+      if(x.code===401||x.code===403||/פג/.test(x.message))throw x;
+    }
+  }
+  throw er||new Error('לא נמצא קובץ תואם');
 }
 
 async function load(){
-  S.syncing=true;if(S.exp.length)draw();else msg('טוען נתונים מהדרייב...');
+  if(S.syncing)return;
+  const hadData=S.exp.length>0;
+  const prevFp=hadData?dataFingerprint():'';
+  S.syncing=true;
+  if(hadData)updateSyncHeader();
+  else msg('טוען נתונים מהדרייב...');
+
   try{
-    const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
-    S.exp=[];S.mon=[];S.cp=[];S.err='';S.scopeErr=false;S.bud={};S.sal=null;
-    const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
-    rows.slice(1).forEach(x=>{
-      if(!x)return;
-      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
-        const fd=fix(x[4]);
-        const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
-        S.exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
-      }
-      if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
-      if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))S.cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
-    });
-    parseExtra(wb);
+    const expBuf=await getFileBuffer(FILES.exp);
+    const expData=await parseExcelBuffer(expBuf,'exp');
+
+    S.exp=expData.exp||[];
+    S.mon=expData.mon||[];
+    S.cp=expData.cp||[];
+    S.bud=expData.bud||{};
+    S.sal=expData.sal||null;
+    S.err='';S.scopeErr=false;S.invErr='';S.insErr='';S.mortErr='';
+
     const allYms=S.exp.map(e=>e.ym);
     if(!allYms.length){
       S.ym=ymOf(new Date());
@@ -185,19 +355,102 @@ async function load(){
       S.ym=Math.max(...allYms);
     }
     if(!S.pv.from)setPr('12');
-    try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
-    try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
-    try{S.mort=parseMort(await getAny(FILES.mort))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
-    S.syncAt=Date.now();saveSnap();S.rt2=0;S.syncing=false;
-$('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();quotes();if(window._shopSync)window._shopSync('pull',true);
-    }catch(e){
+
+    const [invRes,insRes,mortRes]=await Promise.allSettled([
+      getFileBuffer(FILES.inv).then(b=>parseExcelBuffer(b,'inv')),
+      getFileBuffer(FILES.ins).then(b=>parseExcelBuffer(b,'ins')),
+      getAnyParsed(FILES.mort,'mort')
+    ]);
+
+    if(invRes.status==='fulfilled'){
+      S.inv=invRes.value.inv||[];
+      S.pen=invRes.value.pen||[];
+      S.docs=invRes.value.docs||[];
+    }else{
+      S.invErr=invRes.reason?invRes.reason.message:'שגיאה בקריאת תיק השקעות';
+    }
+
+    if(insRes.status==='fulfilled'){
+      S.ins=normalizeParsedDates(insRes.value);
+    }else{
+      S.ins=null;
+      S.insErr=insRes.reason?insRes.reason.message:'שגיאה בקריאת ביטוח חיים';
+    }
+
+    if(mortRes.status==='fulfilled'){
+      S.mort=normalizeParsedDates(mortRes.value);
+    }else{
+      S.mort=null;
+      S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+(mortRes.reason?mortRes.reason.message:'');
+    }
+
+    S.syncAt=Date.now();
+    saveSnap();
+    S.rt2=0;
+    S.syncing=false;
+    $('nav').hidden=false;
+
+    const newFp=dataFingerprint();
+    if(hadData&&newFp===prevFp){
+      updateSyncHeader();
+    }else{
+      safeBackgroundDraw(hadData);
+    }
+
+    S.files=null;
+    if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();
+    quotes();
+    if(window._shopSync)window._shopSync('pull',true);
+  }catch(e){
     S.syncing=false;
     if((e.code===401||/פג/.test(e.message))&&!S.rt2){S.rt2=1;if(await refresh())return load()}
     S.err=e.message;
     S.scopeErr=!!e.needScope||e.code===403;
-    if(S.exp.length)draw();
+    if(S.exp.length)safeBackgroundDraw(true);
     else msg(`${esc(e.message)}<br><br><button class="go" ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות Drive מחדש':'נסה שוב'}</button>`,true);
   }
+}
+
+function safeBackgroundDraw(preserveView){
+  const isBusy=!!S.wForm||!!S.mPick||(document.activeElement&&/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName));
+  if(isBusy){
+    pendingDeferredDraw=true;
+    updateSyncHeader();
+    return;
+  }
+  pendingDeferredDraw=false;
+  if(!preserveView){
+    draw(false);
+    return;
+  }
+  const sy=window.scrollY;
+  const carIdx=[...document.querySelectorAll('.car')].map(car=>{
+    const dots=[...((car.nextElementSibling&&car.nextElementSibling.querySelectorAll('i'))||[])];
+    const on=dots.findIndex(d=>d.classList.contains('on'));
+    return on>=0?on:0;
+  });
+  const openCats=[...document.querySelectorAll('details.ct[open]')].map(d=>{
+    const b=d.querySelector('summary .cn b');
+    return b?b.textContent.trim():'';
+  }).filter(Boolean);
+
+  draw(true);
+
+  if(openCats.length){
+    document.querySelectorAll('details.ct').forEach(d=>{
+      const b=d.querySelector('summary .cn b');
+      if(b&&openCats.includes(b.textContent.trim()))d.open=true;
+    });
+  }
+  document.querySelectorAll('.car').forEach((car,i)=>{
+    const idx=carIdx[i]||0;
+    if(idx>0){
+      const sl=car.querySelectorAll('.sl')[idx];
+      if(sl)sl.scrollIntoView({behavior:'auto',inline:'center',block:'nearest'});
+      syncDots(car);
+    }
+  });
+  if(sy>0)window.scrollTo(0,sy);
 }
 
 function parseIns(wb){
@@ -1023,7 +1276,7 @@ async function loadFiles(){
     }
     S.files={root:root.id,receiptsId,out};
   }catch(e){S.files='err'}
-  if(!S.wForm)draw();
+  if(!S.wForm)draw(true);
 }
 function dc(){return pickCard()+dc0()}
 
@@ -1183,6 +1436,16 @@ document.addEventListener('input',e=>{
   }
 });
 
+document.addEventListener('focusout',()=>{
+  if(pendingDeferredDraw){
+    setTimeout(()=>{
+      if(pendingDeferredDraw&&!S.wForm&&!S.mPick&&(!document.activeElement||!/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName))){
+        safeBackgroundDraw(true);
+      }
+    },60);
+  }
+});
+
 const toDr=()=>setTimeout(()=>{const x=document.getElementById('dr');x&&x.scrollIntoView({behavior:'smooth',block:'start'})},40);
 async function openDoc(name,person){
   if(!S.files||S.files=='err'||S.files=='loading')await loadFiles();
@@ -1233,7 +1496,7 @@ async function refresh(){
 }
 const fail=m=>{
   S.err=m;
-  S.exp.length?draw():msg(`${esc(m)}<br><br><button class="go" data-sync>נסה שוב</button>`,true);
+  S.exp.length?safeBackgroundDraw(true):msg(`${esc(m)}<br><br><button class="go" data-sync>נסה שוב</button>`,true);
 };
 async function onAuthCode(r){
   if(!r||!r.code)return;
@@ -1264,7 +1527,6 @@ window._upgradeDriveScope=()=>login(true);
 
 const brk=it=>{const m={};it.forEach(e=>{(m[e.t]=m[e.t]||{s:0,n:0}).s+=e.a;m[e.t].n++});const tot=T(it,'a')||1;
   return Object.entries(m).sort((a,b)=>b[1].s-a[1].s).map(([t,v])=>`<div style="padding-top:12px"><div class="row" style="padding:0"><span>${esc(t)}</span><b>${fmt(v.s)}</b></div><div class="row s mut" style="padding:0"><span>${v.n} פעולות · ממוצע ${fmt(v.s/v.n)}</span><span>${Math.round(v.s/tot*100)}%</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${v.s/tot*100}%;background:var(--g)"></i></div></div>`).join('')};
-async function getAny(a){let er;for(const n of a){try{return await getFile(n)}catch(x){er=x;if(x.code===401||x.code===403||/פג/.test(x.message))throw x}}throw er||new Error('לא נמצא קובץ תואם')}
 
 function parseMort(wb){
   const J=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,range:'A1:O400'}):[],
@@ -1412,20 +1674,6 @@ function fev(f,get){
   return E();
 }
 
-function parseExtra(wb){
-  S.bud={};
-  const bs=wb.Sheets['תקציב'];
-  if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{
-    if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1];
-  });
-  const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],c={};
-  if(ws)for(let r=35;r<=95;r++)for(const l of 'KLMNOPQR'){
-    const x=ws[l+r];
-    if(x)c[l+r]={v:x.v,f:x.f};
-  }
-  S.sal=c;
-}
-
 let sv=null;
 function salCalc(ov){const C=S.sal||{},m={},vis=new Set(),get=a=>{if(a in ov)return ov[a];if(a in m)return m[a];if(vis.has(a))return 0;const c=C[a];if(!c)return 0;vis.add(a);m[a]=c.f?fev(c.f,get):(typeof c.v=='number'?c.v:0);vis.delete(a);return m[a]};return get}
 
@@ -1476,7 +1724,7 @@ async function quotes(){
     if(!res.ok)return;
     const j=await res.json(),fx=j.fx&&+j.fx.USDILS,Q=j.quotes||{};let n=0;
     S.inv.forEach(r=>{const q=Q[id(r)];if(!q||!(+q.price>0))return;const u=q.cur=='USD'?(fx?q.price*fx:0):q.cur=='ILA'?q.price/100:+q.price;if(u>0){r['שווי ₪']=+(u*(+r['כמות']||0)).toFixed(2);r.live=1;n++}});
-    if(n){S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});saveSnap();if(S.tab=='inv'||S.tab=='home')draw()}
+    if(n){S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});saveSnap();if(S.tab=='inv'||S.tab=='home')safeBackgroundDraw(true)}
   }catch(e){}
 }
 setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
@@ -1540,7 +1788,7 @@ function draw(skipAnim=false){
   const ys=S.tab==='home'?[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b):[];
   const sy=y=>T(S.exp.filter(e=>e.ym==y),'a');
   $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-eye title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
-  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim?' no-anim':''}">${{home,pv,inv,more,shop:()=>''}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
+  (S.err?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim?' no-anim':''}">${{home,pv,inv,more,shop:()=>''}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
   const sp=document.getElementById('page-shopping');
   if(sp)sp.style.display=S.tab==='shop'?'block':'none';
   if(window._shopRender)window._shopRender();
