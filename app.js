@@ -67,7 +67,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const SAL_TPL_KEY='sal_tpl',SAL_TPL_AT_KEY='sal_tpl_at',SAL_SV_KEY='sal_sv',SAL_DIRTY_PUSH_KEY='sal_dirty_push',SAL_META_KEY='my_money_sal_drive_meta_v1',SAL_DRIVE_FILE=APP_CONFIG.salaryFileName||'my_money_salary.json';
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
   let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
@@ -77,10 +77,22 @@ function saveExcl(){ls('excl',JSON.stringify([...S.excl]));ls('unexcl',JSON.stri
 const SVG={
   eye:'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg viewBox="0 0 24 24"><path d="M9.9 4.2A10.4 10.4 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M6.6 6.6C4 8.4 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/></svg>',
+  sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  moon:'<svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
   sync:'<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-15-6.7L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/><path d="M16 16h5v5"/></svg>',
   cal:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>',
   chevD:'<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>'
 };
+const isDarkTheme=()=>S.theme?S.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+function applyTheme(t){
+  S.theme=(t==='dark'||t==='light')?t:'';
+  if(S.theme)document.documentElement.dataset.theme=S.theme;
+  else delete document.documentElement.dataset.theme;
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
+    if(S.theme)m.content=S.theme==='dark'?'#070b12':'#f2f5fb';
+    else m.content=(m.media&&m.media.includes('dark'))?'#070b12':'#f2f5fb';
+  });
+}
 const fmt=n=>S.hide?'₪•••':(n<0?'-':'')+'₪'+Math.round(Math.abs(n)).toLocaleString('he-IL'),pct=n=>Number.isFinite(n)?(n>0?'+':'')+n.toFixed(1)+'%':'—';
 const shortK=n=>{if(S.hide)return '••';const a=Math.abs(n);return a>=1000?(a/1000).toFixed(1).replace(/\.0$/,'')+'K':Math.round(a).toLocaleString('he-IL')};
 const fix=d=>new Date(d.getTime()+432e5),ymOf=d=>{d=fix(d);return d.getFullYear()*100+d.getMonth()+1};
@@ -169,25 +181,46 @@ async function driveFetchWithRetry(url,opts={},retried=false){
 }
 
 const XLSX_CDN_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-let xlsxWorker=null,xlsxWorkerBroken=false,xlsxReqSeq=0;
+let xlsxWorker=null,xlsxWorkerReady=false,xlsxWorkerBroken=false,xlsxReqSeq=0;
 const xlsxPending=new Map();
 
 function initXlsxWorker(){
-  if(xlsxWorkerBroken||typeof Worker==='undefined')return null;
+  if(xlsxWorkerBroken||typeof Worker==='undefined'||typeof Blob==='undefined'||typeof URL==='undefined')return null;
   if(xlsxWorker)return xlsxWorker;
   try{
-    const w=new Worker('xlsx-worker.js');
+    const src=[
+      'const fix=d=>new Date(d.getTime()+432e5);',
+      'const ymOf=d=>{const fd=fix(d);return fd.getFullYear()*100+fd.getMonth()+1};',
+      extractExtra.toString(),
+      parseExpWb.toString(),
+      parseInvWb.toString(),
+      parseIns.toString(),
+      parseMort.toString(),
+      'let loaded=false;',
+      'function ensure(u){if(loaded&&typeof XLSX!=="undefined")return;importScripts(u);if(typeof XLSX==="undefined")throw new Error("SheetJS_missing");loaded=true;}',
+      'self.onmessage=e=>{const d=e.data||{};if(d.type==="init"){try{ensure(d.xlsxUrl);self.postMessage({type:"ready"})}catch(err){self.postMessage({type:"init_err"})}return;}try{ensure(d.xlsxUrl);const wb=XLSX.read(new Uint8Array(d.buffer),{type:"array",cellDates:true});const out=d.type==="exp"?parseExpWb(wb):d.type==="inv"?parseInvWb(wb):d.type==="ins"?parseIns(wb):d.type==="mort"?parseMort(wb):null;if(!out)throw new Error("סוג קובץ לא נתמך");self.postMessage({id:d.id,ok:true,data:out});}catch(err){self.postMessage({id:d.id,ok:false,error:(err&&err.message)?err.message:String(err)});}};'
+    ].join('\n');
+    const blobUrl=URL.createObjectURL(new Blob([src],{type:'application/javascript'}));
+    const w=new Worker(blobUrl);
+    setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(e){}},5000);
     w.onmessage=e=>{
-      const {id,ok,data,error}=e.data||{};
-      const p=xlsxPending.get(id);
+      const d=e.data||{};
+      if(d.type==='ready'){xlsxWorkerReady=true;return}
+      if(d.type==='init_err'){
+        xlsxWorkerBroken=true;xlsxWorkerReady=false;
+        try{w.terminate()}catch(err){}
+        xlsxWorker=null;
+        return;
+      }
+      const p=xlsxPending.get(d.id);
       if(!p)return;
-      xlsxPending.delete(id);
+      xlsxPending.delete(d.id);
       clearTimeout(p.timer);
-      if(ok)p.resolve(data);
-      else p.reject(new Error(error||'שגיאה בפענוח קובץ אקסל'));
+      if(d.ok)p.resolve(d.data);
+      else p.reject(new Error(d.error||'שגיאה בפענוח קובץ אקסל'));
     };
     w.onerror=()=>{
-      xlsxWorkerBroken=true;
+      xlsxWorkerBroken=true;xlsxWorkerReady=false;
       try{w.terminate()}catch(err){}
       xlsxWorker=null;
       xlsxPending.forEach(p=>{clearTimeout(p.timer);p.reject(new Error('worker_failed'))});
@@ -237,21 +270,21 @@ function parseExcelMain(type,buffer){
 }
 
 async function parseExcel(type,buffer){
-  const w=initXlsxWorker();
-  if(!w)return parseExcelMain(type,buffer);
+  initXlsxWorker();
+  if(!xlsxWorker||!xlsxWorkerReady)return parseExcelMain(type,buffer);
   try{
     return await new Promise((resolve,reject)=>{
       const id=++xlsxReqSeq;
       const timer=setTimeout(()=>{
         xlsxPending.delete(id);
         reject(new Error('worker_timeout'));
-      },15000);
+      },4000);
       xlsxPending.set(id,{resolve,reject,timer});
-      w.postMessage({id,type,buffer,xlsxUrl:XLSX_CDN_URL});
+      xlsxWorker.postMessage({id,type,buffer,xlsxUrl:XLSX_CDN_URL});
     });
   }catch(e){
     if(/worker_failed|worker_timeout|SheetJS/i.test(String(e&&e.message||''))){
-      xlsxWorkerBroken=true;
+      xlsxWorkerBroken=true;xlsxWorkerReady=false;
       return parseExcelMain(type,buffer);
     }
     throw e;
@@ -1930,20 +1963,42 @@ function cp(){
 }
 
 const prevNums={},rmRed=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
-function animNums(){
-  if(S.hide||rmRed())return;
+function renderBigVal(el,str){
+  const fc=el.firstChild;
+  if(!fc)return;
+  const m=String(str).match(/^(-?)₪(.+)$/);
+  if(!m){
+    if(el.childNodes.length===1)el.textContent=str;
+    else if(fc.nodeType===3)fc.nodeValue=str;
+    return;
+  }
+  const sign=m[1],numPart=m[2];
+  let wrap=fc.nodeType===1&&fc.classList&&fc.classList.contains('big-val')?fc:null;
+  if(!wrap){
+    wrap=document.createElement('span');
+    wrap.className='big-val';
+    el.replaceChild(wrap,fc);
+  }
+  wrap.innerHTML=`${sign}<span class="cur-sym">₪</span>${esc(numPart)}`;
+}
+function animNums(skipAnim=false){
   document.querySelectorAll('.big').forEach((el,idx)=>{
-    const raw=el.textContent.trim(),m=raw.match(/^(-?)₪([\d,]+)$/)||raw.match(/^(-?)(\d+)%$/);
-    if(!m)return;
+    const fc=el.firstChild;
+    const raw=(fc&&fc.nodeType===3?fc.nodeValue:el.textContent).trim();
+    if(S.hide){renderBigVal(el,raw);return}
+    const m=raw.match(/^(-?)₪([\d,]+)$/)||raw.match(/^(-?)(\d+)%$/);
+    if(!m){renderBigVal(el,raw);return}
     const isPct=raw.endsWith('%'),sign=m[1]==='-'?-1:1,target=sign*parseInt(m[2].replace(/,/g,''),10);
     const key=S.tab+':'+S.sub+':'+idx,from=prevNums[key];
     prevNums[key]=target;
-    if(from===undefined||from===target)return;
+    if(skipAnim||rmRed()||from===undefined||from===target){renderBigVal(el,raw);return}
     const t0=performance.now(),dur=320;
     const step=now=>{
+      if(!el.isConnected)return;
       const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3),cur=Math.round(from+(target-from)*e);
-      if(p>=1){el.textContent=raw;return}
-      el.textContent=isPct?cur+'%':(cur<0?'-':'')+'₪'+Math.abs(cur).toLocaleString('he-IL');
+      if(p>=1){renderBigVal(el,raw);return}
+      const curStr=isPct?cur+'%':(cur<0?'-':'')+'₪'+Math.abs(cur).toLocaleString('he-IL');
+      renderBigVal(el,curStr);
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -1951,11 +2006,11 @@ function animNums(){
 }
 
 function draw(skipAnim=false){
-  const slb=syncLabel();
+  const slb=syncLabel(),dark=isDarkTheme();
   const ys=S.tab==='home'?[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b):[];
   const sy=y=>T(S.exp.filter(e=>e.ym==y),'a');
-  $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-eye title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
-  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim?' no-anim':''}">${{home,pv,inv,more,shop:()=>''}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
+  $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-theme-tog title="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}" aria-label="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}">${dark?SVG.sun:SVG.moon}</button><button data-eye class="${S.hide?'on':''}" title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
+  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim||S.tab==='shop'?' no-anim':''}">${{home,pv,inv,more,shop:()=>''}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
   const sp=document.getElementById('page-shopping');
   if(sp)sp.style.display=S.tab==='shop'?'block':'none';
   if(window._shopRender)window._shopRender();
@@ -1963,7 +2018,7 @@ function draw(skipAnim=false){
   document.querySelectorAll('.car').forEach(syncDots);
   centerMonthStrip();
   updateSlFloat();
-  if(!skipAnim)animNums();
+  animNums(skipAnim);
 }
 
 function scrubAt(box,clientX){
@@ -2151,6 +2206,14 @@ document.addEventListener('click',e=>{
   if('qclr'in b.dataset){vib(6);clearTimeout(qTimer);S.pv.q='';S.pv.dr=null;draw(true);const inp=document.querySelector('input[data-q]');if(inp)inp.focus();return}
   if('syncConsent'in b.dataset){vib(10);if(navigator.onLine===false){showToast('אין חיבור לאינטרנט — מוצגים נתונים שמורים','err');return}login(true);return}
   if('sync'in b.dataset){vib(10);if(navigator.onLine===false){showToast('אין חיבור לאינטרנט — מוצגים נתונים שמורים','err');return}login(!!S.scopeErr);return}
+  if('themeTog'in b.dataset){
+    vib(6);
+    const next=isDarkTheme()?'light':'dark';
+    ls('theme',next);
+    applyTheme(next);
+    draw(true);
+    return;
+  }
   if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
   if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0);if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}
   if(b.dataset.dn!==undefined){vib(6);const c=decodeURIComponent(b.dataset.dn);S.dnSel=(!c||S.dnSel===c)?null:c;draw();return}
@@ -2201,6 +2264,8 @@ document.addEventListener('click',e=>{
 
 (function boot(){
   S.hide=ls('hide')=='1';
+  applyTheme(ls('theme')||'');
+  try{matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(!S.theme&&!$('nav').hidden)draw(true)})}catch(e){}
   try{const ex=JSON.parse(ls('excl'));if(Array.isArray(ex))S.excl=new Set(ex)}catch(e){}
   try{const uex=JSON.parse(ls('unexcl'));if(Array.isArray(uex))S.unexcl=new Set(uex)}catch(e){}
   if(location.hash.startsWith('#excl=')){
@@ -2256,3 +2321,4 @@ if('serviceWorker'in navigator){
     if(reg.update)reg.update().catch(()=>{});
   }).catch(()=>{});
 }
+מנתח את הנתונים
