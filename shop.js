@@ -471,10 +471,12 @@
 
   async function resolveDriveFileId() {
     if (driveMeta && driveMeta.fileId) return driveMeta.fileId;
-    const safeName = DRIVE_FILE_NAME.replace(/'/g, "\'");
+    const safeName = DRIVE_FILE_NAME.replace(/'/g, "\\'");
     const q = `name='${safeName}' and trashed=false`;
     const res = await driveApiFetch(
-      "https://www.googleapis.com/drive/v3/files?fields=files(id,name,parents)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
+      "https://www.googleapis.com/drive/v3/files?fields=files(id,name,parents)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy=" +
+        encodeURIComponent("modifiedTime desc") +
+        "&q=" +
         encodeURIComponent(q)
     );
     if (res.status === 401 || res.status === 403) {
@@ -492,7 +494,7 @@
 
     let parentId = "";
     try {
-      const rootSafe = APP_CONFIG.receiptsRootFolder.replace(/'/g, "\'");
+      const rootSafe = APP_CONFIG.receiptsRootFolder.replace(/'/g, "\\'");
       const rq = `name='${rootSafe}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
       const rRes = await driveApiFetch(
         "https://www.googleapis.com/drive/v3/files?fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&q=" +
@@ -517,16 +519,8 @@
       deletedWarranties
     });
     const body =
-      `--${boundary}
-Content-Type: application/json; charset=UTF-8
-
-${JSON.stringify(meta)}
-` +
-      `--${boundary}
-Content-Type: application/json; charset=UTF-8
-
-${initPayload}
-` +
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${initPayload}\r\n` +
       `--${boundary}--`;
 
     const cRes = await driveApiFetch(
@@ -757,13 +751,7 @@ ${initPayload}
     const total = active.reduce((s, x) => s + (Number(x.price) || 0) * (Number(x.qty) || 1), 0);
     const payload = active.map((x) => ({ n: x.name, q: x.qty, p: x.price, d: x.dept }));
     const shareUrl = `${location.origin}${location.pathname}#shop=${encodeURIComponent(JSON.stringify(payload))}`;
-    const text = `רשימת קניות (${active.length} פריטים):
-${lines.join("
-")}${total > 0 ? `
-סה״כ משוער: ${fmtMoney(total)}` : ""}
-
-לייבוא לאפליקציה:
-${shareUrl}`;
+    const text = `רשימת קניות (${active.length} פריטים):\n${lines.join("\n")}${total > 0 ? `\nסה״כ משוער: ${fmtMoney(total)}` : ""}\n\nלייבוא לאפליקציה:\n${shareUrl}`;
 
     if (navigator.share) {
       navigator.share({ title: "רשימת קניות", text }).catch(() => {});
