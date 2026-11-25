@@ -407,36 +407,63 @@
       if (ts > cutoff) mergedDeletedW[id] = ts;
     });
 
+    const normW = (w, upd) => {
+      const atts = Array.isArray(w.attachments) ? w.attachments.filter((a) => a && (a.link || a.id)) : [];
+      if (!atts.length && (w.fileLink || w.fileId)) {
+        atts.push({ id: w.fileId || "", name: w.fileName || "קבלה / תעודת אחריות", link: w.fileLink || "" });
+      }
+      return {
+        ...w,
+        category: w.category || "",
+        coverId: w.coverId || "",
+        coverLink: w.coverLink || "",
+        attachments: atts,
+        updatedAt: upd
+      };
+    };
+
     const wById = new Map();
     (remote.warranties || []).forEach((w) => {
       if (!w || !w.id) return;
       const upd = Number(w.updatedAt) || 0;
       if (mergedDeletedW[w.id] && mergedDeletedW[w.id] >= upd) return;
-      wById.set(w.id, { ...w, category: w.category || "", updatedAt: upd });
+      wById.set(w.id, normW(w, upd));
     });
 
     (local.warranties || []).forEach((w) => {
       if (!w || !w.id) return;
       const upd = Number(w.updatedAt) || 0;
       if (mergedDeletedW[w.id] && mergedDeletedW[w.id] >= upd) return;
-      const prev = wById.get(w.id);
+      const nw = normW(w, upd);
+      const prev = wById.get(nw.id);
       if (!prev) {
-        wById.set(w.id, { ...w, category: w.category || "", updatedAt: upd });
+        wById.set(nw.id, nw);
       } else if (upd >= (Number(prev.updatedAt) || 0)) {
-        wById.set(w.id, {
-          ...w,
-          category: w.category || prev.category || "",
-          fileId: w.fileId || prev.fileId || "",
-          fileName: w.fileName || prev.fileName || "",
-          fileLink: w.fileLink || prev.fileLink || "",
+        const mergedAtts = nw.attachments.length ? nw.attachments : prev.attachments;
+        wById.set(nw.id, {
+          ...nw,
+          category: nw.category || prev.category || "",
+          coverId: nw.coverId || prev.coverId || "",
+          coverLink: nw.coverLink || prev.coverLink || "",
+          attachments: mergedAtts,
+          fileId: nw.fileId || prev.fileId || "",
+          fileName: nw.fileName || prev.fileName || "",
+          fileLink: nw.fileLink || prev.fileLink || "",
           updatedAt: upd
         });
       } else {
-        if (!prev.category && w.category) prev.category = w.category;
-        if (!prev.fileLink && w.fileLink) {
-          prev.fileId = w.fileId || prev.fileId || "";
-          prev.fileName = w.fileName || prev.fileName || "";
-          prev.fileLink = w.fileLink;
+        if (!prev.category && nw.category) prev.category = nw.category;
+        if (!prev.coverLink && nw.coverLink) {
+          prev.coverId = nw.coverId || prev.coverId || "";
+          prev.coverLink = nw.coverLink;
+        }
+        if (!prev.attachments.length && nw.attachments.length) {
+          prev.attachments = nw.attachments;
+        }
+        if (!prev.fileLink && nw.fileLink) {
+          prev.fileId = nw.fileId || prev.fileId || "";
+          prev.fileName = nw.fileName || prev.fileName || "";
+          prev.fileLink = nw.fileLink;
         }
       }
     });

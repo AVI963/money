@@ -67,7 +67,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const SAL_TPL_KEY='sal_tpl',SAL_TPL_AT_KEY='sal_tpl_at',SAL_SV_KEY='sal_sv',SAL_DIRTY_PUSH_KEY='sal_dirty_push',SAL_META_KEY='my_money_sal_drive_meta_v1',SAL_DRIVE_FILE=APP_CONFIG.salaryFileName||'my_money_salary.json';
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
   let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
@@ -75,6 +75,7 @@ const expKey=e=>`${e.ym}|${e.d||0}|${String(e.c||'').trim()}|${String(e.t||'').t
 const isExcl=e=>{const k=expKey(e);return (e.sheetExcl&&!S.unexcl.has(k))||S.excl.has(k)};
 function saveExcl(){ls('excl',JSON.stringify([...S.excl]));ls('unexcl',JSON.stringify([...S.unexcl]))}
 const SVG={
+  search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   eye:'<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg viewBox="0 0 24 24"><path d="M9.9 4.2A10.4 10.4 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M6.6 6.6C4 8.4 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/></svg>',
   sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
@@ -394,6 +395,7 @@ async function load(){
 
       S.syncAt=Date.now();
       saveSnap();
+      recordNetWorthSnap();
       S.rt2=0;
       S.syncing=false;
       $('nav').hidden=false;
@@ -646,7 +648,7 @@ function home(){
     ${isCur?`<div><span class="lb">נותר לשוטף</span><b>${fmt(varLeft)}</b></div><div><span class="lb">ממוצע ליום</span><b>${fmt(dailyVarPace)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`
            :`<div><span class="lb">הוצאות שוטפות</span><b>${fmt(varTot)}</b></div><div><span class="lb">ממוצע ליום</span><b>${fmt(tot/daysInMonth)}</b></div><div><span class="lb">פעולות</span><b>${m.length}</b></div>`}
   </div></div>
-  <div class="car">${donut(cs,tot)}${cashflowCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">לחיצה ממושכת על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ לפירוט · סימון "חד-פעמי" (או הערה באקסל) מנטרל מהתחזית</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0,topC=(cs[0]&&cs[0][1])||1;
+  <div class="car">${donut(cs,tot)}${cashflowCard(ys,i)}${forecastCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">לחיצה ממושכת על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3,4].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>${smartAlerts()}${insights(cs,cav)}<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ לפירוט · סימון "חד-פעמי" (או הערה באקסל) מנטרל מהתחזית</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0,topC=(cs[0]&&cs[0][1])||1;
   return `<details class="ct"><summary><span class="ci" style="background:${COL[k%8]}22">${ico(c)}</span><span class="cn"><b>${esc(c)}</b><small>${Math.round(v/(tot||1)*100)}% מההוצאות · ${a.length} פעולות</small></span>
   <span class="ca"><b>${fmt(v)}</b>${bg?`<small class="${v>bg?'neg':'pos'}">${v>bg?'חריגה '+fmt(v-bg):'נשאר '+fmt(bg-v)} מתוך ${fmt(bg)}</small>`:av?`<small class="${r>1.1?'neg':r<.9?'pos':'mut'}">${r>1.1?'▲':r<.9?'▼':'≈'} ממוצע ${fmt(av)}</small>`:''}</span>${SVG.chevD}</summary>
   <div class="ct-body"><div class="bar"><i style="width:${bg?Math.min(v/bg*100,100):v/topC*100}%;background:${bg&&v>bg?'var(--r)':COL[k%8]}"></i></div>${a.sort((x,y)=>y.a-x.a).map(e=>{const ek=expKey(e),ex=isExcl(e);return `<div class="it ${ex?'ex-off':''}"><span>${e.d>1?`<span class="it-day">${e.d}/${mo}</span>`:''}<span class="it-name">${esc(e.t)}</span></span><div class="it-r"><button class="ex-btn ${ex?'on':''}" data-ex="${encodeURIComponent(ek)}" data-se="${e.sheetExcl?1:0}" title="נטרול מהתחזית ומהממוצע">${ex?(e.sheetExcl?'חריג (אקסל)':'חריג ✓'):'חד-פעמי'}</button><b>${fmt(e.a)}</b></div></div>`}).join('')}</div></details>`}).join('')||'<p class="mut">אין הוצאות בחודש הזה.</p>'}</div>`;
@@ -733,7 +735,7 @@ function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!
   return `<div class="card hg"><div class="lb">סך שווי נקי (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
   <div class="trio"><div><span class="lb">השקעות (${Math.round(v/(v+p)*100)}%)</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה והשתלמות (${Math.round(p/(v+p)*100)}%)</span><b>${fmt(p)}</b></div></div></div>`}
 function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${esc(r['שם'])} <span class="mut">${esc(r['סוג']||'')}</span></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
-function inv(){return (S.qt?`<p class="mut" style="margin:4px 6px">● מחירים חיים עודכנו ב-${esc(S.qt)}</p>`:'')+nw()+inv0()+penCard()}
+function inv(){return (S.qt?`<p class="mut" style="margin:4px 6px">● מחירים חיים עודכנו ב-${esc(S.qt)}</p>`:'')+nw()+nwHistoryCard()+inv0()+penCard()}
 
 function todayISO(){
   const d=new Date();
@@ -786,11 +788,21 @@ function dc0(){
   mk=d=>({cat:String(d['קטגוריה']||'').trim(),who:String(d['אדם']||'').trim(),x:parseLocalDate(d['תוקף עד']),sens:String(d['רגיש']||'').trim()=='כן'});
 
   wList.forEach(w=>{
-    if(w.fileId)linkedFileIds.add(w.fileId);
-    if(w.fileLink){
-      linkedFileLinks.add(w.fileLink);
-      const eid=extractDriveId(w.fileLink);
+    const addLink=lnk=>{
+      if(!lnk)return;
+      linkedFileLinks.add(lnk);
+      const eid=extractDriveId(lnk);
       if(eid)linkedFileIds.add(eid);
+    };
+    if(w.fileId)linkedFileIds.add(w.fileId);
+    addLink(w.fileLink);
+    if(w.coverId)linkedFileIds.add(w.coverId);
+    addLink(w.coverLink);
+    if(Array.isArray(w.attachments)){
+      w.attachments.forEach(a=>{
+        if(a&&a.id)linkedFileIds.add(a.id);
+        if(a&&a.link)addLink(a.link);
+      });
     }
   });
   docs.forEach(d=>{
@@ -832,33 +844,188 @@ function dc0(){
   }
 
   const allCount=L.length;
-  const cs=[...new Set(L.map(d=>d.cat).filter(Boolean))];
+  const dcWithDays=L.map(d=>{
+    const days=d.x?Math.round((d.x-now)/864e5):null;
+    const st=days===null?'none':days<0?'expired':days<=90?'soon':'valid';
+    return{...d,days,st};
+  });
+  const cntDcSoon=dcWithDays.filter(d=>d.st==='soon').length;
+  const cntDcExp=dcWithDays.filter(d=>d.st==='expired').length;
+  const cs=[...new Set(dcWithDays.map(d=>d.cat).filter(Boolean))];
   if(S.dcf&&!cs.includes(S.dcf))S.dcf='';
-  L=L.filter(d=>!S.dcf||d.cat==S.dcf).sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15)||String(a.n).localeCompare(String(b.n),'he'));
+  const curDcSt=S.dcStatus||'all';
+  L=dcWithDays.filter(d=>{
+    if(S.dcf&&d.cat!==S.dcf)return false;
+    if(curDcSt==='soon'&&d.st!=='soon')return false;
+    if(curDcSt==='expired'&&d.st!=='expired')return false;
+    if(curDcSt==='valid'&&!(d.st==='valid'||d.st==='none'))return false;
+    return true;
+  }).sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15)||String(a.n).localeCompare(String(b.n),'he'));
 
-  return `<h2>מסמכים ותוקפים</h2><div class="chips"><button class="chip2 ${S.dcf?'':'on'}" data-dcf="">הכל (${allCount})</button>${cs.map(c=>`<button class="chip2 ${S.dcf==c?'on':''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F=='loading'?'<p class="mut">טוען קבצים מהדרייב...</p>':''}`+
+  return `<h2>מסמכים ותוקפים</h2>
+  <div class="chips" style="margin-bottom:4px">
+    <button class="chip2 ${curDcSt==='all'?'on':''}" data-dcs="all">הכל (${allCount})</button>
+    <button class="chip2 ${curDcSt==='soon'?'on':''}" data-dcs="soon">עומד לפוג (${cntDcSoon})</button>
+    <button class="chip2 ${curDcSt==='expired'?'on':''}" data-dcs="expired">פג תוקף (${cntDcExp})</button>
+  </div>
+  <div class="chips"><button class="chip2 ${S.dcf?'':'on'}" data-dcf="">כל הקטגוריות</button>${cs.map(c=>`<button class="chip2 ${S.dcf==c?'on':''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F=='loading'?'<p class="mut">טוען קבצים מהדרייב...</p>':''}`+
   (L.length?L.map(d=>{const n=d.x?Math.round((d.x-now)/864e5):null,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
     return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.n)}${d.sens?' 🔒':''}</b><div class="mut">${[esc(d.who),esc(d.cat),d.x?'עד '+dl(d.x):'',d.missing?'⚠ אין קובץ בדרייב':''].filter(Boolean).join(' · ')}</div></div>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:d.od?`<button class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:''}</div>`}).join(''):'<div class="card"><p class="mut" style="margin:0;text-align:center">אין מסמכים להצגה בקטגוריה זו.</p></div>');
 }
 
+const W_CAT_ICO={'מוצרי חשמל':'🔌','רכב':'🚗','ריהוט':'🛋️','אלקטרוניקה ומחשבים':'💻','בית וגינה':'🏡','שונות':'📦'};
+const NW_HIST_KEY='my_money_nw_history_v1';
+const driveThumbUrl=id=>id?`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w400`:'';
+const normalizeWarranty=w=>{
+  if(!w||typeof w!=='object')return null;
+  const atts=Array.isArray(w.attachments)?w.attachments.filter(a=>a&&(a.link||a.id)):[];
+  if(!atts.length&&(w.fileLink||w.fileId)){
+    atts.push({id:w.fileId||'',name:w.fileName||'קבלה / תעודת אחריות',link:w.fileLink||''});
+  }
+  const coverId=w.coverId||extractDriveId(w.coverLink||'');
+  const coverLink=w.coverLink||(coverId?`https://drive.google.com/file/d/${coverId}/view`:'');
+  return{...w,coverId,coverLink,attachments:atts};
+};
+const getAllWarranties=()=>(window._getWarranties?window._getWarranties():[]).map(normalizeWarranty).filter(Boolean);
+const getCustomWCats=()=>{try{const a=JSON.parse(ls('w_custom_cats')||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}};
+const saveCustomWCat=c=>{
+  const clean=String(c||'').trim();
+  if(!clean||W_CATS.includes(clean))return;
+  const cur=getCustomWCats();
+  if(!cur.includes(clean)){cur.push(clean);ls('w_custom_cats',JSON.stringify(cur))}
+};
+
+function recordNetWorthSnap(){
+  const invV=T(S.inv,'שווי ₪'),penV=T(S.pen,'שווי ₪');
+  const tot=Math.round(invV+penV);
+  if(tot<=0)return;
+  const curYm=ymOf(new Date());
+  let hist=[];
+  try{hist=JSON.parse(ls(NW_HIST_KEY)||'[]')}catch(e){hist=[]}
+  if(!Array.isArray(hist))hist=[];
+  const idx=hist.findIndex(x=>x.ym===curYm);
+  const entry={ym:curYm,inv:Math.round(invV),pen:Math.round(penV),tot,ts:Date.now()};
+  if(idx>=0)hist[idx]=entry;else hist.push(entry);
+  hist=hist.sort((a,b)=>a.ym-b.ym).slice(-24);
+  ls(NW_HIST_KEY,JSON.stringify(hist));
+}
+function nwHistoryCard(){
+  let hist=[];
+  try{hist=JSON.parse(ls(NW_HIST_KEY)||'[]')}catch(e){hist=[]}
+  if(!Array.isArray(hist)||hist.length<2)return '';
+  const pts=hist.slice(-8).map((h,k,arr)=>({
+    v:h.tot,
+    lb:ymShort(h.ym),
+    flb:ymLb(h.ym),
+    on:k===arr.length-1
+  }));
+  const first=pts[0].v,last=pts[pts.length-1].v,diff=last-first;
+  return `<div class="card">
+    <div class="row" style="padding:0"><h2>צמיחת הון אישי (ללא משכנתא)</h2><b class="${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${fmt(diff)}</b></div>
+    <span class="lb">השקעות + פנסיה לאורך זמן</span>
+    ${areaChart(pts,{showLabels:true})}
+  </div>`;
+}
+
+function forecastCard(ys,i){
+  const pm=ys.slice(Math.max(0,i-5),i+1);
+  if(!pm.length)return '';
+  const incYs=pm.filter(y=>((S.mon.find(x=>x.ym==y)||{}).inc||0)>0);
+  const avgInc=incYs.length?T(S.mon.filter(x=>incYs.includes(x.ym)),'inc')/incYs.length:0;
+  const avgExp=T(S.exp.filter(e=>pm.includes(e.ym)&&!isExcl(e)),'a')/pm.length;
+  const now=new Date(),insFuture=S.ins&&Array.isArray(S.ins.pay)?S.ins.pay.filter(p=>p.d>now):[];
+  const ins30=T(insFuture.slice(0,1),'a'),ins60=T(insFuture.slice(0,2),'a'),ins90=T(insFuture.slice(0,3),'a');
+  const net1=avgInc-avgExp-ins30;
+  const net2=avgInc*2-avgExp*2-ins60;
+  const net3=avgInc*3-avgExp*3-ins90;
+  return `<div class="card sl">
+    <div><div class="row" style="padding:0"><h2>תזרים צפוי 30 / 60 / 90</h2><span class="chip mut">ללא משכנתא</span></div>
+    <span class="lb">תחזית יתרה מצטברת לפי הכנסות ממוצעות, הוצאות שוטפות וביטוח חיים</span></div>
+    <div class="fc-grid">
+      <div class="fc-box"><small>30 יום</small><b class="${net1>=0?'pos':'neg'}">${fmt(net1)}</b></div>
+      <div class="fc-box"><small>60 יום</small><b class="${net2>=0?'pos':'neg'}">${fmt(net2)}</b></div>
+      <div class="fc-box"><small>90 יום</small><b class="${net3>=0?'pos':'neg'}">${fmt(net3)}</b></div>
+    </div>
+    <div class="row s mut" style="margin-top:8px"><span>הכנסה ממוצעת: ${fmt(avgInc)}/חודש</span><span>הוצאות וביטוח: ${fmt(avgExp+ins30)}/חודש</span></div>
+  </div>`;
+}
+
+function smartAlerts(){
+  const now=new Date(),alerts=[];
+  getAllWarranties().forEach(w=>{
+    const x=parseLocalDate(w.expiryDate);
+    if(!x)return;
+    const days=Math.round((x-now)/864e5);
+    if(days>=0&&days<=60){
+      alerts.push({cls:days<=14?'bad':'warn',ico:'🧾',txt:`אחריות על "${w.name}" תפוג בעוד ${days} ימים`,act:'wr',id:w.id});
+    }
+  });
+  S.docs.forEach(d=>{
+    const x=parseLocalDate(d['תוקף עד']);
+    if(!x)return;
+    const days=Math.round((x-now)/864e5);
+    if(days>=0&&days<=90){
+      alerts.push({cls:days<=21?'bad':'warn',ico:'📁',txt:`המסמך "${d['שם']}" יפוג בעוד ${days} ימים`,act:'dc'});
+    }
+  });
+  S.cp.forEach(c=>{
+    const x=parseLocalDate(c.x||c['תוקף']);
+    if(!x)return;
+    const days=Math.round((x-now)/864e5);
+    if(days>=0&&days<=45){
+      alerts.push({cls:'info',ico:'🎟️',txt:`קופון "${c.n||c['שם']}" (${fmt(c.a||0)}) יפוג בעוד ${days} ימים`,act:'cp'});
+    }
+  });
+  if(!alerts.length)return '';
+  return `<div class="card"><h2>התראות חכמות (${alerts.length})</h2>${alerts.slice(0,4).map(a=>`<div class="alert-row ${a.cls}" data-alert-go="${a.act}" data-alert-id="${esc(a.id||'')}"><span>${a.ico}</span><span style="font-size:13px;font-weight:600">${esc(a.txt)}</span></div>`).join('')}</div>`;
+}
+
+function globalSearchModal(){
+  if(!S.gsOpen)return '';
+  const q=String(S.gsQ||'').trim().toLowerCase();
+  const resExp=q?S.exp.filter(e=>(e.t+' '+e.c).toLowerCase().includes(q)).slice(0,6):[];
+  const resInv=q?[...S.inv,...S.pen].filter(r=>String(r['שם']||'').toLowerCase().includes(q)).slice(0,5):[];
+  const resWr=q?getAllWarranties().filter(w=>(w.name+' '+w.store+' '+w.category+' '+(w.notes||'')).toLowerCase().includes(q)).slice(0,5):[];
+  const resDoc=q?S.docs.filter(d=>(String(d['שם']||'')+' '+String(d['קטגוריה']||'')).toLowerCase().includes(q)).slice(0,5):[];
+  const total=resExp.length+resInv.length+resWr.length+resDoc.length;
+
+  return `<div class="ms-back" data-gs-close>
+    <div class="ms-sheet" style="max-height:86vh">
+      <div class="ms-grab"></div>
+      <div class="row" style="padding:0 0 8px">
+        <h2 style="margin:0">🔍 חיפוש גלובלי</h2>
+        <button type="button" class="chip2" data-gs-close style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <input id="gs-input" class="wf-inp" type="search" placeholder="חפש הוצאה, מניה, קבלה, אחריות או מסמך..." value="${esc(S.gsQ||'')}">
+      ${!q?`<p class="mut" style="text-align:center;margin:16px 0">הקלד מילת חיפוש לחיפוש מיידי בכל הנתונים באפליקציה.</p>`:''}
+      ${q&&!total?`<p class="mut" style="text-align:center;margin:16px 0">לא נמצאו תוצאות עבור "${esc(S.gsQ)}".</p>`:''}
+      ${resWr.length?`<div class="gs-res-grp"><div class="gs-res-hdr">אחריות וקבלות (${resWr.length})</div>${resWr.map(w=>`<div class="gs-item" data-gs-wr="${esc(w.id)}"><span>🧾 <b>${esc(w.name)}</b> <small class="mut">${esc(w.store||w.category)}</small></span><b>${Number(w.price)>0?fmt(w.price):''}</b></div>`).join('')}</div>`:''}
+      ${resExp.length?`<div class="gs-res-grp"><div class="gs-res-hdr">הוצאות (${resExp.length})</div>${resExp.map(e=>`<div class="gs-item" data-gs-ym="${e.ym}"><span>${ico(e.c)} <b>${esc(e.t)}</b> <small class="mut">${ymLb(e.ym)}</small></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`:''}
+      ${resInv.length?`<div class="gs-res-grp"><div class="gs-res-hdr">השקעות ופנסיה (${resInv.length})</div>${resInv.map(r=>`<div class="gs-item" data-gs-tab="inv"><span>📈 <b>${esc(r['שם'])}</b></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}</div>`:''}
+      ${resDoc.length?`<div class="gs-res-grp"><div class="gs-res-hdr">מסמכים (${resDoc.length})</div>${resDoc.map(d=>`<div class="gs-item" data-gs-sub="dc"><span>📁 <b>${esc(d['שם'])}</b></span><small class="mut">${esc(d['קטגוריה']||'')}</small></div>`).join('')}</div>`:''}
+    </div>
+  </div>`;
+}
+
 function wr(){
-  const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
-  const _wCatOf=typeof wCatOf==='function'?wCatOf:(w=>String((w&&w.category)||'').trim()||'שונות');
   const now=new Date(),F=S.files,files=F&&typeof F==='object'&&Array.isArray(F.out)?F.out:null,
-  wList=window._getWarranties?window._getWarranties():[],
-  fileById=new Map();
+  wList=getAllWarranties(),fileById=new Map();
   if(files)files.forEach(f=>{if(f.id)fileById.set(f.id,f)});
 
   const allItems=wList.map(w=>{
-    const fObj=w.fileId?fileById.get(w.fileId):null;
-    const link=(fObj&&fObj.webViewLink)||w.fileLink||'';
+    const atts=w.attachments.map(a=>{
+      const fObj=a.id?fileById.get(a.id):null;
+      return{...a,link:(fObj&&fObj.webViewLink)||a.link||''};
+    }).filter(a=>a.link||a.id);
     const x=parseLocalDate(w.expiryDate);
     const n=x?Math.round((x-now)/864e5):null;
     const status=n===null?'none':n<0?'expired':n<90?'soon':'valid';
-    const cat=_wCatOf(w);
-    return{...w,link,x,n,status,cat};
+    const cat=wCatOf(w);
+    const coverImg=w.coverId?driveThumbUrl(w.coverId):(w.coverLink||'');
+    return{...w,atts,coverImg,x,n,status,cat};
   });
 
+  const totAssetsVal=allItems.reduce((s,it)=>s+(Number(it.price)||0),0);
   const cntAll=allItems.length;
   const cntValid=allItems.filter(it=>it.n===null||it.n>=0).length;
   const cntSoon=allItems.filter(it=>it.status==='soon').length;
@@ -872,8 +1039,7 @@ function wr(){
     ['expired',`פג תוקף (${cntExpired})`]
   ];
 
-  const extraCats=[...new Set(allItems.map(it=>it.cat).filter(c=>c&&!_W_CATS.includes(c)))];
-  const allCats=[..._W_CATS,...extraCats];
+  const allCats=[...new Set([...W_CATS,...getCustomWCats(),...allItems.map(it=>it.cat).filter(Boolean)])];
   if(S.wrCat&&!allCats.includes(S.wrCat))S.wrCat='';
 
   const filtered=allItems
@@ -887,9 +1053,16 @@ function wr(){
     .sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15)||String(a.name).localeCompare(String(b.name),'he'));
 
   return `<div class="row" style="padding:0 0 6px;gap:8px">
-    <div><h2 style="margin:0">אחריות וקבלות</h2><span class="lb">מעקב תוקף אחריות, קבלות וקטגוריות</span></div>
-    <button class="pr" data-w-open="" style="background:var(--g);color:#fff">+ קבלה / אחריות</button>
+    <div><h2 style="margin:0">אחריות וקבלות</h2><span class="lb">תיק נכסים, תמונות מוצר וריבוי קבלות</span></div>
+    <button class="pr" data-w-open="" style="background:var(--g);color:#fff">+ הוסף מוצר</button>
   </div>
+  ${cntAll?`<div class="card" style="padding:11px 13px;margin-bottom:8px">
+    <div class="trio" style="margin:0">
+      <div><span class="lb">פריטים מתועדים</span><b>${cntAll}</b></div>
+      <div><span class="lb">שווי רכישות</span><b>${fmt(totAssetsVal)}</b></div>
+      <div><span class="lb">באחריות פעילה</span><b class="pos">${cntValid}</b></div>
+    </div>
+  </div>`:''}
   <div class="chips" style="margin:6px 0">
     ${statusTabs.map(([k,lbl])=>`<button class="chip2 ${curStatus===k?'on':''}" data-wrs="${k}">${lbl}</button>`).join('')}
   </div>
@@ -902,11 +1075,79 @@ function wr(){
   </div>`+
   (filtered.length?filtered.map(d=>{
     const n=d.n;
-    const tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים';
+    const tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חוד׳':Math.round(n/365)+' שנים';
     const cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
     const meta=[d.cat,d.store,Number(d.price)>0?fmt(d.price):'',d.x?'עד '+dl(d.x):''].filter(Boolean).map(esc).join(' · ');
-    return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.name)}</b><div class="mut">${meta}</div>${d.notes?`<div class="mut" style="font-size:11.5px;margin-top:2px">${esc(d.notes)}</div>`:''}</div><div class="w-acts"><button class="w-edit-btn" data-w-edit="${esc(d.id)}" title="ערוך אחריות" aria-label="ערוך אחריות">✎</button>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:''}</div></div>`;
-  }).join(''):`<div class="card"><p class="mut" style="margin:0;text-align:center">${allItems.length?'אין קבלות או אחריות התואמות לסינון שנבחר.':'עדיין לא נוספו קבלות או תעודות אחריות. לחץ על "+ קבלה / אחריות" למעלה.'}</p></div>`)+warrantySheet();
+    const catEmoji=W_CAT_ICO[d.cat]||'🧾';
+    return `<div class="w-card" data-w-view="${esc(d.id)}" role="button" tabindex="0">
+      <div class="w-thumb">${d.coverImg?`<img src="${esc(d.coverImg)}" alt="" loading="lazy" onerror="this.remove()">`:catEmoji}</div>
+      <div class="w-body">
+        <div class="w-top">
+          <span class="w-title">${esc(d.name)}</span>
+          <span class="w-badge ${cl}">${tx}</span>
+        </div>
+        <div class="w-sub">${meta||'ללא פרטים נוספים'}</div>
+        ${d.atts.length?`<span class="w-files-pill">📎 ${d.atts.length===1?'קובץ קבלה / אחריות 1':`${d.atts.length} קבצים מצורפים`}</span>`:''}
+      </div>
+    </div>`;
+  }).join(''):`<div class="card"><p class="mut" style="margin:0;text-align:center">${allItems.length?'אין פריטים התואמים לסינון שנבחר.':'עדיין לא נוספו מוצרים או קבלות. לחץ על "+ הוסף מוצר" למעלה.'}</p></div>`)
+  +warrantyDetailSheet()+warrantySheet();
+}
+
+function warrantyDetailSheet(){
+  if(!S.wViewId)return '';
+  const all=getAllWarranties();
+  const d=all.find(x=>x.id===S.wViewId);
+  if(!d){S.wViewId='';return ''}
+  const now=new Date(),x=parseLocalDate(d.expiryDate),pDate=parseLocalDate(d.purchaseDate);
+  const n=x?Math.round((x-now)/864e5):null;
+  const cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
+  const stTx=n===null?'ללא הגבלת תוקף':n<0?`פג לפני ${Math.abs(n)} ימים`:`נותרו ${n} ימים (עד ${dl(x)})`;
+  let progPct=0;
+  if(pDate&&x&&x>pDate){
+    progPct=Math.min(100,Math.max(0,((now-pDate)/(x-pDate))*100));
+  }
+  const coverImg=d.coverId?driveThumbUrl(d.coverId):(d.coverLink||'');
+  const cat=wCatOf(d);
+  return `<div class="ms-back" data-wv-close>
+    <div class="ms-sheet">
+      <div class="ms-grab"></div>
+      <div class="row" style="padding:0 0 6px;gap:8px">
+        <h2 style="margin:0">${esc(d.name)}</h2>
+        <button type="button" class="chip2" data-wv-close style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <div class="wd-hero">
+        <div class="wd-cover" ${d.coverLink?`data-l="${encodeURIComponent(d.coverLink)}"`:''}>${coverImg?`<img src="${esc(coverImg)}" alt="">`:(W_CAT_ICO[cat]||'🧾')}</div>
+        <div style="min-width:0;flex:1">
+          <span class="w-badge ${cl}" style="display:inline-block;margin-bottom:6px">${stTx}</span>
+          <div class="mut" style="font-size:12.5px">${esc(cat)}${d.store?' · '+esc(d.store):''}</div>
+          ${d.coverLink?`<div style="margin-top:6px"><button type="button" class="ex-btn" data-l="${encodeURIComponent(d.coverLink)}">הגדל תמונת מוצר ↗</button></div>`:''}
+        </div>
+      </div>
+      ${x&&pDate?`<div style="margin:8px 0 12px">
+        <div class="bar"><i style="width:${progPct.toFixed(1)}%;background:${n<0?'var(--r)':n<90?'#f59e0b':'var(--g)'}"></i></div>
+        <div class="row s mut" style="padding:0;font-size:11px"><span>נרכש: ${dl(pDate)}</span><span>תפוגה: ${dl(x)}</span></div>
+      </div>`:''}
+      <div class="wd-grid">
+        <div class="wd-kv"><span>מחיר רכישה</span><b>${Number(d.price)>0?fmt(d.price):'לא הוזן'}</b></div>
+        <div class="wd-kv"><span>משך אחריות</span><b>${Number(d.months)>0?d.months+' חודשים':'ללא תוקף'}</b></div>
+        <div class="wd-kv"><span>תאריך רכישה</span><b>${pDate?dl(pDate):'—'}</b></div>
+        <div class="wd-kv"><span>חנות / ספק</span><b>${esc(d.store||'—')}</b></div>
+      </div>
+      ${d.notes?`<div class="wd-kv" style="margin-bottom:10px"><span>הערות / מספר סידורי</span><b>${esc(d.notes)}</b></div>`:''}
+      <div style="margin-top:10px">
+        <b style="font-size:13.5px">קבלות ותעודות אחריות (${d.attachments.length})</b>
+        ${d.attachments.length?`<div class="wd-att-list">${d.attachments.map((a,idx)=>`<div class="wd-att-item">
+          <span class="wd-att-name">📄 ${esc(a.name||`קובץ ${idx+1}`)}</span>
+          ${a.link?`<button type="button" class="pr" data-l="${encodeURIComponent(a.link)}">פתח</button>`:''}
+        </div>`).join('')}</div>`:`<p class="mut" style="font-size:12.5px;margin:6px 0">לא צורפו קבצי קבלה למוצר זה.</p>`}
+      </div>
+      <div class="row" style="margin-top:16px;padding:0;gap:8px">
+        <button type="button" class="pr" data-w-edit="${esc(d.id)}" style="flex:1;background:var(--g);color:#fff;padding:11px">✎ ערוך פרטים וקבצים</button>
+        <button type="button" class="chip2" data-wv-close style="padding:10px 16px">סגור</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 function warrantyPreviewHtml(purchaseDate,months){
@@ -934,32 +1175,46 @@ function updateWarrantyPreviewDom(){
 }
 function warrantySheet(){
   const f=S.wForm;if(!f)return '';
-  const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
   const presets=[[0,'ללא'],[12,'12 חוד׳'],[24,'24 חוד׳'],[36,'36 חוד׳'],[60,'60 חוד׳']];
-  const pf=S.wPendingFile;
-  const fileLabel=pf
-    ?`📎 ${esc(pf.name)} (${(pf.size/1048576).toFixed(1)} MB)`
-    :(f.fileLink||f.fileName?`✅ מצורף: ${esc(f.fileName||'קובץ קבלה בדרייב')}`:'📷 צלם או בחר קובץ קבלה / PDF');
+  const allCats=[...new Set([...W_CATS,...getCustomWCats(),f.category&&f.category!=='__new__'?f.category:W_CATS[0]])];
+  const pendingCover=S.wPendingCover;
+  const pendingFiles=Array.isArray(S.wPendingFiles)?S.wPendingFiles:[];
+  const existingAtts=Array.isArray(f.attachments)?f.attachments:[];
+  const coverLabel=pendingCover
+    ?`🖼️ תמונה חדשה: ${esc(pendingCover.name)}`
+    :(f.coverLink?`✅ קיימת תמונת מוצר בדרייב`:'📷 צלם / בחר תמונת מוצר מבחוץ');
+
   return `<div class="ms-back" data-w-close>
     <div class="ms-sheet">
       <div class="ms-grab"></div>
       <div class="row" style="padding:0 0 6px">
-        <h2 style="margin:0">${f.id?'עריכת קבלה / אחריות':'הוספת קבלה / אחריות'}</h2>
-        <button class="chip2" data-w-close style="padding:4px 10px;font-size:12px">✕</button>
+        <h2 style="margin:0">${f.id?'עריכת מוצר ואחריות':'הוספת מוצר / אחריות'}</h2>
+        <button type="button" class="chip2" data-w-close style="padding:4px 10px;font-size:12px">✕</button>
       </div>
       ${S.wErr?`<div class="bn" style="border-color:var(--r);color:var(--r);margin:6px 0">${esc(S.wErr)}</div>`:''}
+
       <label class="wf-lbl" for="wf-name">שם המוצר *</label>
       <input id="wf-name" class="wf-inp" type="text" placeholder="למשל: מכונת קפה Ninja / שואב אבק" value="${esc(f.name||'')}" data-wf="name">
 
       <label class="wf-lbl" for="wf-cat">קטגוריה</label>
       <select id="wf-cat" class="wf-inp" data-wf="category">
-        ${[...new Set([..._W_CATS,f.category||_W_CATS[0]])].map(c=>`<option value="${esc(c)}" ${(f.category||_W_CATS[0])===c?'selected':''}>${esc(c)}</option>`).join('')}
+        ${allCats.map(c=>`<option value="${esc(c)}" ${!f.newCatMode&&(f.category||W_CATS[0])===c?'selected':''}>${esc(c)}</option>`).join('')}
+        <option value="__new__" ${f.newCatMode?'selected':''}>+ קטגוריה חדשה...</option>
       </select>
+      ${f.newCatMode?`<div style="margin-top:6px"><input id="wf-new-cat" class="wf-inp" type="text" placeholder="הקלד שם קטגוריה חדשה..." value="${esc(f.newCatName||'')}" data-wf="newCatName"></div>`:''}
+
+      <label class="wf-lbl">תמונת מוצר מבחוץ (תוצג בכרטיסייה)</label>
+      <input id="wf-cover-inp" type="file" accept="image/*" style="display:none">
+      <button type="button" id="wf-cover-trig" class="wf-file-btn ${pendingCover||f.coverLink?'has':''}">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${coverLabel}</span>
+        <span style="font-weight:700;color:var(--g);flex:none">${pendingCover||f.coverLink?'החלף':'בחר'}</span>
+      </button>
+      ${(f.coverLink&&!pendingCover)?`<div style="margin-top:4px;text-align:end"><button type="button" class="ex-btn" data-w-uncover>הסר תמונת מוצר</button></div>`:''}
 
       <div class="wf-grid2">
         <div>
           <label class="wf-lbl" for="wf-store">חנות / ספק</label>
-          <input id="wf-store" class="wf-inp" type="text" placeholder="KSP / אמזון / מחסני חשמל" value="${esc(f.store||'')}" data-wf="store">
+          <input id="wf-store" class="wf-inp" type="text" placeholder="KSP / אמזון" value="${esc(f.store||'')}" data-wf="store">
         </div>
         <div>
           <label class="wf-lbl" for="wf-price">מחיר (₪)</label>
@@ -976,26 +1231,33 @@ function warrantySheet(){
         <button type="button" class="chip2 ${f.customMode?'on':''}" data-wm="custom">מותאם</button>
       </div>
       <div id="wf-custom-wrap" style="display:${f.customMode?'block':'none'};margin-bottom:6px">
-        <input id="wf-custom-m" class="wf-inp" type="number" inputmode="numeric" min="0" max="360" placeholder="הזן מספר חודשים (למשל 18)" value="${esc(f.months||'')}" data-wf="customMonths">
+        <input id="wf-custom-m" class="wf-inp" type="number" inputmode="numeric" min="0" max="360" placeholder="מספר חודשים" value="${esc(f.months||'')}" data-wf="customMonths">
       </div>
       <div class="wf-preview" id="wf-preview">${warrantyPreviewHtml(f.purchaseDate,f.months)}</div>
 
-      <label class="wf-lbl">קובץ / צילום קבלה (יישמר ב-${esc(APP_CONFIG.receiptsRootFolder)} / ${esc(APP_CONFIG.receiptsSubFolder)})</label>
-      <input id="wf-file" type="file" accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.webp,.heic" style="display:none">
-      <button type="button" id="wf-file-trig" class="wf-file-btn ${pf||f.fileLink?'has':''}">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fileLabel}</span>
-        <span style="font-weight:700;color:var(--g);flex:none">${pf||f.fileLink?'החלף':'בחר'}</span>
+      <label class="wf-lbl">קבלות ותעודות אחריות (ניתן לצרף כמה קבצים / תמונות / PDF)</label>
+      <input id="wf-file" type="file" multiple accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.webp,.heic" style="display:none">
+      <button type="button" id="wf-file-trig" class="wf-file-btn ${pendingFiles.length||existingAtts.length?'has':''}">
+        <span>📎 הוסף קבלות או תעודות אחריות</span>
+        <span style="font-weight:700;color:var(--g);flex:none">+ הוסף קבצים</span>
       </button>
-      ${(f.fileLink&&!pf)?`<div style="margin-top:4px;text-align:end"><button type="button" class="ex-btn" data-w-unlink>הסר קישור קובץ מהכרטיס</button></div>`:''}
+      ${existingAtts.map((a,i)=>`<div class="wf-att-chip">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✅ ${esc(a.name||`קובץ ${i+1}`)}</span>
+        <button type="button" class="ex-btn" data-w-rm-att="${i}" style="color:var(--r)">הסר</button>
+      </div>`).join('')}
+      ${pendingFiles.map((pf,i)=>`<div class="wf-att-chip">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🆕 ${esc(pf.name)} (${(pf.size/1048576).toFixed(1)} MB)</span>
+        <button type="button" class="ex-btn" data-w-rm-pend="${i}" style="color:var(--r)">ביטול</button>
+      </div>`).join('')}
 
-      <label class="wf-lbl" for="wf-notes">הערות / דגם / מספר סידורי (אופציונלי)</label>
+      <label class="wf-lbl" for="wf-notes">הערות / דגם / מספר סידורי</label>
       <input id="wf-notes" class="wf-inp" type="text" placeholder="למשל: 3 שנות אחריות יבואן רשמי" value="${esc(f.notes||'')}" data-wf="notes">
 
       <div class="row" style="margin-top:16px;padding:0;gap:8px">
-        <button type="button" class="pr" data-w-save style="flex:1;background:var(--g);color:#fff;padding:12px" ${S.wSaving?'disabled':''}>${S.wSaving?'שומר ומעלה לדרייב...':'שמור אחריות ✓'}</button>
+        <button type="button" class="pr" data-w-save style="flex:1;background:var(--g);color:#fff;padding:12px" ${S.wSaving?'disabled':''}>${S.wSaving?'שומר ומעלה לדרייב...':'שמור מוצר ✓'}</button>
         <button type="button" class="chip2" data-w-close style="padding:11px 16px" ${S.wSaving?'disabled':''}>ביטול</button>
       </div>
-      ${f.id?`<div style="margin-top:12px;text-align:center"><button type="button" class="ex-btn" data-w-del="${esc(f.id)}" style="color:var(--r);border-color:rgba(239,68,68,.35)">מחק אחריות זו</button></div>`:''}
+      ${f.id?`<div style="margin-top:12px;text-align:center"><button type="button" class="ex-btn" data-w-del="${esc(f.id)}" style="color:var(--r);border-color:rgba(239,68,68,.35)">מחק מוצר זה</button></div>`:''}
     </div>
   </div>`;
 }
@@ -1327,22 +1589,32 @@ async function uploadReceiptToDrive(file,meta){
 
 async function saveWarrantyAction(){
   const f=S.wForm;if(!f||S.wSaving)return;
-  const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
   const name=String(f.name||'').trim();
   if(!name){S.wErr='נא להזין שם מוצר';draw(true);return}
-  const catEl=document.getElementById('wf-cat');
-  const category=String((catEl?catEl.value:f.category)||_W_CATS[0]).trim();
+  let category=f.newCatMode?String(f.newCatName||'').trim():String(f.category||W_CATS[0]).trim();
+  if(!category){S.wErr='נא להזין שם קטגוריה';draw(true);return}
+  saveCustomWCat(category);
+
   const purchaseDate=String(f.purchaseDate||todayISO()).trim();
   const months=Math.max(0,Math.round(Number(f.months)||0));
   const expiryDate=addMonthsISO(purchaseDate,months);
   const price=Math.max(0,Math.round((parseFloat(String(f.price||'0').replace(',','.'))||0)*100)/100);
   S.wSaving=true;S.wErr='';draw(true);
+
   try{
-    let fileId=f.fileId||'',fileName=f.fileName||'',fileLink=f.fileLink||'';
-    if(S.wPendingFile){
-      const up=await uploadReceiptToDrive(S.wPendingFile,{name,store:f.store,purchaseDate});
-      fileId=up.id||'';fileName=up.name||'';fileLink=up.webViewLink||'';
+    let coverId=f.coverId||'',coverLink=f.coverLink||'';
+    if(S.wPendingCover){
+      const upCov=await uploadReceiptToDrive(S.wPendingCover,{name:`${name} (תמונת מוצר)`,store:f.store,purchaseDate});
+      coverId=upCov.id||'';coverLink=upCov.webViewLink||'';
     }
+    const attachments=[...(Array.isArray(f.attachments)?f.attachments:[])];
+    const pendingList=Array.isArray(S.wPendingFiles)?S.wPendingFiles:[];
+    for(let idx=0;idx<pendingList.length;idx++){
+      const suffix=pendingList.length>1?` (${idx+1})`:'';
+      const up=await uploadReceiptToDrive(pendingList[idx],{name:name+suffix,store:f.store,purchaseDate});
+      attachments.push({id:up.id||'',name:up.name||pendingList[idx].name,link:up.webViewLink||''});
+    }
+    const firstAtt=attachments[0]||{};
     const rec={
       id:f.id||('w_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
       name,
@@ -1353,18 +1625,21 @@ async function saveWarrantyAction(){
       months,
       expiryDate,
       notes:String(f.notes||'').trim(),
-      fileId,
-      fileName,
-      fileLink,
+      coverId,
+      coverLink,
+      attachments,
+      fileId:firstAtt.id||'',
+      fileName:firstAtt.name||'',
+      fileLink:firstAtt.link||'',
       updatedAt:Date.now()
     };
     if(window._saveWarranty)window._saveWarranty(rec);
-    S.wForm=null;S.wPendingFile=null;S.wSaving=false;S.wErr='';
+    S.wForm=null;S.wPendingCover=null;S.wPendingFiles=[];S.wSaving=false;S.wErr='';
     draw();
-    showToast('האחריות נשמרה בהצלחה ✓');
+    showToast('המוצר והקבצים נשמרו בהצלחה ✓');
   }catch(err){
     S.wSaving=false;
-    S.wErr=(err&&err.message)?err.message:'שגיאה בשמירת האחריות';
+    S.wErr=(err&&err.message)?err.message:'שגיאה בשמירה';
     draw(true);
   }
 }
@@ -1396,6 +1671,14 @@ document.addEventListener('input',e=>{
     }else{
       S.wForm[k]=e.target.value;
     }
+    return;
+  }
+  if(e.target.id==='gs-input'){
+    S.gsQ=e.target.value;
+    const pos=e.target.selectionStart;
+    draw(true);
+    const inp=document.getElementById('gs-input');
+    if(inp){inp.focus();if(pos!==null)try{inp.setSelectionRange(pos,pos)}catch(err){}}
     return;
   }
   if(e.target.dataset.fsl!==undefined&&S.fire){
@@ -1923,15 +2206,30 @@ async function quotes(){
 setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
 
 document.addEventListener('change',e=>{
-  if(e.target.id==='wf-file'&&S.wForm){
+  if(e.target.id==='wf-cover-inp'&&S.wForm){
     const file=e.target.files&&e.target.files[0];
-    if(file){
-      S.wPendingFile=file;
-      const trig=document.getElementById('wf-file-trig');
-      if(trig){
-        trig.classList.add('has');
-        trig.innerHTML=`<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${esc(file.name)} (${(file.size/1048576).toFixed(1)} MB)</span><span style="font-weight:700;color:var(--g);flex:none">החלף</span>`;
-      }
+    if(file){S.wPendingCover=file;draw(true)}
+    return;
+  }
+  if(e.target.id==='wf-file'&&S.wForm){
+    const fl=e.target.files?Array.from(e.target.files):[];
+    if(fl.length){
+      if(!Array.isArray(S.wPendingFiles))S.wPendingFiles=[];
+      S.wPendingFiles.push(...fl);
+      draw(true);
+    }
+    return;
+  }
+  if(e.target.dataset.wf==='category'&&S.wForm){
+    if(e.target.value==='__new__'){
+      S.wForm.newCatMode=true;
+      S.wForm.newCatName='';
+      draw(true);
+      setTimeout(()=>{const el=document.getElementById('wf-new-cat');el&&el.focus()},40);
+    }else{
+      S.wForm.newCatMode=false;
+      S.wForm.category=e.target.value;
+      draw(true);
     }
     return;
   }
@@ -2011,8 +2309,8 @@ function draw(skipAnim=false){
   const slb=syncLabel(),dark=isDarkTheme();
   const ys=S.tab==='home'?[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b):[];
   const sy=y=>T(S.exp.filter(e=>e.ym==y),'a');
-  $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-theme-tog title="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}" aria-label="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}">${dark?SVG.sun:SVG.moon}</button><button data-eye class="${S.hide?'on':''}" title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
-  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim||S.tab==='shop'?' no-anim':''}">${({home,pv,inv,more,shop:()=>''}[S.tab]||home)()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
+  $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-gs-open title="חיפוש גלובלי" aria-label="חיפוש גלובלי">${SVG.search}</button><button data-theme-tog title="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}" aria-label="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}">${dark?SVG.sun:SVG.moon}</button><button data-eye class="${S.hide?'on':''}" title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
+  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim||S.tab==='shop'?' no-anim':''}">${({home,pv,inv,more,shop:()=>''}[S.tab]||home)()}</div>${S.tab==='home'?monthSheet(ys,sy):''}${globalSearchModal()}`;
   const sp=document.getElementById('page-shopping');
   if(sp)sp.style.display=S.tab==='shop'?'block':'none';
   if(window._shopRender)window._shopRender();
@@ -2100,40 +2398,93 @@ document.addEventListener('click',e=>{
       return;
     }
   }
-  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-unlink],[data-wrs],[data-wrc],[data-sync-consent]');
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync-consent]');
   if(!b){if(!token&&ls('rt')&&navigator.onLine!==false)refresh().then(ok=>ok&&load());return}
   if(b.classList.contains('ms-back')&&e.target!==b)return;
+  if('gsOpen'in b.dataset){
+    vib(6);S.gsOpen=true;S.gsQ='';draw(true);
+    setTimeout(()=>{const el=document.getElementById('gs-input');el&&el.focus()},50);
+    return;
+  }
+  if('gsClose'in b.dataset){
+    vib(6);S.gsOpen=false;draw(true);return;
+  }
+  if(b.dataset.gsWr){
+    vib(8);S.gsOpen=false;S.tab='more';S.sub='wr';S.wViewId=b.dataset.gsWr;draw();scrollTo(0,0);return;
+  }
+  if(b.dataset.gsYm){
+    vib(8);S.gsOpen=false;S.tab='home';S.sub='';S.ym=+b.dataset.gsYm;draw();scrollTo(0,0);return;
+  }
+  if(b.dataset.gsTab){
+    vib(8);S.gsOpen=false;S.tab=b.dataset.gsTab;S.sub='';draw();scrollTo(0,0);return;
+  }
+  if(b.dataset.gsSub){
+    vib(8);S.gsOpen=false;S.tab='more';S.sub=b.dataset.gsSub;draw();scrollTo(0,0);
+    if(S.sub==='dc'&&token&&!S.files)loadFiles();
+    return;
+  }
+  if(b.dataset.alertGo){
+    vib(8);
+    const act=b.dataset.alertGo;
+    S.tab='more';S.sub=act;
+    if(act==='wr'&&b.dataset.alertId)S.wViewId=b.dataset.alertId;
+    draw();scrollTo(0,0);
+    if((act==='dc'||act==='wr')&&token&&!S.files)loadFiles();
+    return;
+  }
+  if(b.dataset.dcs!==undefined){
+    vib(6);S.dcStatus=b.dataset.dcs;draw();return;
+  }
+  if(b.dataset.wView){
+    vib(6);S.wViewId=b.dataset.wView;draw(true);return;
+  }
+  if('wvClose'in b.dataset){
+    vib(6);S.wViewId='';draw(true);return;
+  }
   if('wOpen'in b.dataset){
     vib(8);
-    const _W_CATS=typeof W_CATS!=='undefined'?W_CATS:['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
-    S.wPendingFile=null;S.wSaving=false;S.wErr='';
-    S.wForm={id:'',name:'',category:_W_CATS[0],store:'',price:'',purchaseDate:todayISO(),months:24,customMode:false,notes:'',fileId:'',fileName:'',fileLink:''};
+    S.wViewId='';S.wPendingCover=null;S.wPendingFiles=[];S.wSaving=false;S.wErr='';
+    S.wForm={id:'',name:'',category:W_CATS[0],newCatMode:false,newCatName:'',store:'',price:'',purchaseDate:todayISO(),months:24,customMode:false,notes:'',coverId:'',coverLink:'',attachments:[],fileId:'',fileName:'',fileLink:''};
     draw(true);
     setTimeout(()=>{const el=document.getElementById('wf-name');el&&el.focus()},60);
     return;
   }
   if(b.dataset.wEdit){
     vib(8);
-    const _wCatOf=typeof wCatOf==='function'?wCatOf:(w=>String((w&&w.category)||'').trim()||'שונות');
-    const wList=window._getWarranties?window._getWarranties():[];
+    const wList=getAllWarranties();
     const w=wList.find(x=>x.id===b.dataset.wEdit);
     if(w){
       const presets=[0,12,24,36,60];
-      S.wPendingFile=null;S.wSaving=false;S.wErr='';
-      S.wForm={...w,category:_wCatOf(w),customMode:!presets.includes(Number(w.months)||0)};
+      S.wViewId='';S.wPendingCover=null;S.wPendingFiles=[];S.wSaving=false;S.wErr='';
+      S.wForm={...w,category:wCatOf(w),newCatMode:false,newCatName:'',attachments:[...w.attachments],customMode:!presets.includes(Number(w.months)||0)};
       draw(true);
     }
     return;
   }
   if('wClose'in b.dataset){
     if(S.wSaving)return;
-    vib(6);S.wForm=null;S.wPendingFile=null;S.wErr='';draw(true);return;
+    vib(6);S.wForm=null;S.wPendingCover=null;S.wPendingFiles=[];S.wErr='';draw(true);return;
+  }
+  if(b.id==='wf-cover-trig'){
+    const inp=document.getElementById('wf-cover-inp');if(inp)inp.click();return;
   }
   if(b.id==='wf-file-trig'){
     const inp=document.getElementById('wf-file');if(inp)inp.click();return;
   }
-  if('wUnlink'in b.dataset&&S.wForm){
-    vib(6);S.wForm.fileId='';S.wForm.fileName='';S.wForm.fileLink='';draw(true);return;
+  if('wUncover'in b.dataset&&S.wForm){
+    vib(6);S.wForm.coverId='';S.wForm.coverLink='';draw(true);return;
+  }
+  if(b.dataset.wRmAtt!==undefined&&S.wForm){
+    vib(6);
+    const idx=+b.dataset.wRmAtt;
+    if(Array.isArray(S.wForm.attachments))S.wForm.attachments.splice(idx,1);
+    draw(true);return;
+  }
+  if(b.dataset.wRmPend!==undefined&&S.wForm){
+    vib(6);
+    const idx=+b.dataset.wRmPend;
+    if(Array.isArray(S.wPendingFiles))S.wPendingFiles.splice(idx,1);
+    draw(true);return;
   }
   if(b.dataset.wrs!==undefined){vib(6);S.wrStatus=b.dataset.wrs;draw();return}
   if(b.dataset.wrc!==undefined){vib(6);S.wrCat=decodeURIComponent(b.dataset.wrc);draw();return}
