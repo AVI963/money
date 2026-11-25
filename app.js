@@ -9,7 +9,6 @@ const APP_CONFIG = Object.assign({
     mort: ['סילוקין', 'משכנתא']
   },
   shoppingFileName: 'my_money_shopping.json',
-  salaryFileName: 'my_money_salary.json',
   receiptsRootFolder: 'Sedrix',
   receiptsSubFolder: 'קבלות ואחריות'
 }, window.APP_CONFIG || {});
@@ -66,8 +65,7 @@ const ICO=[
 const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
-const SAL_TPL_KEY='sal_tpl',SAL_TPL_AT_KEY='sal_tpl_at',SAL_SV_KEY='sal_sv',SAL_DIRTY_PUSH_KEY='sal_dirty_push',SAL_META_KEY='my_money_sal_drive_meta_v1',SAL_DRIVE_FILE=APP_CONFIG.salaryFileName||'my_money_salary.json';
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wPendingFile:null,wSaving:false,wErr:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
   let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
@@ -92,43 +90,28 @@ function msg(t,isHtml=false){
   $('#app').innerHTML='<div id="msg"><p>'+(isHtml?t:esc(t))+'</p></div>';
 }
 
-function reviveInsDates(ins){
-  if(!ins)return null;
-  if(ins.end&&!(ins.end instanceof Date))ins.end=new Date(ins.end);
-  if(Array.isArray(ins.pay))ins.pay.forEach(p=>{if(p&&p.d&&!(p.d instanceof Date))p.d=new Date(p.d)});
-  return ins;
-}
-function reviveMortDates(mort){
-  if(!mort)return null;
-  if(Array.isArray(mort.pulses))mort.pulses.forEach(p=>{if(p&&p.d&&!(p.d instanceof Date))p.d=new Date(p.d)});
-  if(Array.isArray(mort.pay))mort.pay.forEach(p=>{if(p&&p.d&&!(p.d instanceof Date))p.d=new Date(p.d)});
-  return mort;
-}
-
 function saveSnap(){
-  const core={exp:S.exp,mon:S.mon,inv:S.inv.map(r=>({...r,live:0})),pen:S.pen,docs:S.docs,bud:S.bud,cp:S.cp,sal:S.sal,salAt:S.salAt||0,ym:S.ym,syncAt:S.syncAt};
-  if(S.sal&&Object.keys(S.sal).length)saveSalTplLocal();
+  const core={exp:S.exp,mon:S.mon,inv:S.inv.map(r=>({...r,live:0})),pen:S.pen,docs:S.docs,bud:S.bud,ym:S.ym,syncAt:S.syncAt};
   try{ls('data',JSON.stringify({...core,ins:S.ins,mort:S.mort}))}
   catch(e){try{ls('data',JSON.stringify(core))}catch(e2){}}
 }
 function rehydrateSnap(d){
-  if(!d||typeof d!=='object')return false;
-  const hasExp=Array.isArray(d.exp)&&d.exp.length>0;
-  const hasSal=d.sal&&typeof d.sal==='object'&&Object.keys(d.sal).length>0;
-  if(!hasExp&&!hasSal)return false;
-  if(!Array.isArray(d.exp))d.exp=[];
-  if(!Array.isArray(d.mon))d.mon=[];
-  if(!Array.isArray(d.cp))d.cp=[];
+  if(!d||!Array.isArray(d.exp)||!d.exp.length)return false;
+  delete d.cp;delete d.sal;
   if(Array.isArray(d.inv))d.inv.forEach(r=>{if(r)r.live=0});
-  if(d.ins)reviveInsDates(d.ins);
-  if(d.mort)reviveMortDates(d.mort);
-  if(!hasSal&&S.sal&&Object.keys(S.sal).length){delete d.sal;delete d.salAt}
+  if(d.ins){
+    if(d.ins.end)d.ins.end=new Date(d.ins.end);
+    if(Array.isArray(d.ins.pay))d.ins.pay.forEach(p=>{if(p.d)p.d=new Date(p.d)});
+  }
+  if(d.mort){
+    if(Array.isArray(d.mort.pulses))d.mort.pulses.forEach(p=>{if(p.d)p.d=new Date(p.d)});
+    if(Array.isArray(d.mort.pay))d.mort.pay.forEach(p=>{if(p.d)p.d=new Date(p.d)});
+  }
   Object.assign(S,d);
   return true;
 }
 function syncLabel(){
   if(S.syncing)return{cls:'busy',txt:'מסנכרן...'};
-  if(typeof navigator!=='undefined'&&navigator.onLine===false)return{cls:'off',txt:'מצב אופליין'};
   if(!S.syncAt)return{cls:'off',txt:token?'מחובר':'לא מסונכרן'};
   const mins=Math.floor((Date.now()-S.syncAt)/60000);
   const t=mins<1?'עודכן עכשיו':mins<60?`לפני ${mins} דק׳`:new Date(S.syncAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
@@ -142,23 +125,18 @@ async function driveFetchWithRetry(url,opts={},retried=false){
     err.code=401;
     throw err;
   }
-  const usedToken=token;
-  const headers={...(opts.headers||{}),Authorization:'Bearer '+usedToken};
+  const headers={...(opts.headers||{}),Authorization:'Bearer '+token};
   const res=await fetch(url,{...opts,headers});
   if(res.status===401&&!retried){
-    if(token===usedToken){token=null;ls('tok',null)}
-    if(token||await refresh())return driveFetchWithRetry(url,opts,true);
+    token=null;ls('tok',null);
+    if(await refresh())return driveFetchWithRetry(url,opts,true);
     const err=new Error('החיבור פג, לחץ על סנכרן');
     err.code=401;
     throw err;
   }
-  if(res.status===429&&!retried){
-    await new Promise(r=>setTimeout(r,1100+Math.floor(Math.random()*500)));
-    return driveFetchWithRetry(url,opts,true);
-  }
   if(res.status===403){
     let reason='';try{const j=await res.clone().json();reason=String((j.error&&j.error.errors&&j.error.errors[0]&&j.error.errors[0].reason)||'')}catch(e){}
-    if(/ratelimit/i.test(reason)&&!retried){await new Promise(r=>setTimeout(r,1100+Math.floor(Math.random()*500)));return driveFetchWithRetry(url,opts,true)}
+    if(/ratelimit/i.test(reason)&&!retried){await new Promise(r=>setTimeout(r,1200));return driveFetchWithRetry(url,opts,true)}
     if(reason==='insufficientFilePermissions'){const e2=new Error('אין לך הרשאת עריכה לקובץ או לתיקייה הזאת (צפייה בלבד)');e2.code=403;e2.readOnly=true;throw e2}
     const err=new Error('חסרה הרשאת גישה מלאה ל-Google Drive (403) — לחץ על סנכרן לאישור מחדש');
     err.code=403;
@@ -168,97 +146,7 @@ async function driveFetchWithRetry(url,opts={},retried=false){
   return res;
 }
 
-const XLSX_CDN_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-let xlsxWorker=null,xlsxWorkerBroken=false,xlsxReqSeq=0;
-const xlsxPending=new Map();
-
-function initXlsxWorker(){
-  if(xlsxWorkerBroken||typeof Worker==='undefined')return null;
-  if(xlsxWorker)return xlsxWorker;
-  try{
-    const w=new Worker('xlsx-worker.js');
-    w.onmessage=e=>{
-      const {id,ok,data,error}=e.data||{};
-      const p=xlsxPending.get(id);
-      if(!p)return;
-      xlsxPending.delete(id);
-      clearTimeout(p.timer);
-      if(ok)p.resolve(data);
-      else p.reject(new Error(error||'שגיאה בפענוח קובץ אקסל'));
-    };
-    w.onerror=()=>{
-      xlsxWorkerBroken=true;
-      try{w.terminate()}catch(err){}
-      xlsxWorker=null;
-      xlsxPending.forEach(p=>{clearTimeout(p.timer);p.reject(new Error('worker_failed'))});
-      xlsxPending.clear();
-    };
-    w.postMessage({type:'init',xlsxUrl:XLSX_CDN_URL});
-    xlsxWorker=w;
-    return w;
-  }catch(e){
-    xlsxWorkerBroken=true;
-    return null;
-  }
-}
-
-function parseExpWb(wb){
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
-  const exp=[],mon=[],cp=[];
-  const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
-  rows.slice(1).forEach(x=>{
-    if(!x)return;
-    if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
-      const fd=fix(x[4]);
-      const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
-      exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
-    }
-    if(x[9] instanceof Date&&typeof x[11]==='number')mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
-    if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
-  });
-  const extra=extractExtra(wb);
-  return{exp,mon,cp,bud:extra.bud,sal:extra.sal};
-}
-
-function parseInvWb(wb){
-  const g=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{cellDates:true}):[];
-  const inv=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);
-  return{inv,pen:g('פנסיה'),docs:g('מסמכים')};
-}
-
-function parseExcelMain(type,buffer){
-  if(typeof XLSX==='undefined')throw new Error('ספריית האקסל עדיין נטענת, נסה שוב בעוד רגע');
-  const wb=XLSX.read(buffer,{type:'array',cellDates:true});
-  if(type==='exp')return parseExpWb(wb);
-  if(type==='inv')return parseInvWb(wb);
-  if(type==='ins')return parseIns(wb);
-  if(type==='mort')return parseMort(wb);
-  throw new Error('סוג קובץ לא נתמך: '+type);
-}
-
-async function parseExcel(type,buffer){
-  const w=initXlsxWorker();
-  if(!w)return parseExcelMain(type,buffer);
-  try{
-    return await new Promise((resolve,reject)=>{
-      const id=++xlsxReqSeq;
-      const timer=setTimeout(()=>{
-        xlsxPending.delete(id);
-        reject(new Error('worker_timeout'));
-      },15000);
-      xlsxPending.set(id,{resolve,reject,timer});
-      w.postMessage({id,type,buffer,xlsxUrl:XLSX_CDN_URL});
-    });
-  }catch(e){
-    if(/worker_failed|worker_timeout|SheetJS/i.test(String(e&&e.message||''))){
-      xlsxWorkerBroken=true;
-      return parseExcelMain(type,buffer);
-    }
-    throw e;
-  }
-}
-
-async function getFileBuffer(name){
+async function getFile(name){
   const q=encodeURIComponent((name[0]=='='?"name = '"+name.slice(1)+"'":"name contains '"+name+"'")+" and trashed=false and mimeType!='application/vnd.google-apps.folder'");
   const listRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+q);
   const l=await listRes.json();
@@ -270,122 +158,46 @@ async function getFileBuffer(name){
   if(!l.files||!l.files.length)throw new Error('לא נמצא בדרייב קובץ ששמו כולל: '+name);
   const mediaRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files/'+l.files[0].id+'?alt=media&supportsAllDrives=true');
   if(!mediaRes.ok)throw new Error('שגיאה בהורדת הקובץ מהדרייב ('+mediaRes.status+')');
-  return mediaRes.arrayBuffer();
+  return XLSX.read(await mediaRes.arrayBuffer(),{type:'array',cellDates:true});
 }
 
-async function getAnyBuffer(names){
-  let er;
-  for(const n of names){
-    try{return await getFileBuffer(n)}
-    catch(x){er=x;if(x.code===401||x.code===403||/פג/.test(x.message))throw x}
-  }
-  throw er||new Error('לא נמצא קובץ תואם');
-}
-
-async function getFile(name){
-  return XLSX.read(await getFileBuffer(name),{type:'array',cellDates:true});
-}
-
-let loadPromise=null;
 async function load(){
-  if(loadPromise)return loadPromise;
-  if(typeof navigator!=='undefined'&&navigator.onLine===false){
-    S.syncing=false;
-    if(!$('nav').hidden)draw(true);
-    return;
-  }
-  loadPromise=(async()=>{
-    const hadUI=!$('nav').hidden||S.exp.length>0||!!salMap();
-    S.syncing=true;
-    if(hadUI){$('nav').hidden=false;draw(true)}
-    else msg('טוען נתונים מהדרייב...');
-
-    try{
-      initXlsxWorker();
-      if(!token&&ls('rt'))await refresh();
-
-      let renderedEarly=false;
-      const applyExpData=d=>{
-        S.exp=d.exp;S.mon=d.mon;S.cp=d.cp;S.bud=d.bud||{};
-        if(d.sal&&Object.keys(d.sal).length){
-          S.sal=d.sal;S.salAt=Date.now();
-          saveSalTplLocal();
-          syncSalSvWithSheet();
-        }
-        S.err='';S.scopeErr=false;
-        const allYms=S.exp.map(e=>e.ym);
-        if(!allYms.length)S.ym=ymOf(new Date());
-        else if(!S.ym||!allYms.includes(S.ym))S.ym=Math.max(...allYms);
-        if(!S.pv.from)setPr('12');
-      };
-
-      const expTask=getFileBuffer(FILES.exp).then(buf=>parseExcel('exp',buf)).then(d=>{
-        if(!hadUI){
-          applyExpData(d);
-          renderedEarly=true;
-          $('nav').hidden=false;
-          draw();
-        }
-        return d;
-      });
-      const invTask=getFileBuffer(FILES.inv).then(buf=>parseExcel('inv',buf));
-      const insTask=getFileBuffer(FILES.ins).then(buf=>parseExcel('ins',buf));
-      const mortTask=getAnyBuffer(FILES.mort).then(buf=>parseExcel('mort',buf));
-
-      const [expRes,invRes,insRes,mortRes]=await Promise.allSettled([expTask,invTask,insTask,mortTask]);
-
-      if(expRes.status==='rejected')throw expRes.reason;
-      if(!renderedEarly)applyExpData(expRes.value);
-
-      if(invRes.status==='fulfilled'){
-        S.inv=invRes.value.inv;S.pen=invRes.value.pen;S.docs=invRes.value.docs;S.invErr='';
-      }else{
-        S.invErr=invRes.reason&&invRes.reason.message?invRes.reason.message:String(invRes.reason||'');
+  S.syncing=true;if(S.exp.length)draw();else msg('טוען נתונים מהדרייב...');
+  try{
+    const wb=await getFile(FILES.exp),rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
+    S.exp=[];S.mon=[];S.cp=[];S.err='';S.scopeErr=false;S.bud={};S.sal=null;
+    const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
+    rows.slice(1).forEach(x=>{
+      if(!x)return;
+      if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
+        const fd=fix(x[4]);
+        const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
+        S.exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
       }
-
-      if(insRes.status==='fulfilled'){
-        S.ins=reviveInsDates(insRes.value);S.insErr='';
-      }else{
-        const msgIns=insRes.reason&&insRes.reason.message?insRes.reason.message:String(insRes.reason||'');
-        S.insErr=msgIns;
-        if(/לא נמצא|מבנה/.test(msgIns))S.ins=null;
-      }
-
-      if(mortRes.status==='fulfilled'){
-        S.mort=reviveMortDates(mortRes.value);S.mortErr='';
-      }else{
-        const msgMort=mortRes.reason&&mortRes.reason.message?mortRes.reason.message:String(mortRes.reason||'');
-        S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+msgMort;
-        if(/לא נמצא|מבנה/.test(msgMort))S.mort=null;
-      }
-
-      S.syncAt=Date.now();
-      saveSnap();
-      S.rt2=0;
-      S.syncing=false;
-      $('nav').hidden=false;
-      draw(renderedEarly);
-      S.files=null;
-      if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();
-      quotes();
-      if(window._shopSync)window._shopSync('pull',true);
-      syncSalDrive('pull');
-    }catch(e){
-      S.syncing=false;
-      if((e.code===401||/פג/.test(e.message))&&!S.rt2){
-        S.rt2=1;
-        loadPromise=null;
-        if(await refresh())return load();
-      }
-      S.err=e.message;
-      S.scopeErr=!!e.needScope||e.code===403;
-      if(S.exp.length||salMap())draw();
-      else msg(`${esc(e.message)}<br><br><button class="go" ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות Drive מחדש':'נסה שוב'}</button>`,true);
-    }finally{
-      loadPromise=null;
+      if(x[9] instanceof Date&&typeof x[11]==='number')S.mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
+      if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))S.cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
+    });
+    parseExtra(wb);
+    const allYms=S.exp.map(e=>e.ym);
+    if(!allYms.length){
+      S.ym=ymOf(new Date());
+    }else if(!S.ym||!allYms.includes(S.ym)){
+      S.ym=Math.max(...allYms);
     }
-  })();
-  return loadPromise;
+    if(!S.pv.from)setPr('12');
+    try{const w=await getFile(FILES.inv),g=n=>w.Sheets[n]?XLSX.utils.sheet_to_json(w.Sheets[n],{cellDates:true}):[];S.inv=XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);S.pen=g('פנסיה');S.docs=g('מסמכים')}catch(e){S.invErr=e.message}
+    try{S.ins=parseIns(await getFile(FILES.ins))}catch(e){S.ins=null;S.insErr=e.message}
+    try{S.mort=parseMort(await getAny(FILES.mort))}catch(e){S.mort=null;S.mortErr='שגיאה בקריאת קובץ המשכנתא: '+e.message}
+    S.syncAt=Date.now();saveSnap();S.rt2=0;S.syncing=false;
+$('nav').hidden=false;draw();S.files=null;if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();quotes();if(window._shopSync)window._shopSync('pull',true);
+    }catch(e){
+    S.syncing=false;
+    if((e.code===401||/פג/.test(e.message))&&!S.rt2){S.rt2=1;if(await refresh())return load()}
+    S.err=e.message;
+    S.scopeErr=!!e.needScope||e.code===403;
+    if(S.exp.length)draw();
+    else msg(`${esc(e.message)}<br><br><button class="go" ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות Drive מחדש':'נסה שוב'}</button>`,true);
+  }
 }
 
 function parseIns(wb){
@@ -768,7 +580,6 @@ function dc0(){
   let L=[];
   if(files){
     files.forEach(f=>{
-      if(f.name===APP_CONFIG.shoppingFileName||f.name===SAL_DRIVE_FILE||/^my_money_.*\.json$/i.test(f.name))return;
       const gFolder=String(f.g||'').trim();
       if(gFolder===APP_CONFIG.receiptsSubFolder||gFolder.startsWith(APP_CONFIG.receiptsSubFolder+' / '))return;
       if((f.id&&linkedFileIds.has(f.id))||(f.webViewLink&&linkedFileLinks.has(f.webViewLink)))return;
@@ -1139,7 +950,7 @@ function getMoreList(){
     ins:{id:'ins',i:'🛡️',t:'ביטוח חיים',s:'לוח תשלומים והתקדמות',bdg:insNx&&insNx.a?fmt(insNx.a)+'/חודש':'',wide:false,col:'#06b6d4'},
     dc:{id:'dc',i:'📁',t:'מסמכים ותוקפים',s:'דרכון, רישיון וביטוחים',bdg:dcCnt,wide:false,col:'#f59e0b'},
     wr:{id:'wr',i:'🧾',t:'אחריות וקבלות',s:'קבלות, תוקף אחריות וקטגוריות',bdg:wrCnt,wide:false,col:'#10b981'},
-    sl:{id:'sl',i:'🧮',t:'מחשבון שכר',s:'סימולטור משמרות ונטו',bdg:calcSalNet()>0?fmt(calcSalNet()):'',wide:false,col:'#8b5cf6'}
+    sl:{id:'sl',i:'🧮',t:'מחשבון שכר',s:'סימולטור משמרות ונטו',bdg:'',wide:false,col:'#8b5cf6'}
   };
   const defOrder=['fire','mt','cp','ins','dc','wr','sl'];
   let cfg=Array.isArray(S.moreLayout)?S.moreLayout.filter(x=>x&&catalog[x.id]):[];
@@ -1407,23 +1218,18 @@ document.addEventListener('scroll',e=>{const c=e.target;if(c.classList&&c.classL
 
 const post=async(p,b)=>(await fetch(W+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})).json();
 function setTok(j){token=j.access_token;ls('tok',JSON.stringify({t:token,e:Date.now()+((+j.expires_in||3600)-120)*1e3}))}
-let refreshPromise=null;
 async function refresh(){
-  if(refreshPromise)return refreshPromise;
   const rt=ls('rt');if(!rt)return false;
-  refreshPromise=(async()=>{
-    try{
-      const j=await post('/refresh',{refresh_token:rt});
-      if(j.access_token){
-        setTok(j);
-        if(j.refresh_token)ls('rt',j.refresh_token);
-        return true;
-      }
-      if(j.error=='invalid_grant'||j.error=='unauthorized_client')ls('rt',null);
-    }catch(e){}
-    return false;
-  })();
-  try{return await refreshPromise}finally{refreshPromise=null}
+  try{
+    const j=await post('/refresh',{refresh_token:rt});
+    if(j.access_token){
+      setTok(j);
+      if(j.refresh_token)ls('rt',j.refresh_token);
+      return true;
+    }
+    if(j.error=='invalid_grant'||j.error=='unauthorized_client')ls('rt',null);
+  }catch(e){}
+  return false;
 }
 const fail=m=>{
   S.err=m;
@@ -1606,52 +1412,21 @@ function fev(f,get){
   return E();
 }
 
-function extractExtra(wb){
-  const bud={},sal={};
+function parseExtra(wb){
+  S.bud={};
   const bs=wb.Sheets['תקציב'];
   if(bs)XLSX.utils.sheet_to_json(bs,{header:1,raw:true}).forEach(r=>{
-    if(r&&r[0]&&typeof r[1]=='number')bud[String(r[0]).trim()]=r[1];
+    if(r&&r[0]&&typeof r[1]=='number')S.bud[String(r[0]).trim()]=r[1];
   });
-  const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]];
+  const ws=wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],c={};
   if(ws)for(let r=35;r<=95;r++)for(const l of 'KLMNOPQR'){
     const x=ws[l+r];
-    if(x)sal[l+r]={v:x.v,f:x.f};
+    if(x)c[l+r]={v:x.v,f:x.f};
   }
-  return{bud,sal};
-}
-function parseExtra(wb){
-  const ex=extractExtra(wb);
-  S.bud=ex.bud;
-  S.sal=ex.sal;
+  S.sal=c;
 }
 
-let sv=null,salDriveMeta=null,salPushTimer=0,salSyncBusy=false,salPendingPush=false;
-
-function saveSalTplLocal(){
-  if(!S.sal||!Object.keys(S.sal).length)return;
-  ls(SAL_TPL_KEY,JSON.stringify(S.sal));
-  if(S.salAt)ls(SAL_TPL_AT_KEY,String(S.salAt));
-}
-function saveSalSvLocal(markPush=false){
-  if(sv)ls(SAL_SV_KEY,JSON.stringify(sv));
-  if(markPush){salPendingPush=true;ls(SAL_DIRTY_PUSH_KEY,'1')}
-}
-function loadSalLocal(){
-  try{
-    const tpl=JSON.parse(ls(SAL_TPL_KEY));
-    if(tpl&&typeof tpl==='object'&&Object.keys(tpl).length){
-      S.sal=tpl;
-      S.salAt=+ls(SAL_TPL_AT_KEY)||0;
-    }
-  }catch(e){}
-  try{
-    const savedSv=JSON.parse(ls(SAL_SV_KEY));
-    if(savedSv&&typeof savedSv==='object'&&Array.isArray(savedSv.c))sv=savedSv;
-  }catch(e){}
-  try{salDriveMeta=JSON.parse(ls(SAL_META_KEY))}catch(e){}
-  salPendingPush=ls(SAL_DIRTY_PUSH_KEY)==='1';
-}
-
+let sv=null;
 function salCalc(ov){const C=S.sal||{},m={},vis=new Set(),get=a=>{if(a in ov)return ov[a];if(a in m)return m[a];if(vis.has(a))return 0;const c=C[a];if(!c)return 0;vis.add(a);m[a]=c.f?fev(c.f,get):(typeof c.v=='number'?c.v:0);vis.delete(a);return m[a]};return get}
 
 function salMap(){
@@ -1663,7 +1438,6 @@ function salMap(){
     L='KLMNOPQR',
     wa=L.slice(L.indexOf(aw[0])+1).split('').map(c=>c+aw.slice(1)).find(a=>C[a]&&typeof C[a].v=='number'),
     nm=(c,r)=>String(C[c+r]&&C[c+r].v||'').trim();
-  if(!wa)return null;
   return{
     wage:wa,
     sh:'KLMNO'.split('').map(c=>({n:nm(c,r1),cA:c+(r1+1),rA:c+(r1+2),tA:c+(r1+3)})).filter(s=>s.n),
@@ -1675,195 +1449,15 @@ function salMap(){
     net:'P'+(r3+1)
   };
 }
-
-function getSalBaseInfo(M,base){
-  const w0=+base(M.wage)||0;
-  const baseC=M.sh.map(s=>+base(s.cA)||0);
-  return{w0,baseC,sig:w0+'|'+baseC.join(',')};
-}
-function ensureSalSv(M,bi){
-  if(!sv||!Array.isArray(sv.c)||sv.c.length!==M.sh.length){
-    sv={c:[...bi.baseC],w:bi.w0,baseSig:bi.sig,dirty:false,updatedAt:0};
-    saveSalSvLocal(false);
-    return;
-  }
-  sv.c=sv.c.map(x=>Math.max(0,+x||0));
-  sv.w=+sv.w>0?+sv.w:bi.w0;
-}
-function syncSalSvWithSheet(){
-  const M=salMap();if(!M)return;
-  const base=salCalc({}),bi=getSalBaseInfo(M,base);
-  if(!sv||!Array.isArray(sv.c)||sv.c.length!==M.sh.length||!sv.dirty){
-    sv={c:[...bi.baseC],w:bi.w0,baseSig:bi.sig,dirty:false,updatedAt:(sv&&+sv.updatedAt)||0};
-    saveSalSvLocal(false);
-  }
-}
-function commitSalSv(bi){
-  const sameW=Math.abs((+sv.w||0)-bi.w0)<0.001;
-  const sameC=sv.c.length===bi.baseC.length&&sv.c.every((v,idx)=>v===bi.baseC[idx]);
-  sv.baseSig=bi.sig;
-  sv.dirty=!(sameW&&sameC);
-  sv.updatedAt=Date.now();
-  saveSalSvLocal(true);
-  scheduleSalBackup();
-}
-function calcSalNet(){
-  try{
-    const M=salMap();if(!M)return 0;
-    const base=salCalc({}),bi=getSalBaseInfo(M,base);
-    ensureSalSv(M,bi);
-    const ov={[M.wage]:+sv.w||bi.w0};
-    M.sh.forEach((s,k)=>ov[s.cA]=sv.c[k]);
-    return +salCalc(ov)(M.net)||0;
-  }catch(e){return 0}
-}
-
-function scheduleSalBackup(delay=1200){
-  clearTimeout(salPushTimer);
-  salPushTimer=setTimeout(()=>syncSalDrive('push'),delay);
-}
-
-async function resolveSalFileId(allowCreate){
-  if(salDriveMeta&&salDriveMeta.fileId)return{id:salDriveMeta.fileId,created:false};
-  const safeName=SAL_DRIVE_FILE.replace(/'/g,"\\'");
-  const q=`name='${safeName}' and trashed=false`;
-  const res=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy='+encodeURIComponent('modifiedTime desc')+'&q='+encodeURIComponent(q));
-  if(!res.ok)return{id:'',created:false};
-  const data=await res.json();
-  if(Array.isArray(data.files)&&data.files.length){
-    salDriveMeta={fileId:data.files[0].id};
-    ls(SAL_META_KEY,JSON.stringify(salDriveMeta));
-    return{id:salDriveMeta.fileId,created:false};
-  }
-  if(!allowCreate)return{id:'',created:false};
-
-  let parentId=(S.files&&typeof S.files==='object'&&S.files.root)||'';
-  if(!parentId){
-    try{
-      const rootSafe=APP_CONFIG.receiptsRootFolder.replace(/'/g,"\\'");
-      const rq=`name='${rootSafe}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-      const rRes=await driveFetchWithRetry('https://www.googleapis.com/drive/v3/files?fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&q='+encodeURIComponent(rq));
-      if(rRes.ok){
-        const rJson=await rRes.json();
-        if(rJson.files&&rJson.files[0])parentId=rJson.files[0].id;
-      }
-    }catch(e){}
-  }
-
-  const boundary='-------myMoneySalBoundary'+Date.now();
-  const meta={name:SAL_DRIVE_FILE,mimeType:'application/json'};
-  if(parentId)meta.parents=[parentId];
-  const initPayload={version:1,updatedAt:Date.now(),sal:S.sal||null,salAt:S.salAt||0,sv:sv||null};
-  const bodyBlob=new Blob([
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
-    JSON.stringify(meta),
-    `\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
-    JSON.stringify(initPayload),
-    `\r\n--${boundary}--`
-  ],{type:`multipart/related; boundary=${boundary}`});
-
-  const cRes=await driveFetchWithRetry('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id',{
-    method:'POST',
-    headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
-    body:bodyBlob
-  });
-  if(!cRes.ok)return{id:'',created:false};
-  const created=await cRes.json();
-  if(created&&created.id){
-    salDriveMeta={fileId:created.id};
-    ls(SAL_META_KEY,JSON.stringify(salDriveMeta));
-    salPendingPush=false;
-    ls(SAL_DIRTY_PUSH_KEY,null);
-    return{id:created.id,created:true};
-  }
-  return{id:'',created:false};
-}
-
-async function syncSalDrive(mode='pull'){
-  if(typeof navigator!=='undefined'&&navigator.onLine===false)return;
-  if(!token&&ls('rt')){const ok=await refresh();if(!ok)return}
-  if(!token)return;
-  if(salSyncBusy){
-    if(mode==='push')salPendingPush=true;
-    return;
-  }
-  const hasLocalSal=!!(S.sal&&Object.keys(S.sal).length);
-  const wantWrite=mode==='push'||salPendingPush||ls(SAL_DIRTY_PUSH_KEY)==='1';
-  salSyncBusy=true;
-  try{
-    let resolved=await resolveSalFileId(wantWrite||hasLocalSal);
-    if(!resolved.id||resolved.created)return;
-    let fileId=resolved.id;
-
-    let remote=null;
-    const rRes=await driveFetchWithRetry(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`);
-    if(rRes.status===404){
-      salDriveMeta=null;ls(SAL_META_KEY,null);
-      resolved=await resolveSalFileId(wantWrite||hasLocalSal);
-      if(!resolved.id||resolved.created)return;
-      fileId=resolved.id;
-    }else if(rRes.ok){
-      const txt=await rRes.text();
-      if(txt&&txt.trim()){try{remote=JSON.parse(txt)}catch(e){}}
-    }
-
-    let uiChanged=false,needRemoteWrite=wantWrite;
-
-    if(remote&&typeof remote==='object'){
-      const remHasSal=remote.sal&&typeof remote.sal==='object'&&Object.keys(remote.sal).length>0;
-      if(!hasLocalSal&&remHasSal){
-        S.sal=remote.sal;
-        S.salAt=+remote.salAt||Date.now();
-        saveSalTplLocal();
-        saveSnap();
-        uiChanged=true;
-      }else if(hasLocalSal&&(!remHasSal||JSON.stringify(S.sal)!==JSON.stringify(remote.sal))){
-        if((S.salAt||0)>=(+remote.salAt||0))needRemoteWrite=true;
-      }
-
-      const locUpd=Number(sv&&sv.updatedAt)||0;
-      const remUpd=Number(remote.sv&&remote.sv.updatedAt)||0;
-      if(remote.sv&&Array.isArray(remote.sv.c)&&remUpd>locUpd){
-        sv=remote.sv;
-        saveSalSvLocal(false);
-        uiChanged=true;
-      }else if(sv&&locUpd>remUpd){
-        needRemoteWrite=true;
-      }
-    }else if(hasLocalSal||sv){
-      needRemoteWrite=true;
-    }
-
-    if(needRemoteWrite&&(S.sal||sv)){
-      const payload={version:1,updatedAt:Date.now(),sal:S.sal||null,salAt:S.salAt||0,sv:sv||null};
-      const wRes=await driveFetchWithRetry(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&supportsAllDrives=true`,{
-        method:'PATCH',
-        headers:{'Content-Type':'application/json; charset=UTF-8'},
-        body:JSON.stringify(payload)
-      });
-      if(wRes.status===404){salDriveMeta=null;ls(SAL_META_KEY,null)}
-      else if(wRes.ok){salPendingPush=false;ls(SAL_DIRTY_PUSH_KEY,null)}
-    }
-
-    if(uiChanged&&!$('nav').hidden&&(S.tab==='more'&&(S.sub==='sl'||!S.sub))){
-      draw(true);
-    }
-  }catch(e){}
-  finally{
-    salSyncBusy=false;
-    if(salPendingPush&&navigator.onLine!==false)scheduleSalBackup(1500);
-  }
-}
-
 function sl(){
-  const M=salMap();if(!M)return `<div class="card"><p>לא נמצא מחשבון השכר בגיליון ראשי של קובץ ההוצאות.${S.exp.length?'':' סנכרן עם הדרייב פעם אחת לשמירה קבועה במכשיר.'}</p></div>`;
-  const base=salCalc({}),bi=getSalBaseInfo(M,base),w0=bi.w0;
-  ensureSalSv(M,bi);
+  const M=salMap();if(!M)return `<div class="card"><p>לא נמצא מחשבון השכר בגיליון ראשי של קובץ ההוצאות.${S.exp.length?'':' סנכרן עם הדרייב.'}</p></div>`;
+  const base=salCalc({}),w0=+base(M.wage)||0;
+  if(!sv||!sv.c||sv.c.length!=M.sh.length)sv={c:M.sh.map(s=>+base(s.cA)||0),w:w0};
   const ov={[M.wage]:+sv.w||w0};M.sh.forEach((s,k)=>ov[s.cA]=sv.c[k]);
   const g=salCalc(ov),n=g(M.net),gr=g(M.gross),n0=base(M.net),diff=n-n0,cnt=sv.c.reduce((a,b)=>a+b,0),mg=M.sh.map((s,k)=>salCalc({...ov,[s.cA]:sv.c[k]+1})(M.net)-n);
   return [`<div class="sl-float" id="slf" data-up-top><span style="font-size:13px;font-weight:700">נטו חזוי: <b class="pos" style="font-size:15px">${fmt(n)}</b></span>${Math.abs(diff)>=1?`<span class="chip ${diff<0?'bad':''}" style="padding:2px 9px;font-size:11.5px">${diff>0?'+':''}${fmt(diff)}</span>`:`<span class="mut" style="font-size:11.5px">${cnt} משמרות</span>`}</div>`,
   `<div class="card hg"><div class="lb">מחשבון שכר</div><div class="lb">שכר נטו חזוי</div><div class="big">${fmt(n)}</div><span class="chip">${fmt(gr)} ברוטו</span><div class="row s" style="margin-top:10px"><span class="lb">בקובץ האקסל כרגע</span><b>${fmt(n0)}</b></div></div>`,
-  `<div class="card"><h2>משמרות החודש</h2><span class="lb">נשמר אוטומטית גם באופליין ומגובה ברקע · לא משנה את האקסל</span>${M.sh.map((s,k)=>`<div class="row" style="align-items:center;padding:10px 0;border-top:1px solid var(--line)"><div><b>${esc(s.n)}</b><div class="mut">${fmt(g(s.rA))} למשמרת · נטו נוסף ${fmt(mg[k])}</div></div><div class="stp"><button class="chip2" data-sc="${k}:-1">−</button><b>${sv.c[k]}</b><button class="chip2" data-sc="${k}:1">+</button></div><b style="min-width:72px;text-align:end">${fmt(g(s.tA))}</b></div>`).join('')}
+  `<div class="card"><h2>משמרות החודש</h2><span class="lb">שינוי כאן נשמר במכשיר בלבד ולא משנה את האקסל</span>${M.sh.map((s,k)=>`<div class="row" style="align-items:center;padding:10px 0;border-top:1px solid var(--line)"><div><b>${esc(s.n)}</b><div class="mut">${fmt(g(s.rA))} למשמרת · נטו נוסף ${fmt(mg[k])}</div></div><div class="stp"><button class="chip2" data-sc="${k}:-1">−</button><b>${sv.c[k]}</b><button class="chip2" data-sc="${k}:1">+</button></div><b style="min-width:72px;text-align:end">${fmt(g(s.tA))}</b></div>`).join('')}
   <div class="row" style="align-items:center;margin-top:8px"><span class="lb">שכר לשעה</span><input type="number" step="0.01" data-sw value="${ov[M.wage]}"></div><button class="chip2" data-sreset style="margin-top:8px">אפס לערכי האקסל</button></div>`,
   `<div class="card"><h2>פירוט</h2><div class="row s"><span>משמרות (${cnt})</span><b>${fmt(g(M.shiftTot))}</b></div>${M.ad.map(x=>`<div class="row s mut"><span>${esc(x.n)}</span><span>${fmt(g(x.a))}</span></div>`).join('')}<div class="row s"><span>סה״כ הוספות</span><b>${fmt(g(M.addTot))}</b></div><div class="row" style="border-top:1px solid var(--line)"><b>ברוטו</b><b>${fmt(gr)}</b></div>${M.ded.map(x=>`<div class="row s"><span>${esc(x.n)}</span><b class="neg">${fmt(g(x.a))}</b></div>`).join('')}<div class="row" style="border-top:1px solid var(--line)"><b>שכר נטו</b><b class="pos">${fmt(n)}</b></div></div>`,
   `<div class="card"><h2>תובנות</h2><div class="row s"><span class="lb">ניכויים מהברוטו</span><b>${gr?((1-n/gr)*100).toFixed(1):0}%</b></div><div class="row s"><span class="lb">נטו ממוצע למשמרת</span><b>${cnt?fmt(n/cnt):'—'}</b></div></div>`].join('');
@@ -1900,16 +1494,7 @@ document.addEventListener('change',e=>{
     }
     return;
   }
-  if(e.target.dataset.sw!==undefined){
-    const M=salMap();
-    if(M){
-      const base=salCalc({}),bi=getSalBaseInfo(M,base),nw=+e.target.value;
-      ensureSalSv(M,bi);
-      sv.w=nw>0?nw:bi.w0;
-      commitSalSv(bi);
-      draw(true);
-    }
-  }
+  if(e.target.dataset.sw!==undefined&&sv){sv.w=+e.target.value;draw()}
   if(e.target.dataset.fsl!==undefined&&S.fire){ls('fire_cfg',JSON.stringify(S.fire))}
   const s=e.target.dataset.sel;if(s){S.pv[s]=+e.target.value;S.pv.pr='';S.pv.dr=null;draw()}
 });
@@ -2044,7 +1629,7 @@ document.addEventListener('click',e=>{
     }
   }
   const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-unlink],[data-wrs],[data-wrc],[data-sync-consent]');
-  if(!b){if(!token&&ls('rt')&&navigator.onLine!==false)refresh().then(ok=>ok&&load());return}
+  if(!b){if(!token&&ls('rt'))refresh().then(ok=>ok&&load());return}
   if(b.classList.contains('ms-back')&&e.target!==b)return;
   if('wOpen'in b.dataset){
     vib(8);
@@ -2149,37 +1734,13 @@ document.addEventListener('click',e=>{
     return;
   }
   if('qclr'in b.dataset){vib(6);clearTimeout(qTimer);S.pv.q='';S.pv.dr=null;draw(true);const inp=document.querySelector('input[data-q]');if(inp)inp.focus();return}
-  if('syncConsent'in b.dataset){vib(10);if(navigator.onLine===false){showToast('אין חיבור לאינטרנט — מוצגים נתונים שמורים','err');return}login(true);return}
-  if('sync'in b.dataset){vib(10);if(navigator.onLine===false){showToast('אין חיבור לאינטרנט — מוצגים נתונים שמורים','err');return}login(!!S.scopeErr);return}
+  if('syncConsent'in b.dataset){vib(10);login(true);return}
+  if('sync'in b.dataset){vib(10);login(!!S.scopeErr);return}
   if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
   if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0);if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}
   if(b.dataset.dn!==undefined){vib(6);const c=decodeURIComponent(b.dataset.dn);S.dnSel=(!c||S.dnSel===c)?null:c;draw();return}
-  if(b.dataset.sc){
-    const M=salMap();
-    if(M){
-      vib(6);
-      const base=salCalc({}),bi=getSalBaseInfo(M,base),[k,d]=b.dataset.sc.split(':');
-      ensureSalSv(M,bi);
-      sv.c[+k]=Math.max(0,(+sv.c[+k]||0)+ +d);
-      commitSalSv(bi);
-      draw(true);
-    }
-    return;
-  }
-  if('sreset'in b.dataset){
-    vib(8);
-    const M=salMap();
-    if(M){
-      const base=salCalc({}),bi=getSalBaseInfo(M,base);
-      sv={c:[...bi.baseC],w:bi.w0,baseSig:bi.sig,dirty:false,updatedAt:Date.now()};
-      saveSalSvLocal(true);
-      scheduleSalBackup();
-    }else{
-      sv=null;ls(SAL_SV_KEY,null);
-    }
-    draw(true);
-    return;
-  }
+  if(b.dataset.sc){vib(6);const [k,d]=b.dataset.sc.split(':');sv.c[+k]=Math.max(0,sv.c[+k]+ +d);draw();return}
+  if('sreset'in b.dataset){vib(8);sv=null;draw();return}
   if(b.dataset.pr){vib(6);setPr(b.dataset.pr);draw()}
   if(b.dataset.by){vib(6);S.pv.by=b.dataset.by;S.pv.dr=null;draw()}
   if(b.dataset.rows){vib(6);S.pv.rows=b.dataset.rows;S.pv.dr=null;draw()}
@@ -2191,7 +1752,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.od)openDoc(decodeURIComponent(b.dataset.od),decodeURIComponent(b.dataset.op||''));
   if(b.dataset.r){vib(6);S.pv.dr={r:decodeURIComponent(b.dataset.r),k:b.dataset.k,p:b.dataset.p===''?null:+b.dataset.p};draw();toDr()}
   if('fl'in b.dataset)loadFiles();
-  if('sub'in b.dataset){vib(8);S.sub=b.dataset.sub;draw();scrollTo(0,0);if(S.sub=='dc'&&token&&!S.files)loadFiles();if(S.sub=='wr'){if(token&&!S.files)loadFiles();if(window._shopSync)window._shopSync('pull',true)}if(S.sub=='sl')syncSalDrive('pull')}
+  if('sub'in b.dataset){vib(8);S.sub=b.dataset.sub;draw();scrollTo(0,0);if(S.sub=='dc'&&token&&!S.files)loadFiles();if(S.sub=='wr'){if(token&&!S.files)loadFiles();if(window._shopSync)window._shopSync('pull',true)}}
   if('dcf'in b.dataset){vib(6);S.dcf=decodeURIComponent(b.dataset.dcf);draw()}
   if(b.dataset.l)open(decodeURIComponent(b.dataset.l),'_blank','noopener');
 
@@ -2212,43 +1773,11 @@ document.addEventListener('click',e=>{
   }
   try{const ml=JSON.parse(ls('more_layout'));if(Array.isArray(ml))S.moreLayout=ml}catch(e){}
   try{const fc=JSON.parse(ls('fire_cfg'));if(fc&&typeof fc==='object')S.fire=fc}catch(e){}
-  loadSalLocal();
-  let hasSnap=false;
-  try{const d=JSON.parse(ls('data'));hasSnap=rehydrateSnap(d)}catch(e){}
-  if(S.sal&&Object.keys(S.sal).length){
-    saveSalTplLocal();
-    syncSalSvWithSheet();
-  }
-  if(hasSnap||salMap()||(navigator.onLine===false&&(ls('gd')==='1'||ls('rt')))){
-    if(!S.pv.from)setPr('12');
-    if(!S.exp.length&&salMap()){S.tab='more';S.sub='sl'}
-    $('nav').hidden=false;
-    draw();
-  }
-  try{const t=JSON.parse(ls('tok'));if(t&&t.e>Date.now())token=t.t}catch(e){}
-  if(navigator.onLine!==false){
-    initXlsxWorker();
-    if(token)load();
-    else if(ls('rt'))refresh().then(ok=>ok&&load());
-  }
-  window.addEventListener('offline',()=>{if(!$('nav').hidden)draw(true)});
-  window.addEventListener('online',()=>{
-    if(!$('nav').hidden)draw(true);
-    if(salPendingPush||ls(SAL_DIRTY_PUSH_KEY)==='1')scheduleSalBackup(300);
-    if(token||ls('rt')){
-      if(!S.syncAt||Date.now()-S.syncAt>5*60*1e3){
-        (token?Promise.resolve(true):refresh()).then(ok=>ok&&load());
-      }
-    }
-  });
-  setInterval(()=>{if(document.visibilityState=='visible'&&navigator.onLine!==false&&ls('rt'))refresh()},40*60*1e3);
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState=='visible'&&navigator.onLine!==false){
-      if(ls('rt')){let t;try{t=JSON.parse(ls('tok'))}catch(e){}if(!t||t.e<Date.now())refresh().then(ok=>ok&&load())}
-      if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true);
-      if(S.tab==='more'&&S.sub==='sl')syncSalDrive('pull');
-    }
-  });
+  try{const d=JSON.parse(ls('data'));if(rehydrateSnap(d)){if(!S.pv.from)setPr('12');$('nav').hidden=false;draw()}}catch(e){}
+  try{const t=JSON.parse(ls('tok'));if(t&&t.e>Date.now()){token=t.t;load()}}catch(e){}
+  if(!token)refresh().then(ok=>ok&&load());
+  setInterval(()=>{if(document.visibilityState=='visible'&&ls('rt'))refresh()},40*60*1e3);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'){if(ls('rt')){let t;try{t=JSON.parse(ls('tok'))}catch(e){}if(!t||t.e<Date.now())refresh().then(ok=>ok&&load())}if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}});
 })();
 
 if('serviceWorker'in navigator){
