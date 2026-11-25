@@ -6,6 +6,30 @@
   const DELETED_KEY = "my_money_shop_deleted_v1";
   const WARRANTIES_KEY = "my_money_warranties_v1";
   const DELETED_WARRANTIES_KEY = "my_money_warranties_deleted_v1";
+  const GOALS_KEY = "my_money_goals_v1";
+  const DELETED_GOALS_KEY = "my_money_goals_deleted_v1";
+
+  const DEFAULT_GOALS = [
+    // דברים שרוצה לעשות (4)
+    { id: "g_def_1", type: "do", title: "ללמוד אנגלית", priority: 10, cost: 0, saved: 0, done: false, notes: "", updatedAt: 1700000000001 },
+    { id: "g_def_2", type: "do", title: "סדנה זוגית", priority: 7, cost: 2500, saved: 0, done: false, notes: "", updatedAt: 1700000000002 },
+    { id: "g_def_3", type: "do", title: "לטוס ליפן", priority: 1, cost: 15000, saved: 0, done: false, notes: "", updatedAt: 1700000000003 },
+    { id: "g_def_4", type: "do", title: "לטוס לאיטליה", priority: 1, cost: 12000, saved: 0, done: false, notes: "", updatedAt: 1700000000004 },
+    // דברים שרוצה לקנות (13)
+    { id: "g_def_5", type: "buy", title: "עפעפי שחר", priority: 8, cost: 25, saved: 0, done: false, notes: "", updatedAt: 1700000000005 },
+    { id: "g_def_6", type: "buy", title: "וויסקי", priority: 6, cost: 700, saved: 0, done: false, notes: "", updatedAt: 1700000000006 },
+    { id: "g_def_7", type: "buy", title: "סכום חלבי", priority: 5, cost: 100, saved: 0, done: false, notes: "", updatedAt: 1700000000007 },
+    { id: "g_def_8", type: "buy", title: "עכבר ומקלדת", priority: 5, cost: 500, saved: 0, done: false, notes: "", updatedAt: 1700000000008 },
+    { id: "g_def_9", type: "buy", title: "צלחות קורל בשריות", priority: 4, cost: 250, saved: 0, done: false, notes: "", updatedAt: 1700000000009 },
+    { id: "g_def_10", type: "buy", title: "כיסאות מתקפלים", priority: 4, cost: 40, saved: 0, done: false, notes: "", updatedAt: 1700000000010 },
+    { id: "g_def_11", type: "buy", title: "שואב שוטף", priority: 3, cost: 2500, saved: 0, done: false, notes: "", updatedAt: 1700000000011 },
+    { id: "g_def_12", type: "buy", title: "טאבון", priority: 3, cost: 800, saved: 0, done: false, notes: "", updatedAt: 1700000000012 },
+    { id: "g_def_13", type: "buy", title: "מכונת גלידה", priority: 2, cost: 600, saved: 0, done: false, notes: "", updatedAt: 1700000000013 },
+    { id: "g_def_14", type: "buy", title: "מכונת שייקים", priority: 2, cost: 600, saved: 0, done: false, notes: "", updatedAt: 1700000000014 },
+    { id: "g_def_15", type: "buy", title: "משנה שטיינזלץ", priority: 1, cost: 600, saved: 0, done: false, notes: "", updatedAt: 1700000000015 },
+    { id: "g_def_16", type: "buy", title: "סוויצר למזגן", priority: 1, cost: 120, saved: 0, done: false, notes: "", updatedAt: 1700000000016 },
+    { id: "g_def_17", type: "buy", title: "רכב", priority: 1, cost: 25000, saved: 0, done: false, notes: "", updatedAt: 1700000000017 }
+  ];
   const FILE_META_KEY = "my_money_shop_drive_meta_v1";
   const DRIVE_FILE_NAME = APP_CONFIG.shoppingFileName;
 
@@ -56,6 +80,12 @@
   let deletedIds = loadJson(DELETED_KEY, {});
   let warranties = loadJson(WARRANTIES_KEY, []);
   let deletedWarranties = loadJson(DELETED_WARRANTIES_KEY, {});
+  let deletedGoals = loadJson(DELETED_GOALS_KEY, {});
+  let goals = (() => {
+    const saved = loadJson(GOALS_KEY, null);
+    if (Array.isArray(saved)) return saved;
+    return DEFAULT_GOALS.filter((g) => !deletedGoals[g.id]).map((g) => ({ ...g }));
+  })();
   let driveMeta = loadJson(FILE_META_KEY, null);
   let currentFilter = "all";
   let editingPriceItemId = null;
@@ -107,6 +137,8 @@
       localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
       localStorage.setItem(WARRANTIES_KEY, JSON.stringify(warranties));
       localStorage.setItem(DELETED_WARRANTIES_KEY, JSON.stringify(deletedWarranties));
+      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+      localStorage.setItem(DELETED_GOALS_KEY, JSON.stringify(deletedGoals));
     } catch {}
   }
 
@@ -317,6 +349,24 @@
       if (!p || (Number(p.updatedAt) || 0) !== (Number(w.updatedAt) || 0)) return true;
     }
 
+    const prevGoals = Array.isArray(prev.goals) ? prev.goals : [];
+    const nextGoals = Array.isArray(next.goals) ? next.goals : [];
+    if (prevGoals.length !== nextGoals.length) return true;
+    const prevGMap = new Map(prevGoals.map((g) => [g.id, g]));
+    for (const g of nextGoals) {
+      const p = prevGMap.get(g.id);
+      if (
+        !p ||
+        (Number(p.updatedAt) || 0) !== (Number(g.updatedAt) || 0) ||
+        !!p.done !== !!g.done ||
+        (Number(p.priority) || 0) !== (Number(g.priority) || 0) ||
+        (Number(p.cost) || 0) !== (Number(g.cost) || 0) ||
+        (Number(p.saved) || 0) !== (Number(g.saved) || 0)
+      ) {
+        return true;
+      }
+    }
+
     const prevMemKeys = Object.keys(prev.priceMemory);
     const nextMemKeys = Object.keys(next.priceMemory);
     if (prevMemKeys.length !== nextMemKeys.length) return true;
@@ -468,12 +518,58 @@
       }
     });
 
+    const mergedDeletedG = {};
+    const allDelGKeys = new Set([...Object.keys(local.deletedGoals || {}), ...Object.keys(remote.deletedGoals || {})]);
+    allDelGKeys.forEach((id) => {
+      const ts = Math.max(Number(local.deletedGoals?.[id]) || 0, Number(remote.deletedGoals?.[id]) || 0);
+      if (ts > cutoff) mergedDeletedG[id] = ts;
+    });
+
+    const normG = (g, upd) => ({
+      id: String(g.id),
+      type: g.type === "do" ? "do" : "buy",
+      title: String(g.title || "").trim(),
+      priority: Math.min(10, Math.max(1, Number(g.priority) || 5)),
+      cost: Math.max(0, Number(g.cost) || 0),
+      saved: Math.max(0, Number(g.saved) || 0),
+      done: !!g.done,
+      notes: String(g.notes || "").trim(),
+      updatedAt: upd
+    });
+
+    const gById = new Map();
+    (remote.goals || []).forEach((g) => {
+      if (!g || !g.id) return;
+      const upd = Number(g.updatedAt) || 0;
+      if (mergedDeletedG[g.id] && mergedDeletedG[g.id] >= upd) return;
+      gById.set(g.id, normG(g, upd));
+    });
+
+    (local.goals || []).forEach((g) => {
+      if (!g || !g.id) return;
+      const upd = Number(g.updatedAt) || 0;
+      if (mergedDeletedG[g.id] && mergedDeletedG[g.id] >= upd) return;
+      const ng = normG(g, upd);
+      const prev = gById.get(ng.id);
+      if (!prev || upd >= (Number(prev.updatedAt) || 0)) {
+        gById.set(ng.id, ng);
+      }
+    });
+
+    DEFAULT_GOALS.forEach((dg) => {
+      if (!gById.has(dg.id) && !mergedDeletedG[dg.id]) {
+        gById.set(dg.id, { ...dg });
+      }
+    });
+
     return {
       items: finalItems,
       priceMemory: mergedMemory,
       deletedIds: mergedDeleted,
       warranties: Array.from(wById.values()),
-      deletedWarranties: mergedDeletedW
+      deletedWarranties: mergedDeletedW,
+      goals: Array.from(gById.values()),
+      deletedGoals: mergedDeletedG
     };
   }
 
@@ -543,7 +639,9 @@
       priceMemory,
       deletedIds,
       warranties,
-      deletedWarranties
+      deletedWarranties,
+      goals,
+      deletedGoals
     });
     const body =
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
@@ -586,11 +684,11 @@
     }
     if (!res.ok) throw new Error("drive_read_" + res.status);
     const txt = await res.text();
-    if (!txt || !txt.trim()) return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {} };
+    if (!txt || !txt.trim()) return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {}, goals: [], deletedGoals: {} };
     try {
       return JSON.parse(txt);
     } catch {
-      return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {} };
+      return { items: [], priceMemory: {}, deletedIds: {}, warranties: [], deletedWarranties: {}, goals: [], deletedGoals: {} };
     }
   }
 
@@ -642,7 +740,7 @@
         remote = await readRemoteState(fileId) || {};
       }
 
-      const localSnapshot = { items, priceMemory, deletedIds, warranties, deletedWarranties };
+      const localSnapshot = { items, priceMemory, deletedIds, warranties, deletedWarranties, goals, deletedGoals };
       const merged = mergeStates(localSnapshot, remote);
       const changed = hasStateChanged(localSnapshot, merged);
 
@@ -651,6 +749,8 @@
       deletedIds = merged.deletedIds;
       warranties = merged.warranties;
       deletedWarranties = merged.deletedWarranties;
+      goals = merged.goals;
+      deletedGoals = merged.deletedGoals;
       persistLocal();
 
       if (mode === "push" || pendingPush || changed) {
@@ -663,6 +763,9 @@
       if (changed) {
         render();
         if (typeof S !== "undefined" && S.tab === "more" && S.sub === "wr" && !S.wForm && typeof draw === "function") {
+          draw(true);
+        }
+        if (typeof S !== "undefined" && S.tab === "more" && S.sub === "gl" && !S.glForm && typeof draw === "function") {
           draw(true);
         }
       }
@@ -1025,6 +1128,35 @@
     if (!id) return;
     warranties = warranties.filter((w) => w.id !== id);
     deletedWarranties[id] = Date.now();
+    persistLocal();
+    scheduleDrivePush();
+  };
+
+  window._getGoals = () => goals;
+  window._saveGoal = (rec) => {
+    if (!rec || !rec.id) return;
+    delete deletedGoals[rec.id];
+    const clean = {
+      id: String(rec.id),
+      type: rec.type === "do" ? "do" : "buy",
+      title: String(rec.title || "").trim(),
+      priority: Math.min(10, Math.max(1, Number(rec.priority) || 5)),
+      cost: Math.max(0, Number(rec.cost) || 0),
+      saved: Math.max(0, Number(rec.saved) || 0),
+      done: !!rec.done,
+      notes: String(rec.notes || "").trim(),
+      updatedAt: Date.now()
+    };
+    const idx = goals.findIndex((g) => g.id === clean.id);
+    if (idx >= 0) goals[idx] = clean;
+    else goals.unshift(clean);
+    persistLocal();
+    scheduleDrivePush();
+  };
+  window._deleteGoal = (id) => {
+    if (!id) return;
+    goals = goals.filter((g) => g.id !== id);
+    deletedGoals[id] = Date.now();
     persistLocal();
     scheduleDrivePush();
   };

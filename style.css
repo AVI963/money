@@ -646,3 +646,30 @@ input[data-price-inp]{
 .gs-res-grp{margin-top:12px}
 .gs-res-hdr{font-size:12px;font-weight:700;color:var(--mut);margin-bottom:5px}
 .gs-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:12px;border:1px solid var(--line);margin-bottom:6px;cursor:pointer}
+
+
+/* === Goals & Wishlist Module + Fintech Polish === */
+.val,.amt,.w-badge,.mt-badge,.fc-box b,.gs-item b,td{font-variant-numeric:tabular-nums}
+nav{backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%)}
+.gl-prog-wrap{display:flex;flex-direction:column;gap:5px}
+.gl-prog-row{display:flex;align-items:center;gap:10px;margin-top:7px}
+.gl-prog-bar{flex:1;height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+.gl-prog-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--b),var(--g));transition:width .35s cubic-bezier(.22,1,.36,1)}
+.gl-card{
+  display:flex;align-items:center;gap:12px;background:var(--card);
+  border:1px solid var(--bd);border-radius:20px;padding:13px 14px;margin-bottom:9px;
+  box-shadow:inset 0 1px 0 var(--in-hi),var(--sh);
+  transition:transform .16s ease,border-color .2s ease
+}
+.gl-card:active{transform:scale(.99)}
+.gl-card.done{opacity:.62}
+.gl-card.done .shop-check{background:var(--g);border-color:var(--g)}
+.gl-card.done .gl-title{text-decoration:line-through}
+.gl-body{flex:1;min-width:0;cursor:pointer}
+.gl-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.gl-title{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gl-amt{font-size:12.5px;font-weight:800;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gl-prio{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
+.gl-prio.hi{background:var(--rs);color:var(--r)}
+.gl-prio.md{background:var(--ws);color:var(--w-ink)}
+.gl-prio.lo{background:var(--bs);color:var(--b)}

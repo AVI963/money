@@ -67,7 +67,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const SAL_TPL_KEY='sal_tpl',SAL_TPL_AT_KEY='sal_tpl_at',SAL_SV_KEY='sal_sv',SAL_DIRTY_PUSH_KEY='sal_dirty_push',SAL_META_KEY='my_money_sal_drive_meta_v1',SAL_DRIVE_FILE=APP_CONFIG.salaryFileName||'my_money_salary.json';
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',glFilter:'all',glSort:'prio',glForm:null,glErr:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
   let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
@@ -987,7 +987,8 @@ function globalSearchModal(){
   const resInv=q?[...S.inv,...S.pen].filter(r=>String(r['שם']||'').toLowerCase().includes(q)).slice(0,5):[];
   const resWr=q?getAllWarranties().filter(w=>(w.name+' '+w.store+' '+w.category+' '+(w.notes||'')).toLowerCase().includes(q)).slice(0,5):[];
   const resDoc=q?S.docs.filter(d=>(String(d['שם']||'')+' '+String(d['קטגוריה']||'')).toLowerCase().includes(q)).slice(0,5):[];
-  const total=resExp.length+resInv.length+resWr.length+resDoc.length;
+  const resGl=q?(window._getGoals?window._getGoals():[]).filter(g=>(String(g.title||'')+' '+String(g.notes||'')).toLowerCase().includes(q)).slice(0,5):[];
+  const total=resExp.length+resInv.length+resWr.length+resDoc.length+resGl.length;
 
   return `<div class="ms-back" data-gs-close>
     <div class="ms-sheet" style="max-height:86vh">
@@ -1003,6 +1004,7 @@ function globalSearchModal(){
       ${resExp.length?`<div class="gs-res-grp"><div class="gs-res-hdr">הוצאות (${resExp.length})</div>${resExp.map(e=>`<div class="gs-item" data-gs-ym="${e.ym}"><span>${ico(e.c)} <b>${esc(e.t)}</b> <small class="mut">${ymLb(e.ym)}</small></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`:''}
       ${resInv.length?`<div class="gs-res-grp"><div class="gs-res-hdr">השקעות ופנסיה (${resInv.length})</div>${resInv.map(r=>`<div class="gs-item" data-gs-tab="inv"><span>📈 <b>${esc(r['שם'])}</b></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}</div>`:''}
       ${resDoc.length?`<div class="gs-res-grp"><div class="gs-res-hdr">מסמכים (${resDoc.length})</div>${resDoc.map(d=>`<div class="gs-item" data-gs-sub="dc"><span>📁 <b>${esc(d['שם'])}</b></span><small class="mut">${esc(d['קטגוריה']||'')}</small></div>`).join('')}</div>`:''}
+      ${resGl.length?`<div class="gs-res-grp"><div class="gs-res-hdr">יעדים ורכישות (${resGl.length})</div>${resGl.map(g=>`<div class="gs-item" data-gs-gl="${esc(g.id)}"><span>${g.type==='do'?'✨':'🛍️'} <b>${esc(g.title)}</b> <small class="mut">עדיפות ${g.priority}/10${g.done?' · הושג':''}</small></span><b>${Number(g.cost)>0?fmt(g.cost):''}</b></div>`).join('')}</div>`:''}
     </div>
   </div>`;
 }
@@ -1092,6 +1094,117 @@ function wr(){
     </div>`;
   }).join(''):`<div class="card"><p class="mut" style="margin:0;text-align:center">${allItems.length?'אין פריטים התואמים לסינון שנבחר.':'עדיין לא נוספו מוצרים או קבלות. לחץ על "+ הוסף מוצר" למעלה.'}</p></div>`)
   +warrantyDetailSheet()+warrantySheet();
+}
+
+
+function prioMeta(p) {
+  const n = Math.min(10, Math.max(1, Number(p) || 1));
+  if (n >= 8) return { cls: 'hi', lbl: `דחוף · ${n}/10` };
+  if (n >= 5) return { cls: 'md', lbl: `בינוני · ${n}/10` };
+  return { cls: 'lo', lbl: `רגיל · ${n}/10` };
+}
+
+function gl() {
+  const all = window._getGoals ? window._getGoals() : [];
+  const open = all.filter(g => !g.done);
+  const done = all.filter(g => !!g.done);
+  const totCost = open.reduce((s, g) => s + (Number(g.cost) || 0), 0);
+  const totSaved = open.reduce((s, g) => s + Math.min(Number(g.cost) || 0, Number(g.saved) || 0), 0);
+  const remCost = Math.max(0, totCost - totSaved);
+  const overallPct = totCost > 0 ? Math.min(100, Math.round((totSaved / totCost) * 100)) : 0;
+
+  const flt = S.glFilter || 'all';
+  const srt = S.glSort || 'prio';
+  let list = all.filter(g => {
+    if (flt === 'do') return !g.done && g.type === 'do';
+    if (flt === 'buy') return !g.done && g.type === 'buy';
+    if (flt === 'done') return !!g.done;
+    return !g.done;
+  });
+
+  list = [...list].sort((a, b) => {
+    if (srt === 'cost_desc') return (Number(b.cost) || 0) - (Number(a.cost) || 0);
+    if (srt === 'cost_asc') return (Number(a.cost) || 0) - (Number(b.cost) || 0);
+    return (Number(b.priority) || 0) - (Number(a.priority) || 0) || (Number(a.cost) || 0) - (Number(b.cost) || 0);
+  });
+
+  const f = S.glForm;
+  const modal = f ? `<div class="ms-back" data-gl-close>
+    <div class="ms-sheet" style="max-width:460px">
+      <div class="ms-grab"></div>
+      <div class="row" style="padding:0 0 8px">
+        <h2 style="margin:0">${f.id ? 'עריכת יעד / רכישה' : 'הוספת יעד או רכישה'}</h2>
+        <button type="button" class="chip2" data-gl-close style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button type="button" class="chip2 ${f.type === 'buy' ? 'on' : ''}" data-gl-type="buy" style="flex:1">🛍️ לקנות</button>
+        <button type="button" class="chip2 ${f.type === 'do' ? 'on' : ''}" data-gl-type="do" style="flex:1">✨ לעשות</button>
+      </div>
+      <label class="wf-lbl">שם היעד / הפריט</label>
+      <input id="gl-f-title" class="wf-inp" type="text" placeholder="למשל: לטוס ליפן / שואב שוטף" value="${esc(f.title || '')}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div>
+          <label class="wf-lbl">עלות משוערת (₪)</label>
+          <input id="gl-f-cost" class="wf-inp" type="number" inputmode="decimal" min="0" value="${Number(f.cost) || ''}" placeholder="0">
+        </div>
+        <div>
+          <label class="wf-lbl">נחסך עד כה (₪)</label>
+          <input id="gl-f-saved" class="wf-inp" type="number" inputmode="decimal" min="0" value="${Number(f.saved) || ''}" placeholder="0">
+        </div>
+      </div>
+      <label class="wf-lbl" style="margin-top:8px">סדר עדיפות (1 = לא מיידי · 10 = מיידי)</label>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+        ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="chip2 ${Number(f.priority) === n ? 'on' : ''}" data-gl-prio="${n}" style="padding:5px 10px;min-width:34px">${n}</button>`).join('')}
+      </div>
+      <label class="wf-lbl" style="margin-top:8px">הערות / קישור</label>
+      <input id="gl-f-notes" class="wf-inp" type="text" placeholder="דגם מועדף, תאריך יעד..." value="${esc(f.notes || '')}">
+      ${S.glErr ? `<p class="neg" style="font-size:12.5px;margin:8px 0 0">${esc(S.glErr)}</p>` : ''}
+      <div class="row" style="margin-top:14px;padding:0;gap:8px">
+        <button type="button" class="pr" data-gl-save style="flex:1;background:var(--g);color:#fff;padding:11px">שמור יעד ✓</button>
+        ${f.id ? `<button type="button" class="chip2" data-gl-del="${esc(f.id)}" style="color:var(--r);padding:10px 14px">מחק</button>` : ''}
+      </div>
+    </div>
+  </div>` : '';
+
+  return `<div class="card hg">
+    <div class="row" style="padding:0 0 10px">
+      <div><h2 style="margin:0">🎯 יעדים ורכישות</h2><span class="lb">תכנון, תיעדוף ומעקב חיסכון</span></div>
+      <button type="button" class="pr" data-gl-open style="background:var(--g);color:#fff;padding:8px 14px;font-size:13px">+ חדש</button>
+    </div>
+    <div class="shop-hero-grid">
+      <div class="shop-hero-box"><div class="shop-hero-lbl">עלות פתוחה</div><div class="shop-hero-val">${fmt(totCost)}</div></div>
+      <div class="shop-hero-box"><div class="shop-hero-lbl">יתרה להשלמה</div><div class="shop-hero-val" style="color:var(--w-ink)">${fmt(remCost)}</div></div>
+      <div class="shop-hero-box"><div class="shop-hero-lbl">יעדים פתוחים</div><div class="shop-hero-val">${open.length} <small class="mut" style="font-size:11px">(${done.length} הושגו)</small></div></div>
+    </div>
+    ${totCost > 0 ? `<div class="gl-prog-wrap" style="margin-top:12px"><div class="gl-prog-bar"><i style="width:${overallPct}%"></i></div><span class="lb" style="font-size:11.5px">נחסכו ${fmt(totSaved)} (${overallPct}%)</span></div>` : ''}
+  </div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0">
+    ${[['all', `פתוחים (${open.length})`], ['buy', `לקנות (${open.filter(x => x.type === 'buy').length})`], ['do', `לעשות (${open.filter(x => x.type === 'do').length})`], ['done', `הושג (${done.length})`]].map(([k, l]) => `<button type="button" class="chip2 ${flt === k ? 'on' : ''}" data-glf="${k}">${l}</button>`).join('')}
+    <button type="button" class="chip2" data-gls style="margin-inline-start:auto;font-size:12px">${srt === 'prio' ? 'מיון: דחיפות ▾' : srt === 'cost_desc' ? 'מיון: יקר לזול ▾' : 'מיון: זול ליקר ▾'}</button>
+  </div>
+
+  ${!list.length ? `<div class="card"><p class="mut" style="margin:0;text-align:center">אין פריטים בקטגוריה זו.</p></div>` : list.map(g => {
+    const cost = Number(g.cost) || 0;
+    const saved = Math.min(cost, Number(g.saved) || 0);
+    const pctVal = cost > 0 ? Math.min(100, Math.round((saved / cost) * 100)) : (g.done ? 100 : 0);
+    const pm = prioMeta(g.priority);
+    return `<div class="gl-card ${g.done ? 'done' : ''}">
+      <button type="button" class="shop-check" data-gl-tog="${esc(g.id)}" aria-label="סמן הושג">${g.done ? '✓' : ''}</button>
+      <div class="gl-body" data-gl-edit="${esc(g.id)}">
+        <div class="gl-top">
+          <span class="gl-title">${g.type === 'do' ? '✨' : '🛍️'} ${esc(g.title)}</span>
+          <span class="gl-prio ${pm.cls}">${pm.lbl}</span>
+        </div>
+        ${g.notes ? `<div class="w-sub">${esc(g.notes)}</div>` : ''}
+        ${cost > 0 ? `<div class="gl-prog-row">
+          <div class="gl-prog-bar"><i style="width:${pctVal}%"></i></div>
+          <span class="gl-amt">${saved > 0 ? `${fmt(saved)} / ` : ''}${fmt(cost)}</span>
+        </div>` : `<div class="w-sub">ללא עלות כספית</div>`}
+      </div>
+    </div>`;
+  }).join('')}
+  ${modal}`;
 }
 
 function warrantyDetailSheet(){
@@ -1424,11 +1537,15 @@ function getMoreList(){
   const wCnt=window._getWarranties?window._getWarranties().length:0;
   const dcCnt=S.docs.length?S.docs.length+' מסמכים':'';
   const wrCnt=wCnt?wCnt+' קבלות':'';
+  const glList=window._getGoals?window._getGoals().filter(g=>!g.done):[];
+  const glTot=glList.reduce((s,g)=>s+(Number(g.cost)||0),0);
+  const glBadge=glList.length?`${glList.length} יעדים · ${fmt(glTot)}`:'';
   const def=fireDefaults();
   const liq=T(S.inv,'שווי ₪');
   const rwBadge=liq&&def.baseExp?(liq/def.baseExp).toFixed(1)+' חוד׳':'';
   const catalog={
     fire:{id:'fire',i:'🧭',t:'חופש כלכלי ומחיה',s:'מד חמצן, כלל 4% ו-300 משכורות',bdg:rwBadge,wide:true,col:'#10b981'},
+    gl:{id:'gl',i:'🎯',t:'יעדים ורכישות',s:'רשימת משאלות, תיעדוף וחיסכון',bdg:glBadge,wide:true,col:'#f59e0b'},
     mt:{id:'mt',i:'🏠',t:'משכנתא',s:'יתרה, פעימות, תמהיל ולוח סילוקין',bdg:mtNx?fmt(mtNx.tot)+'/חודש':'',wide:true,col:'#4f6bed'},
     cp:{id:'cp',i:'🎟️',t:'קופונים',s:'יתרות זמינות וקודים',bdg:cpTot,wide:false,col:'#10b981'},
     ins:{id:'ins',i:'🛡️',t:'ביטוח חיים',s:'לוח תשלומים והתקדמות',bdg:insNx&&insNx.a?fmt(insNx.a)+'/חודש':'',wide:false,col:'#06b6d4'},
@@ -1436,7 +1553,7 @@ function getMoreList(){
     wr:{id:'wr',i:'🧾',t:'אחריות וקבלות',s:'קבלות, תוקף אחריות וקטגוריות',bdg:wrCnt,wide:false,col:'#10b981'},
     sl:{id:'sl',i:'🧮',t:'מחשבון שכר',s:'סימולטור משמרות ונטו',bdg:calcSalNet()>0?fmt(calcSalNet()):'',wide:false,col:'#8b5cf6'}
   };
-  const defOrder=['fire','mt','cp','ins','dc','wr','sl'];
+  const defOrder=['fire','gl','mt','cp','ins','dc','wr','sl'];
   let cfg=Array.isArray(S.moreLayout)?S.moreLayout.filter(x=>x&&catalog[x.id]):[];
   const seen=new Set(cfg.map(x=>x.id));
   defOrder.forEach(id=>{if(!seen.has(id))cfg.push({id,wide:catalog[id].wide})});
@@ -1447,7 +1564,7 @@ function saveMoreList(list){
   ls('more_layout',JSON.stringify(S.moreLayout));
 }
 function more(){
-  const views={ins,cp,dc,wr,mt,sl,fire:fireView};
+  const views={ins,cp,dc,wr,mt,sl,gl,fire:fireView};
   if(S.sub&&views[S.sub])return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+views[S.sub]();
   S.sub='';
   const list=getMoreList(),ed=S.moreEdit;
@@ -2398,7 +2515,7 @@ document.addEventListener('click',e=>{
       return;
     }
   }
-  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync-consent]');
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync-consent]');
   if(!b){if(!token&&ls('rt')&&navigator.onLine!==false)refresh().then(ok=>ok&&load());return}
   if(b.classList.contains('ms-back')&&e.target!==b)return;
   if('gsOpen'in b.dataset){
@@ -2411,6 +2528,12 @@ document.addEventListener('click',e=>{
   }
   if(b.dataset.gsWr){
     vib(8);S.gsOpen=false;S.tab='more';S.sub='wr';S.wViewId=b.dataset.gsWr;draw();scrollTo(0,0);return;
+  }
+  if(b.dataset.gsGl){
+    vib(8);S.gsOpen=false;S.tab='more';S.sub='gl';
+    const item=(window._getGoals?window._getGoals():[]).find(x=>x.id===b.dataset.gsGl);
+    if(item){S.glFilter=item.done?'done':'all';S.glForm={...item};S.glErr='';}
+    draw();scrollTo(0,0);return;
   }
   if(b.dataset.gsYm){
     vib(8);S.gsOpen=false;S.tab='home';S.sub='';S.ym=+b.dataset.gsYm;draw();scrollTo(0,0);return;
@@ -2487,6 +2610,100 @@ document.addEventListener('click',e=>{
     draw(true);return;
   }
   if(b.dataset.wrs!==undefined){vib(6);S.wrStatus=b.dataset.wrs;draw();return}
+  if(b.dataset.glf!==undefined){vib(6);S.glFilter=b.dataset.glf;draw(true);return}
+  if('gls'in b.dataset){
+    vib(6);
+    const order=['prio','cost_desc','cost_asc'];
+    S.glSort=order[(order.indexOf(S.glSort||'prio')+1)%order.length];
+    draw(true);return;
+  }
+  if('glOpen'in b.dataset){
+    vib(8);
+    S.glErr='';
+    S.glForm={id:'',type:'buy',title:'',priority:5,cost:'',saved:'',done:false,notes:''};
+    draw(true);
+    setTimeout(()=>{const el=document.getElementById('gl-f-title');el&&el.focus()},60);
+    return;
+  }
+  if(b.dataset.glEdit){
+    vib(8);
+    const item=(window._getGoals?window._getGoals():[]).find(x=>x.id===b.dataset.glEdit);
+    if(item){S.glErr='';S.glForm={...item};draw(true);}
+    return;
+  }
+  if('glClose'in b.dataset){
+    vib(6);S.glForm=null;S.glErr='';draw(true);return;
+  }
+  if(b.dataset.glType&&S.glForm){
+    vib(6);
+    const tEl=document.getElementById('gl-f-title');
+    const cEl=document.getElementById('gl-f-cost');
+    const sEl=document.getElementById('gl-f-saved');
+    const nEl=document.getElementById('gl-f-notes');
+    if(tEl)S.glForm.title=tEl.value;
+    if(cEl)S.glForm.cost=cEl.value;
+    if(sEl)S.glForm.saved=sEl.value;
+    if(nEl)S.glForm.notes=nEl.value;
+    S.glForm.type=b.dataset.glType==='do'?'do':'buy';
+    draw(true);return;
+  }
+  if(b.dataset.glPrio&&S.glForm){
+    vib(6);
+    const tEl=document.getElementById('gl-f-title');
+    const cEl=document.getElementById('gl-f-cost');
+    const sEl=document.getElementById('gl-f-saved');
+    const nEl=document.getElementById('gl-f-notes');
+    if(tEl)S.glForm.title=tEl.value;
+    if(cEl)S.glForm.cost=cEl.value;
+    if(sEl)S.glForm.saved=sEl.value;
+    if(nEl)S.glForm.notes=nEl.value;
+    S.glForm.priority=Number(b.dataset.glPrio)||5;
+    draw(true);return;
+  }
+  if(b.dataset.glTog){
+    vib(10);
+    const item=(window._getGoals?window._getGoals():[]).find(x=>x.id===b.dataset.glTog);
+    if(item&&window._saveGoal){
+      window._saveGoal({...item,done:!item.done});
+      showToast(!item.done?'היעד סומן כהושג 🎉':'היעד הוחזר לפתוחים');
+      draw(true);
+    }
+    return;
+  }
+  if('glSave'in b.dataset&&S.glForm){
+    vib(10);
+    const title=(document.getElementById('gl-f-title')?.value||'').trim();
+    const cost=Math.max(0,Number(document.getElementById('gl-f-cost')?.value)||0);
+    const saved=Math.max(0,Number(document.getElementById('gl-f-saved')?.value)||0);
+    const notes=(document.getElementById('gl-f-notes')?.value||'').trim();
+    if(!title){S.glErr='נא להזין שם יעד או רכישה';draw(true);return;}
+    const id=S.glForm.id||('g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    if(window._saveGoal){
+      window._saveGoal({
+        id,
+        type:S.glForm.type==='do'?'do':'buy',
+        title,
+        priority:Number(S.glForm.priority)||5,
+        cost,
+        saved,
+        done:!!S.glForm.done,
+        notes
+      });
+    }
+    S.glForm=null;S.glErr='';
+    showToast('היעד נשמר ✓');
+    draw(true);return;
+  }
+  if(b.dataset.glDel){
+    if(confirm('למחוק יעד זה?')){
+      vib(10);
+      if(window._deleteGoal)window._deleteGoal(b.dataset.glDel);
+      S.glForm=null;S.glErr='';
+      showToast('היעד נמחק');
+      draw(true);
+    }
+    return;
+  }
   if(b.dataset.wrc!==undefined){vib(6);S.wrCat=decodeURIComponent(b.dataset.wrc);draw();return}
   if(b.dataset.wm!==undefined&&S.wForm){
     vib(6);
