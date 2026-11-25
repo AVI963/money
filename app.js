@@ -1185,7 +1185,9 @@ function saveMoreList(list){
   ls('more_layout',JSON.stringify(S.moreLayout));
 }
 function more(){
-  if(S.sub)return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+{ins,cp,dc,wr,mt,sl,fire:fireView}[S.sub]();
+  const views={ins,cp,dc,wr,mt,sl,fire:fireView};
+  if(S.sub&&views[S.sub])return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+views[S.sub]();
+  S.sub='';
   const list=getMoreList(),ed=S.moreEdit;
   return `<div class="row" style="padding:2px 2px 6px"><span class="lb">${ed?'שנה גודל (ריבוע/רחב) והזז מיקום':'כלים ומודולים נוספים'}</span><div style="display:flex;gap:6px">${ed?`<button class="chip2" data-med-reset style="padding:4px 10px;font-size:12px">איפוס</button>`:''}<button class="chip2 ${ed?'on':''}" data-med-tog style="padding:4px 12px;font-size:12px">${ed?'סיום עריכה ✓':'ערוך פריסה ✎'}</button></div></div>
   <div class="mgrid">${list.map((it,idx)=>{
@@ -2010,7 +2012,7 @@ function draw(skipAnim=false){
   const ys=S.tab==='home'?[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b):[];
   const sy=y=>T(S.exp.filter(e=>e.ym==y),'a');
   $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-theme-tog title="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}" aria-label="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}">${dark?SVG.sun:SVG.moon}</button><button data-eye class="${S.hide?'on':''}" title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
-  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim||S.tab==='shop'?' no-anim':''}">${{home,pv,inv,more,shop:()=>''}[S.tab]()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
+  (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="view${skipAnim||S.tab==='shop'?' no-anim':''}">${({home,pv,inv,more,shop:()=>''}[S.tab]||home)()}</div>${S.tab==='home'?monthSheet(ys,sy):''}`;
   const sp=document.getElementById('page-shopping');
   if(sp)sp.style.display=S.tab==='shop'?'block':'none';
   if(window._shopRender)window._shopRender();
@@ -2294,7 +2296,7 @@ document.addEventListener('click',e=>{
   if(navigator.onLine!==false){
     initXlsxWorker();
     if(token)load();
-    else if(ls('rt'))refresh().then(ok=>ok&&load());
+    else if(ls('rt'))refresh().then(ok=>{if(ok)load();else if($('nav').hidden)fail('פג תוקף החיבור לדרייב, יש להתחבר מחדש')});
   }
   window.addEventListener('offline',()=>{if(!$('nav').hidden)draw(true)});
   window.addEventListener('online',()=>{
@@ -2321,4 +2323,3 @@ if('serviceWorker'in navigator){
     if(reg.update)reg.update().catch(()=>{});
   }).catch(()=>{});
 }
-מנתח את הנתונים

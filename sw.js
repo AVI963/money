@@ -9,6 +9,7 @@ const CORE_ASSETS = [
 ];
 const OPTIONAL_ASSETS = [
   'icon-192.png',
+  'xlsx-worker.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
@@ -33,27 +34,26 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  if (e.request.cache === 'only-if-cached' && e.request.mode !== 'same-origin') return;
-
   const url = new URL(e.request.url);
   const isSameOrigin = url.origin === location.origin;
-  if (!isSameOrigin && url.href !== XLSX_URL) return;
+  const isAppAsset = isSameOrigin || url.href === XLSX_URL;
+  if (!isAppAsset) return;
 
-  if (e.request.mode === 'navigate') {
+  if (isSameOrigin) {
     e.respondWith(
-      fetch(url.href).then(res => {
+      fetch(e.request).then(res => {
         if (res && res.ok) {
           const clone = res.clone();
-          caches.open(C).then(c => c.put('./', clone));
+          caches.open(C).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(async () => (await caches.match('./')) || (await caches.match('index.html')) || Response.error())
+      }).catch(() => caches.match(e.request, { ignoreSearch: true }))
     );
     return;
   }
 
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: isSameOrigin }).then(cached => {
+    caches.match(e.request).then(cached => {
       const netFetch = fetch(e.request).then(res => {
         if (res && (res.ok || res.type === 'opaque')) {
           const clone = res.clone();
@@ -66,3 +66,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+מנתח את הנתונים
