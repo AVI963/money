@@ -1,4 +1,4 @@
-const C = 'money-v5';
+const C = 'money-v4';
 const LOCAL_ASSETS = [
   './',
   'index.html',
@@ -52,4 +52,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-Creating files for the financial application interface
+Figuring out why deployment failed after renaming script files
