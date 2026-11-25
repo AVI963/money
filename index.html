@@ -1,8 +1,9 @@
 <!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#f2f5fb" media="(prefers-color-scheme:light)">
 <meta name="theme-color" content="#070b12" media="(prefers-color-scheme:dark)">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light'){document.documentElement.dataset.theme=t;var c=t==='dark'?'#070b12':'#f2f5fb';document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=c})}}catch(e){}})();</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +13,7 @@
 <link rel="stylesheet" href="style.css"></head><body>
 <main id="app"><div id="splash"><div class="logo-badge"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></main>
 
-<div id="page-shopping" class="page" style="display:none; padding-bottom: 84px;">
+<div id="page-shopping" class="page" style="display:none;">
   <div class="card hg">
     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
       <span style="font-weight:800; font-size:17px;">🛒 רשימת קניות חכמה</span>
@@ -92,3 +93,4 @@
 <script src="app.js" defer></script>
 <script src="shop.js" defer></script>
 </body></html>
+Creating files for the financial application interface
