@@ -1,13 +1,16 @@
-const C = 'money-v4';
-const LOCAL_ASSETS = [
+const C = 'money-v6';
+const CORE_ASSETS = [
   './',
   'index.html',
   'style.css',
   'app.js',
   'shop.js',
+  'manifest.json'
+];
+const OPTIONAL_ASSETS = [
+  'icon-192.png',
   'xlsx-worker.js',
-  'manifest.json',
-  'icon-192.png'
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 
@@ -15,10 +18,8 @@ self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
     caches.open(C).then(async c => {
-      await c.addAll(LOCAL_ASSETS);
-      try {
-        await c.add(XLSX_URL);
-      } catch {}
+      await Promise.allSettled(CORE_ASSETS.map(u => c.add(u)));
+      await Promise.allSettled(OPTIONAL_ASSETS.map(u => c.add(u)));
     })
   );
 });
@@ -38,8 +39,21 @@ self.addEventListener('fetch', e => {
   const isAppAsset = isSameOrigin || url.href === XLSX_URL;
   if (!isAppAsset) return;
 
+  if (isSameOrigin) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(C).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request, { ignoreSearch: true }))
+    );
+    return;
+  }
+
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: isSameOrigin }).then(cached => {
+    caches.match(e.request).then(cached => {
       const netFetch = fetch(e.request).then(res => {
         if (res && (res.ok || res.type === 'opaque')) {
           const clone = res.clone();
@@ -52,4 +66,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-Figuring out why deployment failed after renaming script files
+מנתח את הנתונים
