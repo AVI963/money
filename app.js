@@ -43,7 +43,7 @@ function showToast(text, type = 'ok') {
   toastTimer = setTimeout(() => el.classList.remove('on'), 2800);
 }
 
-const COL=['#4f6bed','#10b981','#f59e0b','#ec4899','#06b6d4','#84cc16','#ef4444','#8b5cf6'];
+const COL=['#3b5bdb','#0d9488','#d97706','#e11d48','#0284c7','#65a30d','#dc2626','#7c3aed'];
 const ICO=[
   [/עיצוב|ריהוט/,'🛋️'],
   [/דיור|שכר|משכנת/,'🏠'],
