@@ -1,11 +1,13 @@
-const C = 'money-v3';
+const C = 'money-v4';
 const LOCAL_ASSETS = [
   './',
   'index.html',
   'style.css',
   'app.js',
   'shop.js',
-  'manifest.json'
+  'xlsx-worker.js',
+  'manifest.json',
+  'icon-192.png'
 ];
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 
@@ -32,11 +34,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  const isAppAsset = url.origin === location.origin || url.href === XLSX_URL;
+  const isSameOrigin = url.origin === location.origin;
+  const isAppAsset = isSameOrigin || url.href === XLSX_URL;
   if (!isAppAsset) return;
 
   e.respondWith(
-    caches.match(e.request).then(cached => {
+    caches.match(e.request, { ignoreSearch: isSameOrigin }).then(cached => {
       const netFetch = fetch(e.request).then(res => {
         if (res && (res.ok || res.type === 'opaque')) {
           const clone = res.clone();
