@@ -1794,6 +1794,70 @@ function insights(cs,cav){
   </div>`;
 }
 
+const HOME_META={
+  quick:{id:'quick',t:'פעולות מהירות'},
+  carousel:{id:'carousel',t:'קרוסלת גרפים ובריאות פיננסית'},
+  alerts:{id:'alerts',t:'התראות חכמות'},
+  insights:{id:'insights',t:'תובנות אישיות'},
+  cats:{id:'cats',t:'קטגוריות מובילות'}
+};
+const HOME_DEF_ORDER=['quick','carousel','alerts','insights','cats'];
+function getHomeList(){
+  let cfg=Array.isArray(S.homeLayout)?S.homeLayout.filter(x=>x&&HOME_META[x.id]):[];
+  const seen=new Set(cfg.map(x=>x.id));
+  HOME_DEF_ORDER.forEach(id=>{if(!seen.has(id))cfg.push({id,hidden:false})});
+  return cfg.map(x=>({...HOME_META[x.id],hidden:!!x.hidden}));
+}
+function saveHomeList(list){
+  S.homeLayout=list.map(x=>({id:x.id,hidden:!!x.hidden}));
+  ls('home_layout',JSON.stringify(S.homeLayout));
+}
+
+const QA_CATALOG={
+  gl:{id:'gl',i:'🎯',t:'הוספת יעד',attr:'data-quick-gl'},
+  inv:{id:'inv',i:'📈',t:'נכסים',attr:'data-t="inv"'},
+  dc:{id:'dc',i:'📁',t:'מסמכים',attr:'data-gs-sub="dc"'},
+  shop:{id:'shop',i:'🛒',t:'קניות',attr:'data-t="shop"'},
+  sync:{id:'sync',i:'🔄',t:'סנכרון',attr:'data-sync'},
+  wr:{id:'wr',i:'🧾',t:'אחריות',attr:'data-gs-sub="wr"'},
+  sl:{id:'sl',i:'🧮',t:'מחשבון שכר',attr:'data-gs-sub="sl"'},
+  pv:{id:'pv',i:'📊',t:'ניתוח',attr:'data-t="pv"'},
+  fire:{id:'fire',i:'🧭',t:'חופש כלכלי',attr:'data-gs-sub="fire"'},
+  mt:{id:'mt',i:'🏠',t:'משכנתא',attr:'data-gs-sub="mt"'}
+};
+const QA_DEF_ORDER=['gl','inv','dc','shop','sync','wr','sl','pv','fire','mt'];
+function getQaList(){
+  let cfg=Array.isArray(S.qaLayout)?S.qaLayout.filter(x=>x&&QA_CATALOG[x.id]):[];
+  const seen=new Set(cfg.map(x=>x.id));
+  QA_DEF_ORDER.forEach((id,idx)=>{if(!seen.has(id))cfg.push({id,hidden:idx>=5})});
+  return cfg.map(x=>({...QA_CATALOG[x.id],hidden:!!x.hidden}));
+}
+function saveQaList(list){
+  S.qaLayout=list.map(x=>({id:x.id,hidden:!!x.hidden}));
+  ls('qa_layout',JSON.stringify(S.qaLayout));
+}
+function quickActionsCard(){
+  const list=getQaList(),ed=S.qaEdit;
+  const visible=list.filter(x=>!x.hidden);
+  return `<div class="card">
+    <div class="qa-hdr">
+      <h2>פעולות מהירות</h2>
+      <div style="display:flex;gap:6px">
+        ${ed?`<button type="button" class="btn-ghost" data-qa-reset style="padding:3px 8px;font-size:11.5px">איפוס</button>`:''}
+        <button type="button" class="chip2 ${ed?'on':''}" data-qa-tog style="padding:3px 10px;font-size:11.5px">${ed?'סיום ✓':'התאמה ✎'}</button>
+      </div>
+    </div>
+    ${ed?`<div class="qa-edit-list">${list.map((it,idx)=>`<div class="qa-edit-row">
+      <span>${it.i} <b>${esc(it.t)}</b> <small class="mut">${it.hidden?'(מוסתר)':'(מוצג)'}</small></span>
+      <div class="hlay-ctrls">
+        <button type="button" class="med-btn" data-qa-mv="${idx}:-1" ${idx===0?'disabled':''}>▲</button>
+        <button type="button" class="med-btn" data-qa-mv="${idx}:1" ${idx===list.length-1?'disabled':''}>▼</button>
+        <button type="button" class="btn-secondary" data-qa-vis="${it.id}" style="padding:3px 8px;font-size:11px">${it.hidden?'הצג':'הסתר'}</button>
+      </div>
+    </div>`).join('')}</div>`
+    :`<div class="qa-grid">${(visible.length?visible:list.slice(0,5)).map(it=>`<button type="button" class="qa-btn" ${it.attr}><span>${it.i}</span><span>${esc(it.t)}</span></button>`).join('')}</div>`}
+  </div>`;
+}
 function financialHealthCard(tot,inc,avgExp,inCar=false){
   const invVal=T(S.inv,'שווי ₪'),penVal=T(S.pen,'שווי ₪'),netWorth=invVal+penVal;
   const baseM=Math.max(1,avgExp||tot||12000);
