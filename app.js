@@ -67,7 +67,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const SAL_TPL_KEY='sal_tpl',SAL_TPL_AT_KEY='sal_tpl_at',SAL_SV_KEY='sal_sv',SAL_DIRTY_PUSH_KEY='sal_dirty_push',SAL_META_KEY='my_money_sal_drive_meta_v1',SAL_DRIVE_FILE=APP_CONFIG.salaryFileName||'my_money_salary.json';
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',glFilter:'all',glSort:'prio',glForm:null,glPendingCover:null,glSaving:false,glErr:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,homeEdit:false,homeLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',glFilter:'all',glSort:'prio',glForm:null,glPendingCover:null,glSaving:false,glErr:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,homeEdit:false,homeLayout:null,qaEdit:false,qaLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
   let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
@@ -1673,14 +1673,13 @@ function insights(cs,cav){
 }
 
 const HOME_META={
-  health:{id:'health',t:'מדד בריאות פיננסית'},
   quick:{id:'quick',t:'פעולות מהירות'},
-  carousel:{id:'carousel',t:'גרפים ותחזית'},
+  carousel:{id:'carousel',t:'קרוסלת גרפים ובריאות פיננסית'},
   alerts:{id:'alerts',t:'התראות חכמות'},
   insights:{id:'insights',t:'תובנות אישיות'},
   cats:{id:'cats',t:'קטגוריות מובילות'}
 };
-const HOME_DEF_ORDER=['health','quick','carousel','alerts','insights','cats'];
+const HOME_DEF_ORDER=['quick','carousel','alerts','insights','cats'];
 function getHomeList(){
   let cfg=Array.isArray(S.homeLayout)?S.homeLayout.filter(x=>x&&HOME_META[x.id]):[];
   const seen=new Set(cfg.map(x=>x.id));
@@ -1691,16 +1690,53 @@ function saveHomeList(list){
   S.homeLayout=list.map(x=>({id:x.id,hidden:!!x.hidden}));
   ls('home_layout',JSON.stringify(S.homeLayout));
 }
-function quickActionsCard(){
-  return `<div class="card"><h2>פעולות מהירות</h2><div class="qa-grid">
-    <button type="button" class="qa-btn" data-quick-gl><span>🎯</span><span>הוספת יעד</span></button>
-    <button type="button" class="qa-btn" data-t="inv"><span>📈</span><span>נכסים</span></button>
-    <button type="button" class="qa-btn" data-gs-sub="dc"><span>📁</span><span>מסמכים</span></button>
-    <button type="button" class="qa-btn" data-t="shop"><span>🛒</span><span>קניות</span></button>
-    <button type="button" class="qa-btn" data-sync><span>🔄</span><span>סנכרון</span></button>
-  </div></div>`;
+
+const QA_CATALOG={
+  gl:{id:'gl',i:'🎯',t:'הוספת יעד',attr:'data-quick-gl'},
+  inv:{id:'inv',i:'📈',t:'נכסים',attr:'data-t="inv"'},
+  dc:{id:'dc',i:'📁',t:'מסמכים',attr:'data-gs-sub="dc"'},
+  shop:{id:'shop',i:'🛒',t:'קניות',attr:'data-t="shop"'},
+  sync:{id:'sync',i:'🔄',t:'סנכרון',attr:'data-sync'},
+  wr:{id:'wr',i:'🧾',t:'אחריות',attr:'data-gs-sub="wr"'},
+  sl:{id:'sl',i:'🧮',t:'מחשבון שכר',attr:'data-gs-sub="sl"'},
+  pv:{id:'pv',i:'📊',t:'ניתוח',attr:'data-t="pv"'},
+  fire:{id:'fire',i:'🧭',t:'חופש כלכלי',attr:'data-gs-sub="fire"'},
+  mt:{id:'mt',i:'🏠',t:'משכנתא',attr:'data-gs-sub="mt"'}
+};
+const QA_DEF_ORDER=['gl','inv','dc','shop','sync','wr','sl','pv','fire','mt'];
+function getQaList(){
+  let cfg=Array.isArray(S.qaLayout)?S.qaLayout.filter(x=>x&&QA_CATALOG[x.id]):[];
+  const seen=new Set(cfg.map(x=>x.id));
+  QA_DEF_ORDER.forEach((id,idx)=>{if(!seen.has(id))cfg.push({id,hidden:idx>=5})});
+  return cfg.map(x=>({...QA_CATALOG[x.id],hidden:!!x.hidden}));
 }
-function financialHealthCard(tot,inc,avgExp){
+function saveQaList(list){
+  S.qaLayout=list.map(x=>({id:x.id,hidden:!!x.hidden}));
+  ls('qa_layout',JSON.stringify(S.qaLayout));
+}
+function quickActionsCard(){
+  const list=getQaList(),ed=S.qaEdit;
+  const visible=list.filter(x=>!x.hidden);
+  return `<div class="card">
+    <div class="qa-hdr">
+      <h2>פעולות מהירות</h2>
+      <div style="display:flex;gap:6px">
+        ${ed?`<button type="button" class="btn-ghost" data-qa-reset style="padding:3px 8px;font-size:11.5px">איפוס</button>`:''}
+        <button type="button" class="chip2 ${ed?'on':''}" data-qa-tog style="padding:3px 10px;font-size:11.5px">${ed?'סיום ✓':'התאמה ✎'}</button>
+      </div>
+    </div>
+    ${ed?`<div class="qa-edit-list">${list.map((it,idx)=>`<div class="qa-edit-row">
+      <span>${it.i} <b>${esc(it.t)}</b> <small class="mut">${it.hidden?'(מוסתר)':'(מוצג)'}</small></span>
+      <div class="hlay-ctrls">
+        <button type="button" class="med-btn" data-qa-mv="${idx}:-1" ${idx===0?'disabled':''}>▲</button>
+        <button type="button" class="med-btn" data-qa-mv="${idx}:1" ${idx===list.length-1?'disabled':''}>▼</button>
+        <button type="button" class="btn-secondary" data-qa-vis="${it.id}" style="padding:3px 8px;font-size:11px">${it.hidden?'הצג':'הסתר'}</button>
+      </div>
+    </div>`).join('')}</div>`
+    :`<div class="qa-grid">${(visible.length?visible:list.slice(0,5)).map(it=>`<button type="button" class="qa-btn" ${it.attr}><span>${it.i}</span><span>${esc(it.t)}</span></button>`).join('')}</div>`}
+  </div>`;
+}
+function financialHealthCard(tot,inc,avgExp,inCar=false){
   const invVal=T(S.inv,'שווי ₪'),penVal=T(S.pen,'שווי ₪'),netWorth=invVal+penVal;
   const baseM=Math.max(1,avgExp||tot||12000);
   const liqMonths=invVal/baseM;
@@ -1728,7 +1764,7 @@ function financialHealthCard(tot,inc,avgExp){
   const totalScore=Math.max(0,Math.min(100,Math.round(liqScore*0.30+savScore*0.30+debtScore*0.20+goalsScore*0.20)));
   const grade=totalScore>=80?'מצוין':totalScore>=60?'יציב':'דורש תשומת לב';
 
-  return `<div class="card">
+  return `<div class="card${inCar?' sl':''}">
     <div class="health-score-top">
       <div><h2 style="margin:0">מדד בריאות פיננסית</h2><small class="mut">ציון משוקלל (0–100) · ${esc(grade)}</small></div>
       <div class="health-num">${S.hide?'•••':totalScore}</div>
@@ -1739,7 +1775,7 @@ function financialHealthCard(tot,inc,avgExp){
       <div class="health-m"><small>התחייבויות (20%)</small><b>${S.hide?'•••':debtScore+'/100'}</b></div>
       <div class="health-m"><small>יעדים והון (20%)</small><b>${S.hide?'•••':goalsScore+'/100'}</b></div>
     </div>
-    <p class="mut" style="margin:8px 0 0;font-size:11.5px">שקוף: 30% נזילות (${invVal>0?liqMonths.toFixed(1)+' חוד׳ מחיה':'לפי יתרה'}) · 30% שיעור חיסכון (${inc>0?Math.round(savRate)+'%':'ללא הכנסה'}) · 20% משכנתא/ביטוח · 20% יעדים ופנסיה.</p>
+    <p class="mut" style="margin:8px 0 0;font-size:11.5px">שקוף: 30% נזילות (${invVal>0?liqMonths.toFixed(1)+' חוד׳ מחיה':'לפי יתרה'}) · 30% חיסכון · 20% התחייבויות · 20% יעדים והון (${fmt(netWorth)})</p>
   </div>`;
 }
 function renderHomeModules(tot,inc,avg,cs,cav,ys,i){
@@ -1763,9 +1799,8 @@ function renderHomeModules(tot,inc,avg,cs,cav,ys,i){
     flb:new Date(Math.floor(y/100),y%100-1,1).toLocaleDateString('he-IL',{month:'long',year:'2-digit'})
   }));
   const renderSec=id=>{
-    if(id==='health')return financialHealthCard(tot,inc,avg);
     if(id==='quick')return quickActionsCard();
-    if(id==='carousel')return `<div class="car">${donut(cs,tot)}${cashflowCard(ys,i)}${forecastCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">לחיצה ממושכת על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3,4].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>`;
+    if(id==='carousel')return `<div class="car">${donut(cs,tot)}${financialHealthCard(tot,inc,avg,true)}${cashflowCard(ys,i)}${forecastCard(ys,i)}<div class="card sl"><div><div class="row"><h2>חצי שנה אחרונה</h2><button class="pr" data-t="pv">ניתוח מלא ←</button></div><span class="lb">לחיצה ממושכת על הגרף לפירוט · הקו המקווקו הוא הממוצע ${fmt(avg)}</span></div>${areaChart(pts,{avg})}</div>${trendsCard(ys,i)}</div><div class="dots">${[0,1,2,3,4,5].map(k=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div>`;
     if(id==='alerts')return smartAlerts();
     if(id==='insights')return insights(cs,cav);
     if(id==='cats')return `<div class="card"><h2>קטגוריות מובילות</h2><span class="lb">לחץ לפירוט · סימון "חד-פעמי" (או הערה באקסל) מנטרל מהתחזית</span>${cs.map(([c,v,a],k)=>{const av=cav(c),r=av?v/av:0,bg=S.bud[c]||0,topC=(cs[0]&&cs[0][1])||1;
@@ -1776,7 +1811,6 @@ function renderHomeModules(tot,inc,avg,cs,cav,ys,i){
   };
   return bar+list.filter(x=>!x.hidden).map(x=>renderSec(x.id)).join('');
 }
-
 function insSched(){const I=S.ins;if(!I||!I.yrs)return '';const now=new Date();
   return `<div class="card"><h2>לוח תשלומים מלא</h2><div class="tw"><table><tr><th>שנה</th><th>מתאריך</th><th>חודשי</th><th>שנתי</th><th>סטטוס</th></tr>${Array.from({length:I.yrs},(_,y)=>{const ps=I.pay.slice(y*12,y*12+12);if(!ps.length)return '';const a=ps[0].a,dn=ps.filter(p=>p.d<=now).length;return `<tr><td>${y+1}</td><td>${dl(ps[0].d)}</td><td>${a?fmt(a):'טרם פורסם'}</td><td>${a?fmt(T(ps,'a')):'—'}</td><td>${dn==12?'✓ שולם':dn?dn+' מתוך 12':'עתידי'}</td></tr>`}).join('')}</table></div></div>`}
 function ins(){return ins0()+insSched()}
@@ -2707,7 +2741,7 @@ document.addEventListener('click',async e=>{
       return;
     }
   }
-  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync-consent]');
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync-consent],[data-qa-tog],[data-qa-reset],[data-qa-mv],[data-qa-vis]');
   if(!b){if(!token&&ls('rt')&&navigator.onLine!==false)refresh().then(ok=>ok&&load());return}
   if(b.classList.contains('ms-back')&&e.target!==b)return;
   if('gsOpen'in b.dataset){
@@ -2970,6 +3004,18 @@ document.addEventListener('click',async e=>{
     if(it){it.hidden=!it.hidden;saveHomeList(list);draw()}
     return;
   }
+  if('qaTog'in b.dataset){vib(8);S.qaEdit=!S.qaEdit;draw(true);return}
+  if('qaReset'in b.dataset){vib(8);S.qaLayout=null;ls('qa_layout',null);draw(true);return}
+  if(b.dataset.qaMv){
+    vib(6);const [idx,dir]=b.dataset.qaMv.split(':').map(Number),list=getQaList(),ni=idx+dir;
+    if(ni>=0&&ni<list.length){const tmp=list[idx];list[idx]=list[ni];list[ni]=tmp;saveQaList(list);draw(true)}
+    return;
+  }
+  if(b.dataset.qaVis){
+    vib(6);const list=getQaList(),it=list.find(x=>x.id===b.dataset.qaVis);
+    if(it){it.hidden=!it.hidden;saveQaList(list);draw(true)}
+    return;
+  }
   if('quickGl'in b.dataset){
     vib(8);S.tab='more';S.sub='gl';S.glErr='';
     S.glForm={id:'',type:'buy',title:'',priority:5,cost:'',saved:'',done:false,notes:''};
@@ -3101,6 +3147,7 @@ document.addEventListener('keydown',e=>{
   }
   try{const ml=JSON.parse(ls('more_layout'));if(Array.isArray(ml))S.moreLayout=ml}catch(e){}
   try{const hl=JSON.parse(ls('home_layout'));if(Array.isArray(hl))S.homeLayout=hl}catch(e){}
+  try{const ql=JSON.parse(ls('qa_layout'));if(Array.isArray(ql))S.qaLayout=ql}catch(e){}
   try{const fc=JSON.parse(ls('fire_cfg'));if(fc&&typeof fc==='object')S.fire=fc}catch(e){}
   loadSalLocal();
   let hasSnap=false;
