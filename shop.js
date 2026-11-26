@@ -1179,7 +1179,10 @@
     scheduleDrivePush();
   };
   window._shopSync = (mode = "pull", silent = false) => syncWithDrive(mode, silent);
-  window._shopRender = () => render();
+  window._shopRender = () => {
+    try{ if(typeof syncFromApp === 'function') syncFromApp(); }catch(e){}
+    render();
+  };
 
   importFromHashIfPresent();
   render();

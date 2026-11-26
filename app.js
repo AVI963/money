@@ -457,7 +457,7 @@ async function load(){
       draw(renderedEarly);
       S.files=null;
       if(S.tab=='more'&&(S.sub=='dc'||S.sub=='wr'))loadFiles();
-      quotes();
+      if(S.inv.length)quotes();
       if(window._shopSync)window._shopSync('pull',true);
       syncSalDrive('pull');
     }catch(e){
@@ -2356,7 +2356,7 @@ function mt(){
   lastPayDate=M.pay.length?dl(M.pay[M.pay.length-1].d):'—';
   const st=[['שווי נכס',M.val?fmt(M.val):'—'],['מסגרת מאושרת',fmt(M.frame)],['שיעור מימון (LTV)',M.val?(M.frame/M.val*100).toFixed(1)+'%':'—'],['ריבית משוקללת',(wr*100).toFixed(2)+'%'],['נמשך עד כה',fmt(drawn)+' ('+Math.round(drawn/(M.frame||1)*100)+'%)'],['נותר למשיכה',fmt(Math.max(0,M.frame-drawn))]];
   return [
-  `<div class="card hg pw-mort-hero"><div class="lb">משכנתא · ${esc(M.bank||'')}</div><div class="lb">יתרת קרן לסילוק (כולל הצמדה)</div><div class="big">${fmt(last.bal)}</div><span class="chip">${paid.length} מתוך ${M.pay.length} תשלומים</span>
+  `<div class="card hg"><div class="lb">משכנתא · ${esc(M.bank||'')}</div><div class="lb">יתרת קרן לסילוק (כולל הצמדה)</div><div class="big">${fmt(last.bal)}</div><span class="chip">${paid.length} מתוך ${M.pay.length} תשלומים</span>
   <div class="bar" style="height:10px;margin:16px 0 6px"><i style="width:${Math.max(paid.length/(M.pay.length||1)*100,1)}%;background:var(--g)"></i></div><div class="lb">${(paid.length/(M.pay.length||1)*100).toFixed(1)}% מהתקופה · מסתיימת ב-${lastPayDate}</div>
   <div class="trio"><div><span class="lb">שולם עד היום</span><b>${fmt(pp+pi+px)}</b></div><div><span class="lb">מזה ריבית והצמדה</span><b>${fmt(pi+px)}</b></div><div><span class="lb">קרן שהוחזרה</span><b>${fmt(pp)}</b></div></div></div>`,
   `<div class="grid"><div class="card"><span class="lb">התשלום הבא</span><b>${nx?fmt(nx.tot):'—'}</b><span class="lb">${nx?dl(nx.d):''}</span>${nx?`<div class="mut" style="font-size:12px">קרן ${fmt(nx.pr)} · ריבית ${fmt(nx.it)} · הצמדה ${fmt(nx.ix)}</div>`:''}</div>
@@ -2820,7 +2820,8 @@ async function quotes(){
     S.qtErr='לא ניתן למשוך שערי מניות כרגע';
   }
 }
-setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
+setInterval(()=>{if(document.visibilityState=='visible'&&(S.tab=='inv'||S.tab=='home')&&S.inv.length)quotes()},90000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(S.tab==='inv'||S.tab==='home')&&S.inv.length&&navigator.onLine!==false)quotes()});
 
 document.addEventListener('change',e=>{
   if((e.target.id==='gl-f-cover-inp'||e.target.id==='gl-f-cover-cam')&&S.glForm){
