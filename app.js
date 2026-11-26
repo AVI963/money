@@ -791,7 +791,7 @@ function pv(){
   const pvPts=per.map((p,k)=>({v:pt[k],lb:plb(p),flb:plb(p),on:k===pi}));
   const extraSlides=pvSlidesExtra(all);
   const dotCount=4+extraSlides.length;
-  return `<div class="card"><h2>ניתוח הוצאות</h2><div class="chips">${pr.map(([k,t])=>`<button class="chip2 ${P.pr==k?'on':''}" data-pr="${k}">${t}</button>`).join('')}</div>
+  return `<div class="card pv-head-card"><div class="pv-head-top"><div><h2 class="pv-head-title">ניתוח הוצאות</h2><span class="pv-head-sub">פילוח לפי תקופה, קטגוריה ומגמת שינוי</span></div></div><div class="chips">${pr.map(([k,t])=>`<button class="chip2 ${P.pr==k?'on':''}" data-pr="${k}">${t}</button>`).join('')}</div>
   <div class="chips"><select data-sel="from">${opt(P.from)}</select><span class="mut">עד</span><select data-sel="to">${opt(P.to)}</select></div>
   <div class="chips"><div class="qwrap"><input data-q placeholder="חיפוש הוצאה ספציפית (למשל: חשמל)" value="${esc(P.q)}">${P.q?'<button class="qclr" data-qclr aria-label="נקה חיפוש">✕</button>':''}</div></div>
   <div class="chips"><button class="chip2 ${P.by=='m'?'on':''}" data-by="m">לפי חודש</button><button class="chip2 ${P.by=='y'?'on':''}" data-by="y">לפי שנה</button><button class="chip2 ${R=='c'?'on':''}" data-rows="c">קטגוריות</button><button class="chip2 ${R=='t'?'on':''}" data-rows="t">סוגי הוצאה</button></div></div>
@@ -1332,7 +1332,7 @@ function gl() {
       <div class="shop-hero-box"><div class="shop-hero-lbl">יתרה להשלמה</div><div class="shop-hero-val" style="color:var(--w-ink)">${fmt(remCost)}</div></div>
       <div class="shop-hero-box"><div class="shop-hero-lbl">יעדים פתוחים</div><div class="shop-hero-val">${open.length} <small class="mut" style="font-size:11px">(${done.length} הושגו)</small></div></div>
     </div>
-    ${totCost > 0 ? `<div class="gl-prog-wrap" style="margin-top:12px"><div class="gl-prog-bar"><i style="width:${overallPct}%"></i></div><span class="lb" style="font-size:11.5px">נחסכו ${fmt(totSaved)} (${overallPct}%)</span></div>` : ''}
+    ${totCost > 0 ? `<div class="gl-prog-wrap" style="margin-top:12px"><div class="gl-prog-bar"><i style="width:${S.hide?0:overallPct}%"></i></div><span class="lb" style="font-size:11.5px">נחסכו ${fmt(totSaved)} (${S.hide?'••%':overallPct+'%'})</span></div>` : ''}
   </div>
 
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0">
@@ -3365,7 +3365,7 @@ document.addEventListener('click',async e=>{
     draw(true);
     return;
   }
-  if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw()}
+  if('eye'in b.dataset){vib(8);S.hide=!S.hide;ls('hide',S.hide?'1':'0');draw();if(window._shopRender)window._shopRender()}
   if(b.dataset.t){vib(8);S.tab=b.dataset.t;S.sub='';S.mPick=false;S.moreEdit=false;draw();scrollTo(0,0);if(S.tab==='shop'&&window._shopSync)window._shopSync('pull',true)}
   if(b.dataset.dn!==undefined){vib(6);const c=decodeURIComponent(b.dataset.dn);S.dnSel=(!c||S.dnSel===c)?null:c;draw();return}
   if(b.dataset.sc){

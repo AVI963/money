@@ -989,7 +989,7 @@
     const setTxt = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
     setTxt("shop-total-all", fmtMoney(totalEst));
     setTxt("shop-total-left", fmtMoney(leftEst));
-    setTxt("shop-progress", `${doneCount}/${items.length}`);
+    setTxt("shop-progress", (typeof S !== "undefined" && S.hide) ? "••/••" : `${doneCount}/${items.length}`);
     setTxt("shop-float-left", fmtMoney(leftEst));
     setTxt("shop-float-all", fmtMoney(totalEst));
 
