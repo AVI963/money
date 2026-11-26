@@ -787,83 +787,6 @@ function penCard(){
   <p class="mut" style="margin-top:10px">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`;
 }
 
-const pk=e=>S.pv.by=='y'?Math.floor(e.ym/100):e.ym,nf=n=>S.hide?'•••':Math.round(n).toLocaleString('he-IL');
-const plb=p=>!p?'':S.pv.by=='y'?String(p):new Date(Math.floor(p/100),p%100-1,1).toLocaleDateString('he-IL',{month:'short',year:'2-digit'});
-function setPr(p){
-  const P=S.pv,ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
-  if(!ys.length){const cur=ymOf(new Date());P.pr=p;P.from=cur;P.to=cur;P.dr=null;return}
-  const mx=ys[ys.length-1],yr=Math.floor(mx/100),mo=mx%100;P.pr=p;P.to=mx;P.dr=null;
-  if(p=='all')P.from=ys[0];
-  else if(p=='ty')P.from=yr*100+1;
-  else if(p=='ly'){P.from=(yr-1)*100+1;P.to=(yr-1)*100+12}
-  else if(p=='qtr'){
-    const qStartMo=Math.floor((mo-1)/3)*3+1;
-    const qEndMo=qStartMo+2;
-    const qStart=yr*100+qStartMo;
-    const qEnd=yr*100+qEndMo;
-    const inQ=ys.filter(y=>y>=qStart&&y<=qEnd);
-    P.from=inQ.length?inQ[0]:ys[Math.max(0,ys.length-3)];
-    P.to=inQ.length?inQ[inQ.length-1]:mx;
-  }
-  else P.from=ys[Math.max(0,ys.length-+p)];
-}
-
-function pvSlidesExtra(ys){
-  const i=ys.indexOf(S.ym),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),inc=y=>(S.mon.find(x=>x.ym==y)||{}).inc||0,
-  l6=ys.slice(Math.max(0,i-5),i+1),wi=l6.filter(y=>inc(y)>0),
-  si=T(wi.map(y=>({a:inc(y)})),'a'),se=T(wi.map(y=>({a:sy(y)})),'a'),
-  w=ys.slice(Math.max(0,i-11),i+1),cnt={};
-  S.exp.filter(e=>w.includes(e.ym)).forEach(e=>{(cnt[e.t]=cnt[e.t]||new Set()).add(e.ym)});
-  const fx=new Set(Object.keys(cnt).filter(t=>w.length>=4&&cnt[t].size>=w.length*.75)),cur=S.exp.filter(e=>e.ym==S.ym),fs=T(cur.filter(e=>fx.has(e.t)),'a'),tot=sy(S.ym),
-  topf=Object.entries(cur.filter(e=>fx.has(e.t)).reduce((o,e)=>(o[e.t]=(o[e.t]||0)+e.a,o),{})).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  const out=[];
-  if(si){
-    out.push(`<div class="card sl"><div><div class="row" style="padding:0"><h2>שיעור חיסכון (חצי שנה אחרונה)</h2><b class="pos" style="font-size:20px">${Math.round((si-se)/si*100)}%</b></div><span class="lb">מתוך ${wi.length} חודשים עם משכורת</span></div><div class="trio"><div><span class="lb">משכורת ממוצעת</span><b>${fmt(si/wi.length)}</b></div><div><span class="lb">הוצאות ממוצעות</span><b>${fmt(se/wi.length)}</b></div><div><span class="lb">נחסך בממוצע</span><b class="${si>se?'pos':'neg'}">${fmt((si-se)/wi.length)}</b></div></div></div>`);
-  }
-  if(fx.size){
-    out.push(`<div class="card sl"><div><h2>קבועות מול משתנות (${ymLb(S.ym)})</h2><span class="lb">הוצאות שחוזרות כמעט כל חודש נחשבות קבועות</span><div class="stack" style="height:12px"><i style="width:${fs/(tot||1)*100}%;background:var(--b)"></i><i style="width:${(1-fs/(tot||1))*100}%;background:var(--line)"></i></div></div><div><div class="trio" style="margin-top:4px"><div><span class="lb">קבועות (${Math.round(fs/(tot||1)*100)}%)</span><b>${fmt(fs)}</b></div><div><span class="lb">משתנות (${Math.round((1-fs/(tot||1))*100)}%)</span><b>${fmt(tot-fs)}</b></div></div>${topf.map(([t,v])=>`<div class="row s"><span class="mut">${esc(t)}</span><b>${fmt(v)}</b></div>`).join('')}</div></div>`);
-  }
-  return out;
-}
-
-function pv(){
-  const P=S.pv,R=P.rows,all=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
-  if(!all.length)return `<div class="card"><p class="mut" style="text-align:center">אין נתוני הוצאות לניתוח.</p></div>`;
-  const inr=S.exp.filter(e=>e.ym>=P.from&&e.ym<=P.to),
-  cats=[...new Set(inr.map(e=>e.c))].sort((a,b)=>T(inr.filter(e=>e.c==b),'a')-T(inr.filter(e=>e.c==a),'a')),
-  qNorm=String(P.q||'').toLowerCase(),
-  d=inr.filter(e=>(!P.sel.length||P.sel.includes(e.c))&&(!qNorm||(e.t+' '+e.c).toLowerCase().includes(qNorm))),per=[];
-  if(P.by=='y'){for(let y=Math.floor(P.from/100);y<=Math.floor(P.to/100);y++)per.push(y)}else{for(let y=Math.floor(P.from/100),m=P.from%100;y*100+m<=P.to;m==12?(y++,m=1):m++)per.push(y*100+m)}
-  const M={};d.forEach(e=>{const r=e[R],p=pk(e);M[r]=M[r]||{t:0,p:{}};M[r].t+=e.a;M[r].p[p]=(M[r].p[p]||0)+e.a});
-  const rs=Object.entries(M).sort((a,b)=>b[1].t-a[1].t),pt=per.map(p=>T(d.filter(e=>pk(e)==p),'a')),tot=T(d,'a'),nmo=all.filter(y=>y>=P.from&&y<=P.to).length||1,
-  mxc=Math.max(...rs.flatMap(([,v])=>Object.values(v.p)),1),
-  rawMaxP=pt.length?Math.max(...pt):0,
-  pi=rawMaxP>0?pt.indexOf(rawMaxP):-1,
-  pr=[['qtr','רבעון'],['3','3 חודשים'],['6','חצי שנה'],['12','שנה'],['ty','השנה'],['ly','שנה שעברה'],['all','הכל']],
-  opt=v=>all.map(y=>`<option value="${y}" ${y==v?'selected':''}>${ymLb(y)}</option>`).join('');
-  const row=(r,v,sb)=>`<tr><td ${R=='c'&&!sb?`data-x="${encodeURIComponent(r)}" style="cursor:pointer"`:`data-n="${encodeURIComponent(r)}" data-k="${sb?'t':R}" style="cursor:pointer"`}>${sb?'<span class="mut">↳ </span>':R=='c'?(P.open.includes(r)?'▾ ':'▸ '):''}${esc(r)}</td>${per.map(p=>{const x=v.p[p]||0;return `<td data-r="${encodeURIComponent(r)}" data-k="${sb?'t':R}" data-p="${p}" style="background:rgba(16,185,129,${(x/mxc*.42).toFixed(3)})">${x?nf(x):''}</td>`}).join('')}<td data-r="${encodeURIComponent(r)}" data-k="${sb?'t':R}" data-p=""><b>${nf(v.t)}</b></td></tr>`,
-  sub=c=>{const m={};d.filter(e=>e.c==c).forEach(e=>{m[e.t]=m[e.t]||{t:0,p:{}};m[e.t].t+=e.a;m[e.t].p[pk(e)]=(m[e.t].p[pk(e)]||0)+e.a});return Object.entries(m).sort((a,b)=>b[1].t-a[1].t)};
-  const pvPts=per.map((p,k)=>({v:pt[k],lb:plb(p),flb:plb(p),on:k===pi}));
-  const extraSlides=pvSlidesExtra(all);
-  const dotCount=4+extraSlides.length;
-  return `<div class="card"><h2>ניתוח הוצאות</h2><div class="chips">${pr.map(([k,t])=>`<button class="chip2 ${P.pr==k?'on':''}" data-pr="${k}">${t}</button>`).join('')}</div>
-  <div class="chips"><select data-sel="from">${opt(P.from)}</select><span class="mut">עד</span><select data-sel="to">${opt(P.to)}</select></div>
-  <div class="chips"><div class="qwrap"><input data-q placeholder="חיפוש הוצאה ספציפית (למשל: חשמל)" value="${esc(P.q)}">${P.q?'<button class="qclr" data-qclr aria-label="נקה חיפוש">✕</button>':''}</div></div>
-  <div class="chips"><button class="chip2 ${P.by=='m'?'on':''}" data-by="m">לפי חודש</button><button class="chip2 ${P.by=='y'?'on':''}" data-by="y">לפי שנה</button><button class="chip2 ${R=='c'?'on':''}" data-rows="c">קטגוריות</button><button class="chip2 ${R=='t'?'on':''}" data-rows="t">סוגי הוצאה</button></div></div>
-  <div class="car"><div class="card sl"><div><div class="lb">סך הכל בטווח${P.sel.length?' ('+P.sel.length+' קטגוריות נבחרו)':''}</div><div class="big">${fmt(tot)}</div>
-  <div class="trio"><div><span class="lb">ממוצע לחודש</span><b>${fmt(tot/nmo)}</b></div><div><span class="lb">חודשים</span><b>${nmo}</b></div><div><span class="lb">שיא${pi>=0&&per[pi]?' · '+plb(per[pi]):''}</span><b>${fmt(rawMaxP)}</b></div></div></div>
-  ${areaChart(pvPts,{avg:tot/nmo,showLabels:per.length<=12})}</div>
-  ${pxs(rs,tot,nmo,d,P,all)}${extraSlides.join('')}</div><div class="dots">${Array.from({length:dotCount},(_,k)=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div><div class="card"><h2>סינון קטגוריות</h2><div class="chips">${cats.map(c=>`<button class="chip2 ${P.sel.includes(c)?'on':''}" data-cat="${encodeURIComponent(c)}">${ico(c)} ${esc(c)}</button>`).join('')}</div><span class="mut">בחירה מרובה. בלי בחירה מוצגות כולן.</span></div>
-  <div class="card" id="tb"><h2>טבלה</h2><div class="tw"><table><tr><th></th>${per.map(p=>`<th>${esc(plb(p))}</th>`).join('')}<th>סה״כ</th></tr>
-  ${rs.map(([r,v])=>row(r,v,0)+(R=='c'&&P.open.includes(r)?sub(r).map(([t,u])=>row(t,u,1)).join(''):'')).join('')}
-  <tr><td><b>סה״כ</b></td>${pt.map(x=>`<td><b>${nf(x)}</b></td>`).join('')}<td><b>${nf(tot)}</b></td></tr></table></div><span class="mut">לחץ על תא להצגת ההוצאות שבו.</span></div>
-  ${P.dr?(()=>{const it=d.filter(e=>e[P.dr.k||R]==P.dr.r&&(P.dr.p==null||pk(e)==P.dr.p)).sort((a,b)=>P.dr.p==null?b.ym-a.ym||b.a-a.a:b.a-a.a);return `<div class="card" id="dr"><div class="row"><h2>${esc(P.dr.r)} · ${P.dr.p==null?'כל התקופה':esc(plb(P.dr.p))}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length?T(it,'a')/it.length:0)}</span><b>${fmt(T(it,'a'))}</b></div>${P.dr.p==null?(P.dr.k=='c'?brk(it):''):it.map(e=>`<div class="row s"><span>${esc(e.t)} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`})():''}`;
-}
-
-function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
-  return `<div class="card hg"><div class="lb">סך שווי נקי (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
-  <div class="trio"><div><span class="lb">השקעות (${Math.round(v/(v+p)*100)}%)</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה והשתלמות (${Math.round(p/(v+p)*100)}%)</span><b>${fmt(p)}</b></div></div></div>`}
-function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${esc(r['שם'])} <span class="mut">${esc(r['סוג']||'')}</span></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
 function inv(){return (S.qt?`<div class="pw-sync-pill" style="margin:4px 6px 10px"><span class="pw-sync-dot"></span><span>עדכון מחירים אחרון: ${esc(S.qt)} · עדכון תקופתי</span></div>`:'')+nw()+nwHistoryCard()+inv0()+penCard()}
 
 function todayISO(){
@@ -1681,7 +1604,7 @@ function fireView(){
   const expPct=Math.min(100,Math.max(0,((C.monthlyExp-4000)/(35000-4000))*100));
   const savePct=Math.min(100,Math.max(0,(C.saveMon/25000)*100));
   return `
-  <div class="card hg">
+  <div class="card hg pw-fire-hero">
     <div class="row" style="padding:0"><span class="lb">כלל ה-${F.swr}% · חוק ${C.mult} החודשים</span><span class="chip" id="f-fire-pct">${C.firePct.toFixed(1)}% מהיעד</span></div>
     <div class="big">${fmt(C.safeMonthlyNow)}<span style="font-size:17px;font-weight:600;color:var(--mut)"> / חודש</span></div>
     <span class="lb">קצבה חודשית שההון שלך מייצר כבר היום במשיכת ${F.swr}% בשנה</span>
@@ -1779,7 +1702,7 @@ function more(){
   if(S.sub&&views[S.sub])return `<button class="pr" data-sub="" style="margin:4px 0 10px">← חזרה</button>`+views[S.sub]();
   S.sub='';
   const list=getMoreList(),ed=S.moreEdit;
-  return `<div class="row" style="padding:2px 2px 6px"><span class="lb">${ed?'שנה גודל (ריבוע/רחב) והזז מיקום':'כלים ומודולים נוספים'}</span><div style="display:flex;gap:6px">${ed?`<button class="chip2" data-med-reset style="padding:4px 10px;font-size:12px">איפוס</button>`:''}<button class="chip2 ${ed?'on':''}" data-med-tog style="padding:4px 12px;font-size:12px">${ed?'סיום עריכה ✓':'ערוך פריסה ✎'}</button></div></div>
+  return `<div class="row pw-more-bar"><span class="lb">${ed?'שנה גודל (ריבוע/רחב) והזז מיקום':'כלים ומודולים נוספים · התאמה אישית'}</span><div style="display:flex;gap:6px">${ed?`<button class="chip2" data-med-reset style="padding:4px 10px;font-size:12px">איפוס</button>`:''}<button class="chip2 ${ed?'on':''}" data-med-tog style="padding:4px 12px;font-size:12px">${ed?'סיום עריכה ✓':'ערוך פריסה ✎'}</button></div></div>
   <div class="mgrid">${list.map((it,idx)=>{
     const ctrl=ed?`<div class="med-bar">
       <button class="med-btn" data-med-sz="${it.id}">${it.wide?'הפוך לריבוע':'הפוך לרחב'}</button>
@@ -2672,7 +2595,7 @@ function sl(){
   const ov={[M.wage]:+sv.w||w0};M.sh.forEach((s,k)=>ov[s.cA]=sv.c[k]);
   const g=salCalc(ov),n=g(M.net),gr=g(M.gross),n0=base(M.net),diff=n-n0,cnt=sv.c.reduce((a,b)=>a+b,0),mg=M.sh.map((s,k)=>salCalc({...ov,[s.cA]:sv.c[k]+1})(M.net)-n);
   return [`<div class="sl-float" id="slf" data-up-top><span style="font-size:13px;font-weight:700">נטו חזוי: <b class="pos" style="font-size:15px">${fmt(n)}</b></span>${Math.abs(diff)>=1?`<span class="chip ${diff<0?'bad':''}" style="padding:2px 9px;font-size:11.5px">${diff>0?'+':''}${fmt(diff)}</span>`:`<span class="mut" style="font-size:11.5px">${cnt} משמרות</span>`}</div>`,
-  `<div class="card hg"><div class="lb">מחשבון שכר</div><div class="lb">שכר נטו חזוי</div><div class="big">${fmt(n)}</div><span class="chip">${fmt(gr)} ברוטו</span><div class="row s" style="margin-top:10px"><span class="lb">בקובץ האקסל כרגע</span><b>${fmt(n0)}</b></div></div>`,
+  `<div class="card hg pw-sal-hero"><div class="lb">מחשבון שכר וסימולטור משמרות</div><div class="lb">שכר נטו חזוי</div><div class="big">${fmt(n)}</div><span class="chip">${fmt(gr)} ברוטו</span><div class="row s" style="margin-top:10px"><span class="lb">בקובץ האקסל כרגע</span><b>${fmt(n0)}</b></div></div>`,
   `<div class="card"><h2>משמרות החודש</h2><span class="lb">נשמר אוטומטית גם באופליין ומגובה ברקע · לא משנה את האקסל</span>${M.sh.map((s,k)=>`<div class="row" style="align-items:center;padding:10px 0;border-top:1px solid var(--line)"><div><b>${esc(s.n)}</b><div class="mut">${fmt(g(s.rA))} למשמרת · נטו נוסף ${fmt(mg[k])}</div></div><div class="stp"><button class="chip2" data-sc="${k}:-1">−</button><b>${sv.c[k]}</b><button class="chip2" data-sc="${k}:1">+</button></div><b style="min-width:72px;text-align:end">${fmt(g(s.tA))}</b></div>`).join('')}
   <div class="row" style="align-items:center;margin-top:8px"><span class="lb">שכר לשעה</span><input type="number" step="0.01" data-sw value="${ov[M.wage]}"></div><button class="chip2" data-sreset style="margin-top:8px">אפס לערכי האקסל</button></div>`,
   `<div class="card"><h2>פירוט</h2><div class="row s"><span>משמרות (${cnt})</span><b>${fmt(g(M.shiftTot))}</b></div>${M.ad.map(x=>`<div class="row s mut"><span>${esc(x.n)}</span><span>${fmt(g(x.a))}</span></div>`).join('')}<div class="row s"><span>סה״כ הוספות</span><b>${fmt(g(M.addTot))}</b></div><div class="row" style="border-top:1px solid var(--line)"><b>ברוטו</b><b>${fmt(gr)}</b></div>${M.ded.map(x=>`<div class="row s"><span>${esc(x.n)}</span><b class="neg">${fmt(g(x.a))}</b></div>`).join('')}<div class="row" style="border-top:1px solid var(--line)"><b>שכר נטו</b><b class="pos">${fmt(n)}</b></div></div>`,
@@ -2754,9 +2677,9 @@ function ins0(){
   <div class="card"><h2>פרמיה חודשית לפי שנת ביטוח</h2>${I.pr.filter(x=>x&&x[0]).map(x=>{const m=((+x[6]||0)+(+x[7]||0))/12,cur=x[0]==yi+1;return `<div class="row s" style="${cur?'font-weight:700':'color:var(--mut)'}"><span>שנה ${esc(x[0])}${cur?' (נוכחית)':''}</span><span>${m?fmt(m):'טרם פורסם'}</span></div>`}).join('')}</div>`;
 }
 function cp(){
-  if(!S.cp.length)return `<div class="card"><p>${S.exp.length?'לא נמצאו קופונים בקובץ ההוצאות.':''}הקופונים זמינים אחרי סנכרון עם הדרייב.</p></div>`;
-  return `<div class="card hg"><div class="lb">שווי קופונים</div><div class="big">${fmt(T(S.cp,'a'))}</div><span class="chip">${S.cp.length} קופונים</span></div>`+
-  S.cp.map((c,k)=>`<div class="cp"><div class="am" style="background:${COL[k%8]}">${fmt(c.a)}</div><div><b>${esc(c.n)}</b><div class="mut">${c.c.startsWith('http')?'קישור למימוש':'קוד'}</div></div><button class="pr" data-c="${k}">${c.c.startsWith('http')?'פתח':'העתק קוד'}</button></div>`).join('');
+  if(!S.cp.length)return `<div class="card pw-empty-card"><p class="mut">${S.exp.length?'לא נמצאו קופונים בקובץ ההוצאות.':''}הקופונים זמינים אחרי סנכרון עם הדרייב.</p></div>`;
+  return `<div class="card hg pw-cp-hero"><div class="lb">ארנק קופונים והטבות</div><div class="big">${fmt(T(S.cp,'a'))}</div><span class="chip">${S.cp.length} קופונים פעילים</span></div>`+
+  S.cp.map((c,k)=>`<div class="cp pw-cp-item"><div class="am" style="background:${COL[k%8]}">${fmt(c.a)}</div><div><b>${esc(c.n)}</b><div class="mut">${c.c.startsWith('http')?'קישור למימוש':'קוד'}</div></div><button class="pr" data-c="${k}">${c.c.startsWith('http')?'פתח':'העתק קוד'}</button></div>`).join('');
 }
 
 const prevNums={},rmRed=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;

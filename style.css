@@ -1992,3 +1992,23 @@ main.pw-screen-anim {
 
 /* v15 Settings & Polish */
 .pw-settings-card{border-inline-start:3px solid var(--g)}
+
+/* ==========================================================================
+   v16 Module Polish: Insurance, Coupons, Warranty, Goals, FIRE, Salary & Settings
+   ========================================================================== */
+.pw-ins-hero,.pw-cp-hero,.pw-fire-hero,.pw-sal-hero{
+  border:1px solid var(--bd-strong);
+  position:relative;overflow:hidden
+}
+.pw-cp-item{
+  border:1px solid var(--line);
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease
+}
+@media(hover:hover){.pw-cp-item:hover{border-color:var(--g);transform:translateY(-1px);box-shadow:var(--sh-sm)}}
+.pw-more-bar{
+  background:var(--card2);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:10px 12px;margin-bottom:10px
+}
+.pw-empty-card{
+  text-align:center;padding:24px 16px;border:1px dashed var(--bd-strong)
+}
