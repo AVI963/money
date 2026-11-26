@@ -2221,17 +2221,46 @@ async function onAuthCode(r){
     load();
   }catch(e){fail('אין חיבור לשרת ההתחברות')}
 }
-async function login(forceConsent=false){
-  if(!forceConsent&&await refresh()){load();return}
-  if(!window.google||!google.accounts||!google.accounts.oauth2){
-    fail('שירות ההתחברות של Google עדיין נטען, נסה שוב בעוד רגע');
-    return;
+async function waitForGsi(maxMs=3500){
+  const start=Date.now();
+  while(Date.now()-start<maxMs){
+    if(window.google&&google.accounts&&google.accounts.oauth2)return true;
+    await new Promise(r=>setTimeout(r,120));
   }
-  const onErr=err=>{if(err&&err.type!=='popup_closed')fail('שגיאת אימות מול Google')};
-  const client=forceConsent
-    ?google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',prompt:'consent',callback:onAuthCode,error_callback:onErr})
-    :(cc=cc||google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',callback:onAuthCode,error_callback:onErr}));
-  client.requestCode();
+  return !!(window.google&&google.accounts&&google.accounts.oauth2);
+}
+async function login(forceConsent=false){
+  const goBtn=document.querySelector('[data-sync],[data-sync-consent]');
+  if(goBtn){goBtn.disabled=true;goBtn.dataset.origText=goBtn.dataset.origText||goBtn.textContent;goBtn.textContent='מתחבר ל-Google...';}
+  const restoreBtn=()=>{
+    document.querySelectorAll('[data-sync],[data-sync-consent]').forEach(el=>{
+      el.disabled=false;
+      if(el.dataset.origText)el.textContent=el.dataset.origText;
+    });
+  };
+  try{
+    if(!forceConsent&&await refresh()){restoreBtn();load();return;}
+    const ready=await waitForGsi(3500);
+    if(!ready){
+      restoreBtn();
+      fail('שירות ההתחברות של Google לא נטען בזמן. בדוק חוסמי פרסומות/סקריפטים ונסה שוב.');
+      return;
+    }
+    const onErr=err=>{
+      restoreBtn();
+      if(err&&err.type!=='popup_closed'){
+        fail('שגיאת אימות מול Google'+(err.message?': '+err.message:''));
+      }
+    };
+    const client=forceConsent
+      ?google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',prompt:'consent',callback:r=>{restoreBtn();return onAuthCode(r);},error_callback:onErr})
+      :(cc=cc||google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',callback:r=>{restoreBtn();return onAuthCode(r);},error_callback:onErr}));
+    client.requestCode();
+    setTimeout(restoreBtn,4000);
+  }catch(e){
+    restoreBtn();
+    fail('שגיאה בהפעלת ההתחברות: '+(e&&e.message?e.message:'נסה שוב'));
+  }
 }
 window._getAuthToken=()=>token;
 window._refreshAuthToken=()=>refresh();
@@ -2266,7 +2295,7 @@ function mt(){
   lastPayDate=M.pay.length?dl(M.pay[M.pay.length-1].d):'—';
   const st=[['שווי נכס',M.val?fmt(M.val):'—'],['מסגרת מאושרת',fmt(M.frame)],['שיעור מימון (LTV)',M.val?(M.frame/M.val*100).toFixed(1)+'%':'—'],['ריבית משוקללת',(wr*100).toFixed(2)+'%'],['נמשך עד כה',fmt(drawn)+' ('+Math.round(drawn/(M.frame||1)*100)+'%)'],['נותר למשיכה',fmt(Math.max(0,M.frame-drawn))]];
   return [
-  `<div class="card hg"><div class="lb">משכנתא · ${esc(M.bank||'')}</div><div class="lb">יתרת קרן לסילוק (כולל הצמדה)</div><div class="big">${fmt(last.bal)}</div><span class="chip">${paid.length} מתוך ${M.pay.length} תשלומים</span>
+  `<div class="card hg pw-mort-hero"><div class="lb">משכנתא · ${esc(M.bank||'')}</div><div class="lb">יתרת קרן לסילוק (כולל הצמדה)</div><div class="big">${fmt(last.bal)}</div><span class="chip">${paid.length} מתוך ${M.pay.length} תשלומים</span>
   <div class="bar" style="height:10px;margin:16px 0 6px"><i style="width:${Math.max(paid.length/(M.pay.length||1)*100,1)}%;background:var(--g)"></i></div><div class="lb">${(paid.length/(M.pay.length||1)*100).toFixed(1)}% מהתקופה · מסתיימת ב-${lastPayDate}</div>
   <div class="trio"><div><span class="lb">שולם עד היום</span><b>${fmt(pp+pi+px)}</b></div><div><span class="lb">מזה ריבית והצמדה</span><b>${fmt(pi+px)}</b></div><div><span class="lb">קרן שהוחזרה</span><b>${fmt(pp)}</b></div></div></div>`,
   `<div class="grid"><div class="card"><span class="lb">התשלום הבא</span><b>${nx?fmt(nx.tot):'—'}</b><span class="lb">${nx?dl(nx.d):''}</span>${nx?`<div class="mut" style="font-size:12px">קרן ${fmt(nx.pr)} · ריבית ${fmt(nx.it)} · הצמדה ${fmt(nx.ix)}</div>`:''}</div>
