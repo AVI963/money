@@ -1,4 +1,4 @@
-const C = 'money-v11';
+const C = 'money-v20';
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -66,4 +66,3 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-מנתח את הנתונים
