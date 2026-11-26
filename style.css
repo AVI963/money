@@ -1181,30 +1181,42 @@ input[data-price-inp]{
 
 @media(max-width:739px){
   .mgrid{
-    display:flex;
-    flex-direction:column;
-    gap:9px;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
     margin:6px 0
   }
-  .mtile,
+  .mtile{
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+    padding:14px;
+    min-height:112px
+  }
   .mtile.wide{
-    width:100%;
+    grid-column:span 2;
     flex-direction:row;
     align-items:center;
     justify-content:space-between;
+    min-height:auto;
     padding:13px 15px;
     gap:12px
   }
   .mtile .mt-top{
-    width:auto;
-    flex:none
+    display:flex;
+    width:100%;
+    justify-content:space-between;
+    align-items:center;
+    gap:6px
   }
   .mtile > div:nth-child(2){
-    flex:1;
-    min-width:0
+    min-width:0;
+    flex:1
   }
   .mtile b{font-size:14.5px;margin-bottom:2px}
-  .mtile small{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mtile small{font-size:12px;line-height:1.35}
 }
 
 .qa-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}

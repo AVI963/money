@@ -1204,11 +1204,13 @@ function gl() {
       </div>
       <label class="wf-lbl" style="margin-top:10px">תמונה ליעד (אופציונלי)</label>
       <input id="gl-f-cover-inp" type="file" accept="image/*" style="display:none">
+      <input id="gl-f-cover-cam" type="file" accept="image/*" capture="environment" style="display:none">
       <div style="display:flex;gap:6px;align-items:center">
         <button type="button" id="gl-f-cover-trig" class="wf-file-btn ${pendCov || existingCovUrl ? 'has' : ''}" style="flex:1">
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${covLabel}</span>
-          <span style="font-weight:700;color:var(--g);flex:none">${pendCov || existingCovUrl ? 'החלף' : 'בחר'}</span>
+          <span style="font-weight:700;color:var(--g);flex:none">${pendCov || existingCovUrl ? 'החלף' : 'גלריה'}</span>
         </button>
+        <button type="button" id="gl-f-cover-cam-trig" class="chip2" title="צלם תמונה ליעד" aria-label="צלם תמונה ליעד" style="padding:8px 11px;flex:none">📷 צלם</button>
         ${(pendCov || existingCovUrl) ? `<button type="button" class="chip2" data-gl-uncover style="color:var(--r);padding:8px 10px">הסר</button>` : ''}
       </div>
       ${pendCov ? `<div class="gl-cover-preview"><span class="mut" style="font-size:12px">יישמר בעת שמירת היעד: <b>${esc(pendCov.name)}</b></span></div>` : (existingCovUrl ? `<div class="gl-cover-preview"><img src="${esc(f.coverId ? driveThumbUrl(f.coverId) : existingCovUrl)}" alt="${esc(f.title || '')}" onerror="this.style.display='none'"><span class="mut" style="font-size:12px">תמונה משויכת ליעד</span></div>` : '')}
@@ -1381,10 +1383,14 @@ function warrantySheet(){
 
       <label class="wf-lbl">תמונת מוצר מבחוץ (תוצג בכרטיסייה)</label>
       <input id="wf-cover-inp" type="file" accept="image/*" style="display:none">
-      <button type="button" id="wf-cover-trig" class="wf-file-btn ${pendingCover||f.coverLink?'has':''}">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${coverLabel}</span>
-        <span style="font-weight:700;color:var(--g);flex:none">${pendingCover||f.coverLink?'החלף':'בחר'}</span>
-      </button>
+      <input id="wf-cover-cam" type="file" accept="image/*" capture="environment" style="display:none">
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" id="wf-cover-trig" class="wf-file-btn ${pendingCover||f.coverLink?'has':''}" style="flex:1">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${coverLabel}</span>
+          <span style="font-weight:700;color:var(--g);flex:none">${pendingCover||f.coverLink?'החלף':'גלריה'}</span>
+        </button>
+        <button type="button" id="wf-cover-cam-trig" class="chip2" title="צלם תמונת מוצר" aria-label="צלם תמונת מוצר" style="padding:8px 11px;flex:none">📷 צלם</button>
+      </div>
       ${(f.coverLink&&!pendingCover)?`<div style="margin-top:4px;text-align:end"><button type="button" class="ex-btn" data-w-uncover>הסר תמונת מוצר</button></div>`:''}
 
       <div class="wf-grid2">
@@ -1413,10 +1419,14 @@ function warrantySheet(){
 
       <label class="wf-lbl">קבלות ותעודות אחריות (ניתן לצרף כמה קבצים / תמונות / PDF)</label>
       <input id="wf-file" type="file" multiple accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.webp,.heic" style="display:none">
-      <button type="button" id="wf-file-trig" class="wf-file-btn ${pendingFiles.length||existingAtts.length?'has':''}">
-        <span>📎 הוסף קבלות או תעודות אחריות</span>
-        <span style="font-weight:700;color:var(--g);flex:none">+ הוסף קבצים</span>
-      </button>
+      <input id="wf-file-cam" type="file" accept="image/*" capture="environment" style="display:none">
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" id="wf-file-trig" class="wf-file-btn ${pendingFiles.length||existingAtts.length?'has':''}" style="flex:1">
+          <span>📎 קבצים / גלריה</span>
+          <span style="font-weight:700;color:var(--g);flex:none">+ הוסף קבצים</span>
+        </button>
+        <button type="button" id="wf-file-cam-trig" class="chip2" title="צלם קבלה או תעודת אחריות" aria-label="צלם קבלה או תעודת אחריות" style="padding:8px 11px;flex:none">📷 צלם</button>
+      </div>
       ${existingAtts.map((a,i)=>`<div class="wf-att-chip">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✅ ${esc(a.name||`קובץ ${i+1}`)}</span>
         <button type="button" class="ex-btn" data-w-rm-att="${i}" style="color:var(--r)">הסר</button>
@@ -2544,17 +2554,17 @@ async function quotes(){
 setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
 
 document.addEventListener('change',e=>{
-  if(e.target.id==='gl-f-cover-inp'&&S.glForm){
+  if((e.target.id==='gl-f-cover-inp'||e.target.id==='gl-f-cover-cam')&&S.glForm){
     const file=e.target.files&&e.target.files[0];
     if(file){S.glPendingCover=file;draw(true)}
     return;
   }
-  if(e.target.id==='wf-cover-inp'&&S.wForm){
+  if((e.target.id==='wf-cover-inp'||e.target.id==='wf-cover-cam')&&S.wForm){
     const file=e.target.files&&e.target.files[0];
     if(file){S.wPendingCover=file;draw(true)}
     return;
   }
-  if(e.target.id==='wf-file'&&S.wForm){
+  if((e.target.id==='wf-file'||e.target.id==='wf-file-cam')&&S.wForm){
     const fl=e.target.files?Array.from(e.target.files):[];
     if(fl.length){
       if(!Array.isArray(S.wPendingFiles))S.wPendingFiles=[];
@@ -2817,8 +2827,14 @@ document.addEventListener('click',async e=>{
   if(b.id==='wf-cover-trig'){
     const inp=document.getElementById('wf-cover-inp');if(inp)inp.click();return;
   }
+  if(b.id==='wf-cover-cam-trig'){
+    const inp=document.getElementById('wf-cover-cam');if(inp)inp.click();return;
+  }
   if(b.id==='wf-file-trig'){
     const inp=document.getElementById('wf-file');if(inp)inp.click();return;
+  }
+  if(b.id==='wf-file-cam-trig'){
+    const inp=document.getElementById('wf-file-cam');if(inp)inp.click();return;
   }
   if('wUncover'in b.dataset&&S.wForm){
     vib(6);S.wForm.coverId='';S.wForm.coverLink='';draw(true);return;
@@ -2863,6 +2879,9 @@ document.addEventListener('click',async e=>{
   }
   if(b.id==='gl-f-cover-trig'&&S.glForm){
     const inp=document.getElementById('gl-f-cover-inp');if(inp)inp.click();return;
+  }
+  if(b.id==='gl-f-cover-cam-trig'&&S.glForm){
+    const inp=document.getElementById('gl-f-cover-cam');if(inp)inp.click();return;
   }
   if('glUncover'in b.dataset&&S.glForm){
     vib(6);S.glPendingCover=null;S.glForm.coverId='';S.glForm.coverLink='';draw(true);return;
