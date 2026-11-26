@@ -1,4 +1,4 @@
-const C = 'money-v10';
+const C = 'money-v11';
 const CORE_ASSETS = [
   './',
   'index.html',
