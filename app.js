@@ -966,7 +966,6 @@ function dc0(){
   </div>
   <div class="chips" style="margin-bottom:4px">
     <button class="chip2 ${curDcSt==='all'?'on':''}" data-dcs="all">הכל (${allCount})</button>
-  const dcvBtn=e.target.closest('[data-dcv]');if(dcvBtn){S.dcView=dcvBtn.dataset.dcv;draw(true);return;}
     <button class="chip2 ${curDcSt==='soon'?'on':''}" data-dcs="soon">עומד לפוג (${cntDcSoon})</button>
     <button class="chip2 ${curDcSt==='expired'?'on':''}" data-dcs="expired">פג תוקף (${cntDcExp})</button>
   </div>
@@ -2749,8 +2748,7 @@ async function quotes(){
   const ctrl=new AbortController();
   quotesAbort=ctrl;
   try{
-    const headers=token?{'Authorization':'Bearer '+token}:{};
-    const res=await fetch(W+'/quote?ids='+encodeURIComponent(ids.join(',')),{signal:ctrl.signal,headers});
+    const res=await fetch(W+'/quote?ids='+encodeURIComponent(ids.join(',')),{signal:ctrl.signal});
     if(!res.ok){
       S.qtErr='שגיאת עדכון שערים ('+res.status+')';
       if(S.tab==='inv')draw(true);
@@ -2937,9 +2935,7 @@ function draw(skipAnim=false){
   const viewHtml=`<div class="view${skipAnim||S.tab==='shop'?' no-anim':''}">${({home,pv,inv,more,shop:()=>''}[S.tab]||home)()}</div>`;
   $('#app').innerHTML=`<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-gs-open title="חיפוש גלובלי" aria-label="חיפוש גלובלי">${SVG.search}</button><button data-theme-tog title="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}" aria-label="${dark?'מעבר למצב בהיר':'מעבר למצב כהה'}">${dark?SVG.sun:SVG.moon}</button><button data-eye class="${S.hide?'on':''}" title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide?SVG.eyeOff:SVG.eye}</button><button data-sync class="${S.syncing?'spin':''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>`+
   (S.err&&(!token||S.scopeErr)?`<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr?'data-sync-consent':'data-sync'}>${S.scopeErr?'אשר הרשאות':'סנכרן'}</button></div>`:(!token&&!ls('rt')?`<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>`:''))+`<div class="pw-desktop-shell">${sidebarHtml}<main>${viewHtml}</main></div>${S.tab==='home'?monthSheet(ys,sy):''}${globalSearchModal()}`;
-  const sp=document.getElementById('page-shopping');
-  if(sp)sp.style.display=S.tab==='shop'?'block':'none';
-  if(window._shopRender)window._shopRender();
+  const sp=document.getElementById('page-shopping');if(sp)sp.style.display=S.tab==='shop'?'block':'none';if(S.tab==='shop'&&window._shopRender)window._shopRender();
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==S.tab));
   document.querySelectorAll('.car').forEach(syncDots);
   centerMonthStrip();

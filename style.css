@@ -2050,3 +2050,58 @@ main.pw-screen-anim {
   flex:1 1 auto !important;
   min-width:0 !important
 }
+
+/* ==========================================================================
+   v23 Fixes: CORS-free Quotes, Home Layout & QA Edit Polish, Docs/Warranties Grid
+   ========================================================================== */
+.hlay-bar{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  flex-wrap:wrap;margin:10px 0 10px;padding:10px 14px;
+  border-radius:var(--r-md);background:var(--card);border:1px solid var(--bd-strong);
+  box-shadow:var(--sh-sm)
+}
+.hlay-item{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:var(--r-md);background:var(--card2);
+  border:1px solid var(--line);margin-top:8px;font-size:13.5px;
+  transition:border-color .15s ease,background .15s ease
+}
+.hlay-item:hover{border-color:var(--bd-strong);background:var(--card)}
+.hlay-ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+.qa-edit-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.qa-edit-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-radius:var(--r-md);background:var(--card2);
+  border:1px solid var(--line);font-size:13.5px;
+  transition:border-color .15s ease,background .15s ease
+}
+.qa-edit-row:hover{border-color:var(--bd-strong);background:var(--card)}
+.qa-edit-row .btn-secondary,
+.hlay-item .btn-secondary{
+  background:var(--card);color:var(--ink);border:1px solid var(--bd-strong);
+  font-weight:700
+}
+.qa-edit-row .btn-secondary:hover,
+.hlay-item .btn-secondary:hover{
+  background:var(--gold-soft);border-color:var(--gold-bd);color:var(--ink)
+}
+
+/* Keep Document Center and Warranties cards full-width / grid cleanly on desktop */
+.pw-dc-grid{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr)) !important;
+  gap:12px !important;
+  width:100% !important
+}
+.pw-dc-tile{
+  min-width:0 !important;
+  width:100% !important;
+  max-width:none !important;
+  box-sizing:border-box
+}
+.w-card{
+  width:100% !important;
+  max-width:none !important;
+  box-sizing:border-box
+}
