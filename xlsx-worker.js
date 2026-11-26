@@ -35,13 +35,34 @@ function parseExp(wb) {
 
   rows.slice(1).forEach(x => {
     if (!x) return;
-    if (typeof x[1] === 'number' && x[2] && x[4] instanceof Date) {
-      const fd = fix(x[4]);
+    const wNum = v => {
+      if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+      if (v === null || v === undefined || v === '') return 0;
+      const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.\-+eE]/g, '').trim());
+      return Number.isFinite(n) ? n : 0;
+    };
+    const wDate = v => {
+      if (v instanceof Date) return isNaN(+v) ? null : v;
+      if (typeof v === 'number' && v > 20000 && v < 100000) {
+        const d = new Date(Math.round((v - 25569) * 864e5));
+        return isNaN(+d) ? null : d;
+      }
+      if (typeof v === 'string' && v.trim()) {
+        const p = new Date(v.trim());
+        return isNaN(+p) ? null : p;
+      }
+      return null;
+    };
+    const wAmt = wNum(x[1]);
+    const wDt = wDate(x[4]);
+    const wCat = String(x[2] || '').trim();
+    if (wAmt > 0 && wCat && wDt) {
+      const fd = fix(wDt);
       const sheetExcl = /חד[\s-]?פעמי|חריג/.test(`${x[0] || ''} ${x[3] || ''} ${x[5] || ''}`);
       exp.push({
         t: String(x[0] || ''),
-        a: x[1],
-        c: String(x[2] || ''),
+        a: wAmt,
+        c: wCat,
         ym: fd.getFullYear() * 100 + fd.getMonth() + 1,
         d: fd.getDate(),
         sheetExcl

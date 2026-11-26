@@ -259,19 +259,39 @@ function initXlsxWorker(){
   }
 }
 
+function toExcelDate(v){
+  if(v instanceof Date)return isNaN(+v)?null:v;
+  if(typeof v==='number'&&v>20000&&v<100000){
+    const d=new Date(Math.round((v-25569)*864e5));
+    return isNaN(+d)?null:d;
+  }
+  if(typeof v==='string'&&v.trim()){
+    const d=parseLocalDate(v.trim());
+    if(d&&!isNaN(+d))return d;
+    const p=new Date(v.trim());
+    return isNaN(+p)?null:p;
+  }
+  return null;
+}
 function parseExpWb(wb){
   const rows=XLSX.utils.sheet_to_json(wb.Sheets['ראשי']||wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
   const exp=[],mon=[],cp=[];
   const gi=(rows[0]||[]).findIndex(c=>String(c||'').includes('גיפט')),cj=gi>=0?gi:23;
   rows.slice(1).forEach(x=>{
     if(!x)return;
-    if(typeof x[1]==='number'&&x[2]&&x[4] instanceof Date){
-      const fd=fix(x[4]);
+    const amt=typeof x[1]==='number'?x[1]:num(x[1]);
+    const dt=toExcelDate(x[4]);
+    const cat=String(x[2]||'').trim();
+    if(amt>0&&cat&&dt){
+      const fd=fix(dt);
       const sheetExcl=/חד[\s-]?פעמי|חריג/.test(`${x[0]||''} ${x[3]||''} ${x[5]||''}`);
-      exp.push({t:String(x[0]||''),a:x[1],c:String(x[2]||''),ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
+      exp.push({t:String(x[0]||''),a:amt,c:cat,ym:fd.getFullYear()*100+fd.getMonth()+1,d:fd.getDate(),sheetExcl});
     }
-    if(x[9] instanceof Date&&typeof x[11]==='number')mon.push({ym:ymOf(x[9]),inc:+x[13]||0});
-    if(x[cj]&&typeof x[cj+1]==='number'&&!String(x[cj]).startsWith('סה'))cp.push({n:String(x[cj]),a:x[cj+1],c:String(x[cj+2]||'')});
+    const mDt=toExcelDate(x[9]);
+    const mAmt=typeof x[11]==='number'?x[11]:num(x[11]);
+    if(mDt&&mAmt>0)mon.push({ym:ymOf(mDt),inc:num(x[13])});
+    const cpAmt=typeof x[cj+1]==='number'?x[cj+1]:num(x[cj+1]);
+    if(x[cj]&&cpAmt>0&&!String(x[cj]).startsWith('סה'))cp.push({n:String(x[cj]),a:cpAmt,c:String(x[cj+2]||'')});
   });
   const extra=extractExtra(wb);
   return{exp,mon,cp,bud:extra.bud,sal:extra.sal};
@@ -572,9 +592,10 @@ function monthSheet(ys,sy){
   </div>`;
 }
 function home(){
-  const ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
+  const ys=[...new Set(S.exp.map(e=>e.ym).filter(y=>Number.isFinite(y)&&y>190000))].sort((a,b)=>a-b);
   if(!ys.length)return `<div class="card"><p class="mut" style="text-align:center;margin:8px 0">אין עדיין נתוני הוצאות להצגה. לחץ על כפתור הסנכרון למעלה.</p></div>`;
-  const i=ys.indexOf(S.ym),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),
+  if(!ys.includes(S.ym))S.ym=ys[ys.length-1];
+  const i=Math.max(0,ys.indexOf(S.ym)),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),
   m=S.exp.filter(e=>e.ym==S.ym),tot=sy(S.ym),
   mExcl=m.filter(isExcl),exclSum=T(mExcl,'a'),
   rent=T(m.filter(isRent),'a'),varTot=Math.max(0,tot-rent-exclSum),
@@ -2657,7 +2678,7 @@ function sl(){
 
 async function quotes(){
   if(!S.inv.length||navigator.onLine===false)return;
-  const getSecId=r=>String(r['מספר נייר']??r['מספר נייר ערך']??r['סימול']??r['טיקר']??r['Symbol']??'').trim();
+  const getSecId=r=>String(r['מספר נייר']??r['מספר נייר ערך']??r['סימול']??r['טיקר']??r['Symbol']??r['נייר']??'').trim();
   const ids=[...new Set(S.inv.map(getSecId).filter(Boolean))];
   if(!ids.length)return;
   if(quotesAbort)quotesAbort.abort();
@@ -2673,13 +2694,45 @@ async function quotes(){
     }
     const j=await res.json();
     const fx=num((j.fx&&(j.fx.USDILS??j.fx.usdils))??j.USDILS??j.usdils);
-    const Q=j.quotes||j.data||{};
-    let n=0;
+    const rawQ=j.quotes||j.data||j.results||{};
+    const Q={};
+    if(Array.isArray(rawQ)){
+      rawQ.forEach(item=>{
+        if(!item)return;
+        const k=String(item.id??item.symbol??item.ticker??item.code??'').trim();
+        if(k)Q[k]=item;
+      });
+    }else if(rawQ&&typeof rawQ==='object'){
+      Object.entries(rawQ).forEach(([k,v])=>{
+        const tk=String(k||'').trim();
+        if(tk)Q[tk]=v;
+      });
+    }
+    const findQuote=rawId=>{
+      if(!rawId)return null;
+      const cands=[
+        rawId,
+        rawId.toUpperCase(),
+        rawId.toLowerCase(),
+        rawId.replace(/^0+/,''),
+        rawId.replace(/\.(TA|IL)$/i,''),
+        rawId.replace(/\.(TA|IL)$/i,'').toUpperCase()
+      ];
+      for(const c of cands){if(c&&Q[c])return Q[c]}
+      const matchedKey=Object.keys(Q).find(k=>{
+        const nk=k.replace(/\.(TA|IL)$/i,'').replace(/^0+/,'').toUpperCase();
+        const nr=rawId.replace(/\.(TA|IL)$/i,'').replace(/^0+/,'').toUpperCase();
+        return nk&&nr&&nk===nr;
+      });
+      return matchedKey?Q[matchedKey]:null;
+    };
+    let n=0,matchedAny=false;
     S.inv.forEach(r=>{
       const rawId=getSecId(r);
-      const q=Q[rawId]||Q[rawId.toUpperCase()]||Q[rawId.toLowerCase()];
-      const price=q?num(q.price??q.last??q.c):0;
+      const q=findQuote(rawId);
+      const price=q?num(q.price??q.last??q.c??q.nav??q.value):0;
       if(!q||!(price>0))return;
+      matchedAny=true;
       const cur=String(q.cur||q.currency||'ILS').toUpperCase();
       const u=cur==='USD'?(fx>0?price*fx:0):(cur==='ILA'||cur==='AGOROT')?price/100:price;
       const qty=num(r['כמות']??r['יחידות']);
@@ -2687,13 +2740,13 @@ async function quotes(){
         r['שווי ₪']=+(u*qty).toFixed(2);
         r.live=1;
         n++;
-      }else if(u>0&&num(r['שווי ₪'])>0){
+      }else if(num(r['שווי ₪'])>0){
         r.live=1;
         n++;
       }
     });
     S.qtErr='';
-    if(n){
+    if(n||matchedAny){
       S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
       saveSnap();
       if(S.tab==='inv'||S.tab==='home')draw(true);
