@@ -76,8 +76,26 @@ function parseExp(wb) {
 }
 
 function parseInv(wb) {
+  const toNum = v => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    if (v === null || v === undefined || v === '') return 0;
+    const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.\-+eE]/g, '').trim());
+    return Number.isFinite(n) ? n : 0;
+  };
   const g = n => (wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n], { cellDates: true }) : []);
-  const inv = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).filter(r => +r['שווי ₪'] > 0);
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+  const inv = raw.map(r => {
+    const out = Object.assign({}, r);
+    const val = toNum(r['שווי ₪'] != null && r['שווי ₪'] !== '' ? r['שווי ₪'] : (r['שווי'] != null && r['שווי'] !== '' ? r['שווי'] : r['שווי בש"ח']));
+    const qty = toNum(r['כמות'] != null && r['כמות'] !== '' ? r['כמות'] : r['יחידות']);
+    const cost = toNum(r['עלות ₪'] != null && r['עלות ₪'] !== '' ? r['עלות ₪'] : (r['עלות'] != null && r['עלות'] !== '' ? r['עלות'] : r['עלות רכישה']));
+    const secId = String(r['מספר נייר'] || r['מספר נייר ערך'] || r['סימול'] || r['טיקר'] || r['Symbol'] || '').trim();
+    if (val > 0) out['שווי ₪'] = val;
+    if (qty > 0) out['כמות'] = qty;
+    if (cost > 0) out['עלות ₪'] = cost;
+    if (secId) out['מספר נייר'] = secId;
+    return out;
+  }).filter(r => toNum(r['שווי ₪']) > 0 || toNum(r['כמות']) > 0);
   const pen = g('פנסיה');
   const docs = g('מסמכים');
   return { inv, pen, docs };

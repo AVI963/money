@@ -279,7 +279,19 @@ function parseExpWb(wb){
 
 function parseInvWb(wb){
   const g=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{cellDates:true}):[];
-  const inv=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).filter(r=>+r['שווי ₪']>0);
+  const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+  const inv=raw.map(r=>{
+    const out={...r};
+    const val=num(r['שווי ₪']??r['שווי']??r['שווי בש"ח']);
+    const qty=num(r['כמות']??r['יחידות']);
+    const cost=num(r['עלות ₪']??r['עלות']??r['עלות רכישה']);
+    const secId=String(r['מספר נייר']??r['מספר נייר ערך']??r['סימול']??r['טיקר']??r['Symbol']??'').trim();
+    if(val>0)out['שווי ₪']=val;
+    if(qty>0)out['כמות']=qty;
+    if(cost>0)out['עלות ₪']=cost;
+    if(secId)out['מספר נייר']=secId;
+    return out;
+  }).filter(r=>num(r['שווי ₪'])>0||num(r['כמות'])>0);
   return{inv,pen:g('פנסיה'),docs:g('מסמכים')};
 }
 
@@ -787,7 +799,12 @@ function penCard(){
   <p class="mut" style="margin-top:10px">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`;
 }
 
-function inv(){return (S.qt?`<div class="pw-sync-pill" style="margin:4px 6px 10px"><span class="pw-sync-dot"></span><span>עדכון מחירים אחרון: ${esc(S.qt)} · עדכון תקופתי</span></div>`:'')+nw()+nwHistoryCard()+inv0()+penCard()}
+function inv(){
+  const qBanner=S.qt
+    ?`<div class="pw-sync-pill" style="margin:4px 6px 10px"><span class="pw-sync-dot"></span><span>עדכון מחירים אחרון: ${esc(S.qt)} · עדכון תקופתי</span></div>`
+    :(S.qtErr?`<div class="bn" style="margin:4px 0 10px"><span>${esc(S.qtErr)}</span><button type="button" data-sync>רענן</button></div>`:'');
+  return qBanner+nw()+nwHistoryCard()+inv0()+penCard();
+}
 
 function todayISO(){
   const d=new Date();
@@ -2130,21 +2147,30 @@ async function refresh(){
   try{return await refreshPromise}finally{refreshPromise=null}
 }
 const fail=m=>{
+  S.syncing=false;
   S.err=m;
-  S.exp.length?draw():msg(`${esc(m)}<br><br><button class="go" data-sync>נסה שוב</button>`,true);
+  if(!$('nav').hidden||S.exp.length||salMap()){
+    $('nav').hidden=false;
+    draw();
+  }else{
+    msg(`<div class="logo-badge"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><h1>הכסף שלי</h1><p class="mut" style="max-width:340px;margin:0 auto 18px">${esc(m)}</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="go" data-sync>התחברות מחדש</button><button class="chip2" data-sync-consent style="padding:12px 18px;font-size:14px">אשר הרשאות Drive</button></div>`,true);
+  }
 };
 async function onAuthCode(r){
-  if(!r||!r.code)return;
+  if(!r||!r.code){
+    fail('לא התקבל קוד אימות מ-Google. נסה להתחבר שוב.');
+    return;
+  }
   try{
     const x=await post('/exchange',{code:r.code});
-    if(!x.access_token){fail('שגיאת התחברות: '+(x.error_description||x.error||''));return}
-    setTok(x);ls('gd','1');S.scopeErr=false;
+    if(!x||!x.access_token){fail('שגיאת התחברות: '+((x&&(x.error_description||x.error))||'לא התקבל אסימון גישה'));return}
+    setTok(x);ls('gd','1');S.scopeErr=false;S.err='';
     if(x.refresh_token)ls('rt',x.refresh_token);
-    else alert('ההתחברות הצליחה, אך גוגל לא העניקה התחברות קבועה. הסר את ההרשאה של האפליקציה ב-myaccount.google.com/permissions, ואז התחבר שוב.');
-    load();
-  }catch(e){fail('אין חיבור לשרת ההתחברות')}
+    else showToast('התחברת בהצלחה (ללא חיבור קבוע — מומלץ לאשר הרשאות מחדש במידת הצורך)');
+    await load();
+  }catch(e){fail('אין חיבור לשרת ההתחברות ('+(e&&e.message?e.message:'שגיאת רשת')+')')}
 }
-async function waitForGsi(maxMs=3500){
+async function waitForGsi(maxMs=6000){
   const start=Date.now();
   while(Date.now()-start<maxMs){
     if(window.google&&google.accounts&&google.accounts.oauth2)return true;
@@ -2152,18 +2178,39 @@ async function waitForGsi(maxMs=3500){
   }
   return !!(window.google&&google.accounts&&google.accounts.oauth2);
 }
+let loginInFlight=false;
 async function login(forceConsent=false){
-  const goBtn=document.querySelector('[data-sync],[data-sync-consent]');
-  if(goBtn){goBtn.disabled=true;goBtn.dataset.origText=goBtn.dataset.origText||goBtn.textContent;goBtn.textContent='מתחבר ל-Google...';}
+  if(loginInFlight)return;
+  loginInFlight=true;
+  const goBtns=[...document.querySelectorAll('[data-sync],[data-sync-consent]')];
+  goBtns.forEach(el=>{
+    el.disabled=true;
+    if(!el.dataset.origText&&el.classList.contains('go'))el.dataset.origText=el.textContent;
+    if(el.classList.contains('go'))el.textContent='מתחבר ל-Google...';
+    else el.classList.add('spin');
+  });
   const restoreBtn=()=>{
+    loginInFlight=false;
     document.querySelectorAll('[data-sync],[data-sync-consent]').forEach(el=>{
       el.disabled=false;
+      el.classList.remove('spin');
       if(el.dataset.origText)el.textContent=el.dataset.origText;
     });
   };
   try{
-    if(!forceConsent&&await refresh()){restoreBtn();load();return;}
-    const ready=await waitForGsi(3500);
+    if(!forceConsent){
+      if(token&&(() => {try{const t=JSON.parse(ls('tok'));return t&&t.e>Date.now()+30000;}catch(e){return false;}})()){
+        restoreBtn();
+        await load();
+        return;
+      }
+      if(await refresh()){
+        restoreBtn();
+        await load();
+        return;
+      }
+    }
+    const ready=await waitForGsi(6000);
     if(!ready){
       restoreBtn();
       fail('שירות ההתחברות של Google לא נטען בזמן. בדוק חוסמי פרסומות/סקריפטים ונסה שוב.');
@@ -2175,11 +2222,17 @@ async function login(forceConsent=false){
         fail('שגיאת אימות מול Google'+(err.message?': '+err.message:''));
       }
     };
-    const client=forceConsent
-      ?google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',prompt:'consent',callback:r=>{restoreBtn();return onAuthCode(r);},error_callback:onErr})
-      :(cc=cc||google.accounts.oauth2.initCodeClient({client_id:CLIENT_ID,scope:SC,ux_mode:'popup',callback:r=>{restoreBtn();return onAuthCode(r);},error_callback:onErr}));
+    const cfg={
+      client_id:CLIENT_ID,
+      scope:SC,
+      ux_mode:'popup',
+      callback:r=>{restoreBtn();return onAuthCode(r);},
+      error_callback:onErr
+    };
+    if(forceConsent||!ls('rt'))cfg.prompt='consent';
+    const client=google.accounts.oauth2.initCodeClient(cfg);
     client.requestCode();
-    setTimeout(restoreBtn,4000);
+    setTimeout(()=>{if(loginInFlight)restoreBtn();},12000);
   }catch(e){
     restoreBtn();
     fail('שגיאה בהפעלת ההתחברות: '+(e&&e.message?e.message:'נסה שוב'));
@@ -2603,20 +2656,52 @@ function sl(){
 }
 
 async function quotes(){
-  if(!S.inv.length||!navigator.onLine)return;
-  const id=r=>String(r['מספר נייר']||'').trim();
-  const ids=[...new Set(S.inv.map(id).filter(Boolean))];
+  if(!S.inv.length||navigator.onLine===false)return;
+  const getSecId=r=>String(r['מספר נייר']??r['מספר נייר ערך']??r['סימול']??r['טיקר']??r['Symbol']??'').trim();
+  const ids=[...new Set(S.inv.map(getSecId).filter(Boolean))];
   if(!ids.length)return;
   if(quotesAbort)quotesAbort.abort();
   const ctrl=new AbortController();
   quotesAbort=ctrl;
   try{
-    const res=await fetch(W+'/quote?ids='+encodeURIComponent(ids.join(',')),{signal:ctrl.signal});
-    if(!res.ok)return;
-    const j=await res.json(),fx=j.fx&&+j.fx.USDILS,Q=j.quotes||{};let n=0;
-    S.inv.forEach(r=>{const q=Q[id(r)];if(!q||!(+q.price>0))return;const u=q.cur=='USD'?(fx?q.price*fx:0):q.cur=='ILA'?q.price/100:+q.price;if(u>0){r['שווי ₪']=+(u*(+r['כמות']||0)).toFixed(2);r.live=1;n++}});
-    if(n){S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});saveSnap();if(S.tab=='inv'||S.tab=='home')draw()}
-  }catch(e){}
+    const headers=token?{'Authorization':'Bearer '+token}:{};
+    const res=await fetch(W+'/quote?ids='+encodeURIComponent(ids.join(',')),{signal:ctrl.signal,headers});
+    if(!res.ok){
+      S.qtErr='שגיאת עדכון שערים ('+res.status+')';
+      if(S.tab==='inv')draw(true);
+      return;
+    }
+    const j=await res.json();
+    const fx=num((j.fx&&(j.fx.USDILS??j.fx.usdils))??j.USDILS??j.usdils);
+    const Q=j.quotes||j.data||{};
+    let n=0;
+    S.inv.forEach(r=>{
+      const rawId=getSecId(r);
+      const q=Q[rawId]||Q[rawId.toUpperCase()]||Q[rawId.toLowerCase()];
+      const price=q?num(q.price??q.last??q.c):0;
+      if(!q||!(price>0))return;
+      const cur=String(q.cur||q.currency||'ILS').toUpperCase();
+      const u=cur==='USD'?(fx>0?price*fx:0):(cur==='ILA'||cur==='AGOROT')?price/100:price;
+      const qty=num(r['כמות']??r['יחידות']);
+      if(u>0&&qty>0){
+        r['שווי ₪']=+(u*qty).toFixed(2);
+        r.live=1;
+        n++;
+      }else if(u>0&&num(r['שווי ₪'])>0){
+        r.live=1;
+        n++;
+      }
+    });
+    S.qtErr='';
+    if(n){
+      S.qt=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+      saveSnap();
+      if(S.tab==='inv'||S.tab==='home')draw(true);
+    }
+  }catch(e){
+    if(e&&e.name==='AbortError')return;
+    S.qtErr='לא ניתן למשוך שערי מניות כרגע';
+  }
 }
 setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
 
