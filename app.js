@@ -67,7 +67,7 @@ const ico = c => (ICO.find(x => x[0].test(c)) || [0, '🏷️'])[1];
 const W_CATS = ['מוצרי חשמל', 'רכב', 'ריהוט', 'אלקטרוניקה ומחשבים', 'בית וגינה', 'שונות'];
 const wCatOf = w => String((w && w.category) || '').trim() || 'שונות';
 const SAL_TPL_KEY = 'sal_tpl', SAL_TPL_AT_KEY = 'sal_tpl_at', SAL_SV_KEY = 'sal_sv', SAL_DIRTY_PUSH_KEY = 'sal_dirty_push', SAL_META_KEY = 'my_money_sal_drive_meta_v1', SAL_DRIVE_FILE = APP_CONFIG.salaryFileName || 'my_money_salary.json';
-const S = { exp: [], mon: [], inv: [], pen: [], docs: [], bud: {}, sal: null, salAt: 0, cp: [], ins: null, mort: null, syncAt: 0, ym: 0, tab: 'home', sub: '', dcf: '', wrStatus: 'all', wrCat: '', glFilter: 'all', glSort: 'prio', glForm: null, glPendingCover: null, glSaving: false, glErr: '', hide: false, theme: '', dnSel: null, syncing: false, mPick: false, moreEdit: false, moreLayout: null, homeEdit: false, homeLayout: null, qaEdit: false, qaLayout: null, wForm: null, wViewId: '', wPendingCover: null, wPendingFiles: [], wSaving: false, wErr: '', dcStatus: 'all', gsOpen: false, gsQ: '', excl: new Set(), unexcl: new Set(), fire: null, pv: { by: 'm', rows: 'c', sel: [], open: [], q: '', from: 0, to: 0, pr: '12', dr: null } };
+const S = { exp: [], mon: [], inv: [], pen: [], docs: [], bud: {}, sal: null, salAt: 0, cp: [], ins: null, mort: null, syncAt: 0, ym: 0, tab: 'home', sub: '', dcf: '', dcView: '', dcForm: null, dcSaving: false, dcErr: '', wrStatus: 'all', wrCat: '', glFilter: 'all', glSort: 'prio', glForm: null, glPendingCover: null, glSaving: false, glErr: '', cpIdx: null, cpEdit: false, cpUseAmt: '', cpErr: '', hide: false, theme: '', dnSel: null, syncing: false, mPick: false, moreEdit: false, moreLayout: null, homeEdit: false, homeLayout: null, qaEdit: false, qaLayout: null, wForm: null, wViewId: '', wPendingCover: null, wPendingFiles: [], wSaving: false, wErr: '', dcStatus: 'all', gsOpen: false, gsQ: '', excl: new Set(), unexcl: new Set(), fire: null, pv: { by: 'm', rows: 'c', sel: [], open: [], q: '', from: 0, to: 0, pr: '12', dr: null } };
 let token, cc, quotesAbort = null;
 const $ = s => document.querySelector(s), ls = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch (e) { } };
 const vib = (ms = 8) => { try { navigator.vibrate && navigator.vibrate(ms) } catch (e) { } };
@@ -989,7 +989,7 @@ function dc0() {
   const cs = [...new Set(dcWithDays.map(d => d.cat).filter(Boolean))];
   if (S.dcf && !cs.includes(S.dcf)) S.dcf = '';
   const curDcSt = S.dcStatus || 'all';
-  const viewMode = S.dcView || 'list';
+  const viewMode = S.dcView || (window.innerWidth >= 900 ? 'grid' : 'list');
   L = dcWithDays.filter(d => {
     if (S.dcf && d.cat !== S.dcf) return false;
     if (curDcSt === 'soon' && d.st !== 'soon') return false;
@@ -998,9 +998,39 @@ function dc0() {
     return true;
   }).sort((a, b) => (a.x ? +a.x : 9e15) - (b.x ? +b.x : 9e15) || String(a.n).localeCompare(String(b.n), 'he'));
 
-  const actBtn = d => d.link
-    ? `<button class="pw-btn-secondary" data-l="${encodeURIComponent(d.link)}">פתח</button>`
-    : (d.od ? `<button class="pw-btn-secondary" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who || '')}">פתח</button>` : '');
+  const openBtn = d => d.link
+    ? `<button type="button" class="pr" data-l="${encodeURIComponent(d.link)}" style="background:var(--g);color:#fff">פתח</button>`
+    : (d.od ? `<button type="button" class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who || '')}" style="background:var(--g);color:#fff">פתח</button>` : '');
+
+  const cardActions = d => `<div class="pw-dc-actions">
+    ${openBtn(d)}
+    <button type="button" class="chip2" data-dc-edit="${encodeURIComponent(d.n)}">✎ ערוך</button>
+    <button type="button" class="chip2" data-dc-del="${encodeURIComponent(d.n)}" style="color:var(--r);margin-inline-start:auto">מחק</button>
+  </div>`;
+
+  const dcModal = S.dcForm ? `<div class="ms-back" data-dc-close>
+    <div class="ms-sheet" style="max-width:440px" onclick="event.stopPropagation()">
+      <div class="ms-grab"></div>
+      <div class="row" style="padding:0 0 8px">
+        <h2 style="margin:0">עריכת פרטי מסמך</h2>
+        <button type="button" class="chip2" data-dc-close style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <label class="wf-lbl">שם המסמך</label>
+      <input id="dc-f-name" class="wf-inp" type="text" value="${esc(S.dcForm['שם'] || '')}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div><label class="wf-lbl">קטגוריה</label><input id="dc-f-cat" class="wf-inp" type="text" value="${esc(S.dcForm['קטגוריה'] || '')}"></div>
+        <div><label class="wf-lbl">אדם / שיוך</label><input id="dc-f-who" class="wf-inp" type="text" value="${esc(S.dcForm['אדם'] || '')}"></div>
+      </div>
+      <label class="wf-lbl" style="margin-top:8px">תוקף עד</label>
+      <input id="dc-f-exp" class="wf-inp" type="date" value="${esc(S.dcForm['תוקף עד'] || '')}">
+      <label class="wf-lbl" style="margin-top:8px">קישור לדרייב</label>
+      <input id="dc-f-link" class="wf-inp" type="url" value="${esc(S.dcForm['קישור'] || '')}">
+      <div class="row" style="margin-top:14px;padding:0;gap:8px">
+        <button type="button" class="pr" data-dc-save style="flex:1;background:var(--g);color:#fff;padding:11px">שמור שינויים ✓</button>
+        <button type="button" class="chip2" data-dc-close style="padding:10px 14px">ביטול</button>
+      </div>
+    </div>
+  </div>` : '';
 
   return `<div class="pw-dc-toolbar">
     <div><h2 class="pw-sec-title">Document Center · מסמכים ותוקפים</h2><span class="lb">${allCount} מסמכים מתועדים במרכז המסמכים</span></div>
@@ -1023,14 +1053,14 @@ function dc0() {
           <b style="font-size:14px">${esc(d.n)}</b>
           <div class="mut" style="font-size:12px">${[esc(d.who), esc(d.cat), d.x ? 'עד ' + dl(d.x) : ''].filter(Boolean).join(' · ') || 'ללא פרטים נוספים'}</div>
           ${d.missing ? '<div class="mut" style="font-size:11.5px;color:#B45309">חסר קובץ מקושר בדרייב</div>' : ''}
-          <div style="margin-top:auto;padding-top:4px">${actBtn(d)}</div>
+          ${cardActions(d)}
         </div>`;
       }).join('')}</div>`
       : L.map(d => {
         const n = d.days, tx = n === null ? 'ללא תוקף' : n < 0 ? 'פג' : n < 60 ? n + ' ימים' : n < 730 ? Math.round(n / 30.4) + ' חודשים' : Math.round(n / 365) + ' שנים', cl = n === null ? 'mut' : n < 0 ? 'neg' : n < 90 ? 'amb' : 'pos';
-        return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.n)}${d.sens ? ' 🔒' : ''}</b><div class="mut">${[esc(d.who), esc(d.cat), d.x ? 'עד ' + dl(d.x) : '', d.missing ? 'חסר קובץ בדרייב' : ''].filter(Boolean).join(' · ')}</div></div>${actBtn(d)}</div>`;
+        return `<div class="cp" style="flex-wrap:wrap"><div class="pl ${cl}">${tx}</div><div style="min-width:0;flex:1"><b>${esc(d.n)}${d.sens ? ' 🔒' : ''}</b><div class="mut">${[esc(d.who), esc(d.cat), d.x ? 'עד ' + dl(d.x) : '', d.missing ? 'חסר קובץ בדרייב' : ''].filter(Boolean).join(' · ')}</div></div><div style="display:flex;gap:6px;align-items:center">${openBtn(d)}<button type="button" class="chip2" data-dc-edit="${encodeURIComponent(d.n)}" style="padding:5px 9px;font-size:12px">✎</button><button type="button" class="chip2" data-dc-del="${encodeURIComponent(d.n)}" style="color:var(--r);padding:5px 9px;font-size:12px">✕</button></div></div>`;
       }).join('')
-    ) : `<div class="empty-state"><div class="es-ico">📁</div><h3>אין מסמכים להצגה</h3><p>לא נמצאו מסמכים התואמים לסינון הנוכחי במרכז המסמכים.</p><button type="button" class="pw-btn-secondary" data-dcs="all">הצג את כל המסמכים</button></div>`);
+    ) : `<div class="empty-state"><div class="es-ico">📁</div><h3>אין מסמכים להצגה</h3><p>לא נמצאו מסמכים התואמים לסינון הנוכחי במרכז המסמכים.</p><button type="button" class="pw-btn-secondary" data-dcs="all">הצג את כל המסמכים</button></div>`) + dcModal;
 }
 
 const W_CAT_ICO = { 'מוצרי חשמל': '🔌', 'רכב': '🚗', 'ריהוט': '🛋️', 'אלקטרוניקה ומחשבים': '💻', 'בית וגינה': '🏡', 'שונות': '📦' };
@@ -1258,12 +1288,13 @@ function wr() {
     return `<button class="chip2 ${S.wrCat === c ? 'on' : ''}" data-wrc="${encodeURIComponent(c)}">${esc(c)}${cCnt ? ` (${cCnt})` : ''}</button>`;
   }).join('')}
   </div>`+
-    (filtered.length ? filtered.map(d => {
+    (filtered.length ? `<div class="w-grid">${filtered.map(d => {
       const n = d.n;
       const tx = n === null ? 'ללא תוקף' : n < 0 ? 'פג' : n < 60 ? n + ' ימים' : n < 730 ? Math.round(n / 30.4) + ' חוד׳' : Math.round(n / 365) + ' שנים';
       const cl = n === null ? 'mut' : n < 0 ? 'neg' : n < 90 ? 'amb' : 'pos';
       const meta = [d.cat, d.store, Number(d.price) > 0 ? fmt(d.price) : '', d.x ? 'עד ' + dl(d.x) : ''].filter(Boolean).map(esc).join(' · ');
       const catEmoji = W_CAT_ICO[d.cat] || '🧾';
+      const primaryLink = (d.atts[0] && d.atts[0].link) || d.coverLink || '';
       return `<div class="w-card" data-w-view="${esc(d.id)}" role="button" tabindex="0">
       <div class="w-thumb">${d.coverImg ? `<img src="${esc(d.coverImg)}" alt="" loading="lazy" onerror="this.remove()">` : catEmoji}</div>
       <div class="w-body">
@@ -1273,9 +1304,14 @@ function wr() {
         </div>
         <div class="w-sub">${meta || 'ללא פרטים נוספים'}</div>
         ${d.atts.length ? `<span class="w-files-pill">📎 ${d.atts.length === 1 ? 'קובץ קבלה / אחריות 1' : `${d.atts.length} קבצים מצורפים`}</span>` : ''}
+        <div class="w-card-actions" onclick="event.stopPropagation()">
+          ${primaryLink ? `<button type="button" class="pr" data-l="${encodeURIComponent(primaryLink)}" style="background:var(--g);color:#fff">פתח</button>` : ''}
+          <button type="button" class="chip2" data-w-edit="${esc(d.id)}">✎ ערוך</button>
+          <button type="button" class="chip2" data-w-del="${esc(d.id)}" style="color:var(--r);margin-inline-start:auto">מחק</button>
+        </div>
       </div>
     </div>`;
-    }).join('') : `<div class="card"><p class="mut" style="margin:0;text-align:center">${allItems.length ? 'אין פריטים התואמים לסינון שנבחר.' : 'עדיין לא נוספו מוצרים או קבלות. לחץ על "+ הוסף מוצר" למעלה.'}</p></div>`)
+    }).join('')}</div>` : `<div class="card"><p class="mut" style="margin:0;text-align:center">${allItems.length ? 'אין פריטים התואמים לסינון שנבחר.' : 'עדיין לא נוספו מוצרים או קבלות. לחץ על "+ הוסף מוצר" למעלה.'}</p></div>`)
     + warrantyDetailSheet() + warrantySheet();
 }
 
@@ -1395,7 +1431,7 @@ function gl() {
     <button type="button" class="chip2" data-gls style="margin-inline-start:auto;font-size:12px">${srt === 'prio' ? 'מיון: דחיפות ▾' : srt === 'cost_desc' ? 'מיון: יקר לזול ▾' : 'מיון: זול ליקר ▾'}</button>
   </div>
 
-  ${!list.length ? `<div class="card"><p class="mut" style="margin:0;text-align:center">אין פריטים בקטגוריה זו.</p></div>` : list.map(g => {
+  ${!list.length ? `<div class="card"><p class="mut" style="margin:0;text-align:center">אין פריטים בקטגוריה זו.</p></div>` : `<div class="gl-grid">${list.map(g => {
     const cost = Number(g.cost) || 0;
     const saved = Math.min(cost, Number(g.saved) || 0);
     const pctVal = cost > 0 ? Math.min(100, Math.round((saved / cost) * 100)) : (g.done ? 100 : 0);
@@ -1407,10 +1443,10 @@ function gl() {
       ? `<div class="gl-thumb gl-thumb-zoom" data-gl-zoom="${esc(gImgSrc)}" data-gl-zoom-title="${esc(g.title)}" title="לחץ להגדלת התמונה"><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
       : `<div class="gl-thumb"><span class="gl-thumb-fb">${fbIcon}</span></div>`;
 
-    return `<div class="gl-card ${g.done ? 'done' : ''}">
-      <button type="button" class="shop-check" data-gl-tog="${esc(g.id)}" aria-label="סמן הושג">${g.done ? '✓' : ''}</button>
+    return `<div class="gl-card ${g.done ? 'done' : ''}" data-gl-edit="${esc(g.id)}" role="button" tabindex="0">
+      <button type="button" class="shop-check" data-gl-tog="${esc(g.id)}" onclick="event.stopPropagation()" aria-label="סמן הושג">${g.done ? '✓' : ''}</button>
       ${thumbHtml}
-      <div class="gl-body" data-gl-edit="${esc(g.id)}">
+      <div class="gl-body">
         <div class="gl-top">
           <span class="gl-title">${esc(g.title)}</span>
           <span class="gl-prio ${pm.cls}">${pm.lbl}</span>
@@ -1422,7 +1458,7 @@ function gl() {
         </div>` : `<div class="w-sub">ללא עלות כספית</div>`}
       </div>
     </div>`;
-  }).join('')}
+  }).join('')}</div>`}
   ${modal}`;
 }
 function warrantyDetailSheet() {
@@ -2974,8 +3010,63 @@ function ins0() {
 }
 function cp() {
   if (!S.cp.length) return `<div class="card pw-empty-card"><p class="mut">${S.exp.length ? 'לא נמצאו קופונים בקובץ ההוצאות.' : ''}הקופונים זמינים אחרי סנכרון עם הדרייב.</p></div>`;
-  return `<div class="card hg pw-cp-hero"><div class="lb">ארנק קופונים והטבות</div><div class="big">${fmt(T(S.cp, 'a'))}</div><span class="chip">${S.cp.length} קופונים פעילים</span></div>` +
-    S.cp.map((c, k) => `<div class="cp pw-cp-item"><div class="am" style="background:${COL[k % 8]}">${fmt(c.a)}</div><div><b>${esc(c.n)}</b><div class="mut">${c.c.startsWith('http') ? 'קישור למימוש' : 'קוד'}</div></div><button class="pr" data-c="${k}">${c.c.startsWith('http') ? 'פתח' : 'העתק קוד'}</button></div>`).join('');
+  const activeIdx = (S.cpIdx !== null && S.cpIdx !== undefined && S.cp[S.cpIdx]) ? S.cpIdx : null;
+  const cur = activeIdx !== null ? S.cp[activeIdx] : null;
+
+  const modal = cur ? `<div class="ms-back" data-cp-close>
+    <div class="ms-sheet" style="max-width:440px" onclick="event.stopPropagation()">
+      <div class="ms-grab"></div>
+      <div class="row" style="padding:0 0 8px">
+        <h2 style="margin:0">🎟️ ${esc(cur.n)}</h2>
+        <button type="button" class="chip2" data-cp-close style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <div class="card hg" style="padding:14px;margin:6px 0 12px">
+        <div class="lb">יתרה זמינה בקופון</div>
+        <div class="big" style="font-size:28px">${fmt(cur.a)}</div>
+        ${cur.c ? `<div class="mut" style="margin-top:6px;word-break:break-all;font-size:12.5px">קוד / קישור: <b>${esc(cur.c)}</b></div>` : ''}
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        ${cur.c ? `<button type="button" class="pr" data-c="${activeIdx}" style="flex:1;background:var(--b);color:#fff;padding:11px">${cur.c.startsWith('http') ? 'פתח קישור למימוש ↗' : 'העתק קוד קופון 📋'}</button>` : ''}
+        <button type="button" class="pr" data-cp-redeem-all="${activeIdx}" style="flex:1;background:var(--g);color:#fff;padding:11px">נוצל במלואו ✓</button>
+      </div>
+
+      <details class="ct" ${S.cpEdit ? 'open' : ''}>
+        <summary><span>✎ עריכת פרטי קופון / ניצול חלקי</span></summary>
+        <div style="padding-top:10px">
+          <label class="wf-lbl">שם הרשת / הקופון</label>
+          <input id="cp-f-name" class="wf-inp" type="text" value="${esc(cur.n)}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            <div>
+              <label class="wf-lbl">יתרה מעודכנת (₪)</label>
+              <input id="cp-f-amt" class="wf-inp" type="number" inputmode="decimal" min="0" step="0.01" value="${Number(cur.a) || 0}">
+            </div>
+            <div>
+              <label class="wf-lbl">קוד / קישור</label>
+              <input id="cp-f-code" class="wf-inp" type="text" value="${esc(cur.c || '')}">
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px;padding:0;gap:8px">
+            <button type="button" class="pr" data-cp-save="${activeIdx}" style="flex:1;background:var(--g);color:#fff;padding:10px">שמור עדכון ✓</button>
+            <button type="button" class="chip2" data-cp-del="${activeIdx}" style="color:var(--r);padding:9px 12px">מחק קופון</button>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>` : '';
+
+  return `<div class="card hg pw-cp-hero"><div class="lb">ארנק קופונים והטבות</div><div class="big">${fmt(T(S.cp, 'a'))}</div><span class="chip">${S.cp.length} קופונים פעילים</span></div>
+    <div class="cp-grid">${S.cp.map((c, k) => `<div class="cp pw-cp-item" data-cp-open="${k}" role="button" tabindex="0">
+      <div class="am" style="background:${COL[k % 8]}">${fmt(c.a)}</div>
+      <div>
+        <b>${esc(c.n)}</b>
+        <div class="cp-meta-row">
+          <span>${c.c ? (c.c.startsWith('http') ? '🔗 קישור למימוש' : `🔑 ${esc(c.c)}`) : 'ללא קוד'}</span>
+          <span>לחץ לעריכה וניצול</span>
+        </div>
+      </div>
+      <button type="button" class="pr" data-c="${k}" onclick="event.stopPropagation()">${c.c && c.c.startsWith('http') ? 'פתח' : 'העתק קוד'}</button>
+    </div>`).join('')}</div>${modal}`;
 }
 
 const prevNums = {}, rmRed = () => matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -3137,7 +3228,7 @@ document.addEventListener('click', async e => {
   const pwNav = e.target.closest('[data-pw-nav]');
   if (pwNav) { switchTab(pwNav.dataset.pwNav); return; }
 
-  const b = e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-zoom],[data-gl-zoom-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync],[data-sync-consent],[data-qa-tog],[data-qa-reset],[data-qa-mv],[data-qa-vis]');
+  const b = e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-zoom],[data-gl-zoom-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-dcv],[data-dc-edit],[data-dc-del],[data-dc-save],[data-dc-close],[data-cp-open],[data-cp-close],[data-cp-redeem-all],[data-cp-save],[data-cp-del],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync],[data-sync-consent],[data-qa-tog],[data-qa-reset],[data-qa-mv],[data-qa-vis]');
   if (!b) { if (!token && ls('rt') && navigator.onLine !== false) refresh().then(ok => ok && load()); return }
   if (b.classList.contains('ms-back') && e.target !== b) return;
   if ('gsOpen' in b.dataset) {
@@ -3518,11 +3609,78 @@ document.addEventListener('click', async e => {
   if (b.dataset.l) open(decodeURIComponent(b.dataset.l), '_blank', 'noopener');
 
   if (b.dataset.y) { vib(8); S.ym = +b.dataset.y; S.dnSel = null; S.mPick = false; draw() }
+  if (b.dataset.dcv) { vib(6); S.dcView = b.dataset.dcv; draw(true); return; }
+  if (b.dataset.dcEdit) {
+    vib(6);
+    const nm = decodeURIComponent(b.dataset.dcEdit);
+    const existing = S.docs.find(x => String(x['שם'] || '').trim() === nm);
+    S.dcForm = existing ? { ...existing, _origName: nm } : { 'שם': nm, 'קטגוריה': '', 'אדם': '', 'תוקף עד': '', 'קישור': '', _origName: nm };
+    draw(true); return;
+  }
+  if ('dcClose' in b.dataset) { vib(6); S.dcForm = null; draw(true); return; }
+  if ('dcSave' in b.dataset && S.dcForm) {
+    vib(8);
+    const upd = {
+      'שם': (document.getElementById('dc-f-name')?.value || '').trim() || S.dcForm._origName,
+      'קטגוריה': (document.getElementById('dc-f-cat')?.value || '').trim(),
+      'אדם': (document.getElementById('dc-f-who')?.value || '').trim(),
+      'תוקף עד': (document.getElementById('dc-f-exp')?.value || '').trim(),
+      'קישור': (document.getElementById('dc-f-link')?.value || '').trim()
+    };
+    const idx = S.docs.findIndex(x => String(x['שם'] || '').trim() === S.dcForm._origName);
+    if (idx >= 0) S.docs[idx] = { ...S.docs[idx], ...upd };
+    else S.docs.unshift(upd);
+    saveSnap(); S.dcForm = null; showToast('פרטי המסמך עודכנו ✓'); draw(true); return;
+  }
+  if (b.dataset.dcDel) {
+    const nm = decodeURIComponent(b.dataset.dcDel);
+    if (confirm(`להסיר את "${nm}" מרשימת המסמכים?`)) {
+      vib(10);
+      S.docs = S.docs.filter(x => String(x['שם'] || '').trim() !== nm);
+      saveSnap(); showToast('המסמך הוסר'); draw(true);
+    }
+    return;
+  }
+  if (b.dataset.cpOpen !== undefined) {
+    vib(6); S.cpIdx = +b.dataset.cpOpen; S.cpEdit = false; draw(true); return;
+  }
+  if ('cpClose' in b.dataset) {
+    vib(6); S.cpIdx = null; S.cpEdit = false; draw(true); return;
+  }
+  if (b.dataset.cpRedeemAll !== undefined) {
+    vib(10);
+    const idx = +b.dataset.cpRedeemAll;
+    if (S.cp[idx]) {
+      S.cp.splice(idx, 1);
+      saveSnap(); S.cpIdx = null; showToast('הקופון סומן כנוצל במלואו 🎉'); draw(true);
+    }
+    return;
+  }
+  if (b.dataset.cpSave !== undefined) {
+    vib(8);
+    const idx = +b.dataset.cpSave;
+    if (S.cp[idx]) {
+      const name = (document.getElementById('cp-f-name')?.value || '').trim() || S.cp[idx].n;
+      const amt = Math.max(0, Number(document.getElementById('cp-f-amt')?.value) || 0);
+      const code = (document.getElementById('cp-f-code')?.value || '').trim();
+      if (amt <= 0) S.cp.splice(idx, 1);
+      else S.cp[idx] = { ...S.cp[idx], n: name, a: amt, c: code };
+      saveSnap(); S.cpIdx = null; showToast('הקופון עודכן ✓'); draw(true);
+    }
+    return;
+  }
+  if (b.dataset.cpDel !== undefined) {
+    const idx = +b.dataset.cpDel;
+    if (S.cp[idx] && confirm(`למחוק את הקופון "${S.cp[idx].n}"?`)) {
+      vib(10); S.cp.splice(idx, 1); saveSnap(); S.cpIdx = null; showToast('הקופון נמחק'); draw(true);
+    }
+    return;
+  }
   if (b.dataset.c) {
     vib(10); const c = S.cp[+b.dataset.c];
-    if (c.c.startsWith('http')) open(c.c, '_blank', 'noopener');
-    else if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(c.c).then(() => { b.textContent = 'הועתק ✓'; b.classList.add('ok') }).catch(() => {});
+    if (c && c.c.startsWith('http')) open(c.c, '_blank', 'noopener');
+    else if (c && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(c.c).then(() => { b.textContent = 'הועתק ✓'; b.classList.add('ok'); showToast('קוד הקופון הועתק ללוח ✓') }).catch(() => {});
     }
   }
 });
@@ -3533,6 +3691,8 @@ document.addEventListener('keydown', e => {
   if (S.mPick) { S.mPick = false; draw(true); return }
   if (S.wForm) { if (S.wSaving) return; S.wForm = null; S.wPendingCover = null; S.wPendingFiles = []; S.wErr = ''; draw(true); return }
   if (S.wViewId) { S.wViewId = ''; draw(true); return }
+  if (S.dcForm) { S.dcForm = null; draw(true); return }
+  if (S.cpIdx !== null && S.cpIdx !== undefined) { S.cpIdx = null; S.cpEdit = false; draw(true); return }
   if (S.glForm) { if (S.glSaving) return; S.glForm = null; S.glPendingCover = null; S.glErr = ''; draw(true); return }
   if (S.pick) { S.pick = null; draw(true); return }
 });
