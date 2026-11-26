@@ -1785,15 +1785,7 @@ function financialHealthCard(tot,inc,avgExp,inCar=false){
       <div class="health-m"><small>התחייבויות (20%)</small><b>${S.hide?'•••':debtScore+'/100'}</b></div>
       <div class="health-m"><small>יעדים והון (20%)</small><b>${S.hide?'•••':goalsScore+'/100'}</b></div>
     </div>
-    <details class="health-details">
-      <summary><span>פירוט משקולות והסבר רכיבים (הערכה פנימית)</span><span>▾</span></summary>
-      <div class="health-exp-list">
-        <div class="health-exp-item"><b>נזילות (30%):</b> שווי נכסים נזילים מול הוצאה חודשית ממוצעת (${invVal>0?liqMonths.toFixed(1)+' חודשי מחיה':'לפי תזרים'}).</div>
-        <div class="health-exp-item"><b>שיעור חיסכון (30%):</b> יחס היתרה החודשית להכנסה המתועדת (${inc>0?Math.round(savRate)+'%':'ללא הכנסה מתועדת'}).</div>
-        <div class="health-exp-item"><b>התחייבויות (20%):</b> תשלומים חודשיים צפויים (משכנתא/ביטוח) ביחס ליכולת ההחזר.</div>
-        <div class="health-exp-item"><b>יעדים והון (20%):</b> התקדמות ביעדים פתוחים והון מתועד (${S.hide?'•••':fmt(netWorth)}).</div>
-      </div>
-    </details>
+    <p class="mut" style="margin:8px 0 0;font-size:11.5px">שקוף: 30% נזילות (${invVal>0?liqMonths.toFixed(1)+' חוד׳ מחיה':'לפי יתרה'}) · 30% חיסכון · 20% התחייבויות · 20% יעדים והון (${fmt(netWorth)})</p>
   </div>`;
 }
 function renderHomeModules(tot,inc,avg,cs,cav,ys,i){
