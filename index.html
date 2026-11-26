@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>הכסף שלי</title>
 <link rel="stylesheet" href="style.css"></head><body>
-<main id="app"><div id="splash"><div class="logo-badge"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></main>
+<div id="app"><div id="splash"><div class="logo-badge"><svg viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><h1>הכסף שלי</h1><p class="mut">הנתונים נקראים ישירות מהדרייב שלך ולא נשמרים בשום מקום אחר.</p><button class="go" data-sync>התחברות עם Google</button></div></div>
 
 <div id="page-shopping" class="page" style="display:none;">
   <div class="card hg">
@@ -60,22 +60,6 @@
   <div class="sl-float" id="shop-float-bar" data-up-top>
     <span>נותר לשלם: <strong id="shop-float-left">₪0.00</strong></span>
     <span>סה״כ: <strong id="shop-float-all">₪0.00</strong></span>
-  </div>
-
-  <div id="shop-price-modal" class="ms-back" style="display:none;">
-    <div class="ms-sheet" style="max-width:440px;">
-      <div class="ms-grab"></div>
-      <div class="row" style="padding:0 0 6px">
-        <h2 style="margin:0;font-size:16px;" id="shop-pm-title">עדכון מחיר</h2>
-        <button type="button" class="chip2" id="shop-pm-close" style="padding:4px 10px;font-size:12px">✕</button>
-      </div>
-      <label class="wf-lbl" for="shop-pm-input">מחיר ליחידה (₪)</label>
-      <input id="shop-pm-input" class="wf-inp" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
-      <div class="row" style="margin-top:14px;padding:0;gap:8px">
-        <button type="button" class="pr" id="shop-pm-save" style="flex:1;background:var(--g);color:#fff;padding:11px">שמור מחיר ✓</button>
-        <button type="button" class="chip2" id="shop-pm-cancel" style="padding:10px 15px">ביטול</button>
-      </div>
-    </div>
   </div>
 </div>
 

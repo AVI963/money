@@ -215,6 +215,9 @@ function initXlsxWorker() {
     const src = [
       'const fix=d=>new Date(d.getTime()+432e5);',
       'const ymOf=d=>{const fd=fix(d);return fd.getFullYear()*100+fd.getMonth()+1};',
+      'const num=' + num.toString() + ';',
+      parseLocalDate.toString(),
+      toExcelDate.toString(),
       extractExtra.toString(),
       parseExpWb.toString(),
       parseInvWb.toString(),
@@ -339,7 +342,7 @@ async function parseExcel(type, buffer) {
       xlsxWorker.postMessage({ id, type, buffer, xlsxUrl: XLSX_CDN_URL });
     });
   } catch (e) {
-    if (/worker_failed|worker_timeout|SheetJS/i.test(String(e && e.message || ''))) {
+    if (!/מבנה|לא נתמך/.test(String(e && e.message || ''))) {
       xlsxWorkerBroken = true; xlsxWorkerReady = false;
       return parseExcelMain(type, buffer);
     }
@@ -480,7 +483,9 @@ async function load() {
 
 function parseIns(wb) {
   const sm = wb.Sheets['סיכום']; if (!sm || !sm.C6 || !sm.C7) throw new Error('מבנה גיליון ביטוח חיים לא תקין');
-  const pr = XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות'] || wb.Sheets[wb.SheetNames[1]], { header: 1, raw: true }).slice(4, 36), st = fix(sm.C6.v), yrs = +sm.C7.v || 0, pay = [];
+  const rawSt = toExcelDate(sm.C6.v);
+  if (!rawSt) throw new Error('מבנה גיליון ביטוח חיים לא תקין');
+  const pr = XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות'] || wb.Sheets[wb.SheetNames[1]], { header: 1, raw: true }).slice(4, 36), st = fix(rawSt), yrs = +sm.C7.v || 0, pay = [];
   for (let n = 0; n < yrs * 12; n++) { const y = Math.floor(n / 12), r = pr[y] || [], t = (+r[6] || 0) + (+r[7] || 0); pay.push({ d: new Date(st.getFullYear(), st.getMonth() + n, st.getDate()), a: t ? Math.floor(t / 12 * 100) / 100 : null }) }
   return { yrs, pay, pr, end: new Date(st.getFullYear(), st.getMonth() + yrs * 12, st.getDate()) };
 }
@@ -598,7 +603,7 @@ function home() {
   const i = Math.max(0, ys.indexOf(S.ym)), sy = y => T(S.exp.filter(e => e.ym == y), 'a'),
     m = S.exp.filter(e => e.ym == S.ym), tot = sy(S.ym),
     mExcl = m.filter(isExcl), exclSum = T(mExcl, 'a'),
-    rent = T(m.filter(isRent), 'a'), varTot = Math.max(0, tot - rent - exclSum),
+    rent = T(m.filter(isRent), 'a'), varTot = T(m.filter(e => !isRent(e) && !isExcl(e)), 'a'),
     pm = ys.slice(Math.max(0, i - 6), i),
     avg = pm.length ? T(S.exp.filter(e => pm.includes(e.ym) && !isExcl(e)), 'a') / pm.length : 0,
     pmRentMonths = pm.filter(y => S.exp.some(e => e.ym == y && isRent(e))),
@@ -758,8 +763,16 @@ function setPr(p) {
   if (!ys.length) { const cur = ymOf(new Date()); P.pr = p; P.from = cur; P.to = cur; P.dr = null; return }
   const mx = ys[ys.length - 1], yr = Math.floor(mx / 100), mo = mx % 100; P.pr = p; P.to = mx; P.dr = null;
   if (p == 'all') P.from = ys[0];
-  else if (p == 'ty') P.from = yr * 100 + 1;
-  else if (p == 'ly') { P.from = (yr - 1) * 100 + 1; P.to = (yr - 1) * 100 + 12 }
+  else if (p == 'ty') {
+    const inTy = ys.filter(y => y >= yr * 100 + 1);
+    P.from = inTy.length ? inTy[0] : ys[0];
+  }
+  else if (p == 'ly') {
+    const lyStart = (yr - 1) * 100 + 1, lyEnd = (yr - 1) * 100 + 12;
+    const inLy = ys.filter(y => y >= lyStart && y <= lyEnd);
+    P.from = inLy.length ? inLy[0] : ys[0];
+    P.to = inLy.length ? inLy[inLy.length - 1] : mx;
+  }
   else if (p == 'qtr') {
     const qStartMo = Math.floor((mo - 1) / 3) * 3 + 1;
     const qEndMo = qStartMo + 2;
@@ -803,7 +816,8 @@ function pv() {
     mxc = Math.max(...rs.flatMap(([, v]) => Object.values(v.p)), 1),
     rawMaxP = pt.length ? Math.max(...pt) : 0,
     pi = rawMaxP > 0 ? pt.indexOf(rawMaxP) : -1,
-    pr = [['qtr', 'רבעון'], ['3', '3 חודשים'], ['6', 'חצי שנה'], ['12', 'שנה'], ['ty', 'השנה'], ['ly', 'שנה שעברה'], ['all', 'הכל']],
+    hasLy = all.some(y => Math.floor(y / 100) === Math.floor(all[all.length - 1] / 100) - 1),
+    pr = [['qtr', 'רבעון'], ['3', '3 חודשים'], ['6', 'חצי שנה'], ['12', 'שנה'], ['ty', 'השנה'], ...(hasLy ? [['ly', 'שנה שעברה']] : []), ['all', 'הכל']],
     opt = v => all.map(y => `<option value="${y}" ${y == v ? 'selected' : ''}>${ymLb(y)}</option>`).join('');
   const row = (r, v, sb) => `<tr><td ${R == 'c' && !sb ? `data-x="${encodeURIComponent(r)}" style="cursor:pointer"` : `data-n="${encodeURIComponent(r)}" data-k="${sb ? 't' : R}" style="cursor:pointer"`}>${sb ? '<span class="mut">↳ </span>' : R == 'c' ? (P.open.includes(r) ? '▾ ' : '▸ ') : ''}${esc(r)}</td>${per.map(p => { const x = v.p[p] || 0; return `<td data-r="${encodeURIComponent(r)}" data-k="${sb ? 't' : R}" data-p="${p}" style="background:rgba(16,185,129,${(x / mxc * .42).toFixed(3)})">${x ? nf(x) : ''}</td>` }).join('')}<td data-r="${encodeURIComponent(r)}" data-k="${sb ? 't' : R}" data-p=""><b>${nf(v.t)}</b></td></tr>`,
     sub = c => { const m = {}; d.filter(e => e.c == c).forEach(e => { m[e.t] = m[e.t] || { t: 0, p: {} }; m[e.t].t += e.a; m[e.t].p[pk(e)] = (m[e.t].p[pk(e)] || 0) + e.a }); return Object.entries(m).sort((a, b) => b[1].t - a[1].t) };
@@ -821,7 +835,7 @@ function pv() {
   <div class="card" id="tb"><h2>טבלה</h2><div class="tw"><table><tr><th></th>${per.map(p => `<th>${esc(plb(p))}</th>`).join('')}<th>סה״כ</th></tr>
   ${rs.map(([r, v]) => row(r, v, 0) + (R == 'c' && P.open.includes(r) ? sub(r).map(([t, u]) => row(t, u, 1)).join('') : '')).join('')}
   <tr><td><b>סה״כ</b></td>${pt.map(x => `<td><b>${nf(x)}</b></td>`).join('')}<td><b>${nf(tot)}</b></td></tr></table></div><span class="mut">לחץ על תא להצגת ההוצאות שבו.</span></div>
-  ${P.dr ? (() => { const it = d.filter(e => e[P.dr.k || R] == P.dr.r && (P.dr.p == null || pk(e) == P.dr.p)).sort((a, b) => P.dr.p == null ? b.ym - a.ym || b.a - a.a : b.a - a.a); return `<div class="card" id="dr"><div class="row"><h2>${esc(P.dr.r)} · ${P.dr.p == null ? 'כל התקופה' : esc(plb(P.dr.p))}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length ? T(it, 'a') / it.length : 0)}</span><b>${fmt(T(it, 'a'))}</b></div>${P.dr.p == null ? (P.dr.k == 'c' ? brk(it) : '') : it.map(e => `<div class="row s"><span>${esc(e.t)} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>` })() : ''}`;
+  ${P.dr ? (() => { const it = d.filter(e => e[P.dr.k || R] == P.dr.r && (P.dr.p == null || pk(e) == P.dr.p)).sort((a, b) => P.dr.p == null ? b.ym - a.ym || b.a - a.a : b.a - a.a); return `<div class="card" id="dr"><div class="row"><h2>${esc(P.dr.r)} · ${P.dr.p == null ? 'כל התקופה' : esc(plb(P.dr.p))}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length ? T(it, 'a') / it.length : 0)}</span><b>${fmt(T(it, 'a'))}</b></div>${(P.dr.p == null && P.dr.k == 'c') ? brk(it) : it.map(e => `<div class="row s"><span>${esc(e.t)} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>` })() : ''}`;
 }
 
 function nw() {
@@ -1000,7 +1014,7 @@ function dc0() {
     <button class="chip2 ${curDcSt === 'soon' ? 'on' : ''}" data-dcs="soon">עומד לפוג (${cntDcSoon})</button>
     <button class="chip2 ${curDcSt === 'expired' ? 'on' : ''}" data-dcs="expired">פג תוקף (${cntDcExp})</button>
   </div>
-  <div class="chips"><button class="chip2 ${S.dcf ? '' : 'on'}" data-dcf="">כל הקטגוריות</button>${cs.map(c => `<button class="chip2 ${S.dcf == c ? 'on' : ''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F == 'loading' ? '<p class="mut">טוען קבצים מהדרייב...</p>' : ''}` +
+  <div class="chips"><button class="chip2 ${S.dcf ? '' : 'on'}" data-dcf="">כל הקטגוריות</button>${cs.map(c => `<button class="chip2 ${S.dcf == c ? 'on' : ''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F == 'loading' ? '<p class="mut">טוען קבצים מהדרייב...</p>' : (F == 'err' ? '<div class="bn"><span>לא ניתן לטעון קבצים מהדרייב</span><button type="button" data-fl>נסה שוב</button></div>' : '')}` +
     (L.length ? (viewMode === 'grid'
       ? `<div class="pw-dc-grid">${L.map(d => {
         const n = d.days, tx = n === null ? 'ללא תוקף' : n < 0 ? 'פג' : n < 60 ? n + ' ימים' : n < 730 ? Math.round(n / 30.4) + ' חודשים' : Math.round(n / 365) + ' שנים', cl = n === null ? 'mut' : n < 0 ? 'neg' : n < 90 ? 'amb' : 'pos';
@@ -1389,7 +1403,7 @@ function gl() {
     const fbIcon = g.type === 'do' ? '✨' : '🛍️';
     const gCovId = g.coverId || extractDriveId(g.coverLink || '');
     const gImgSrc = gCovId ? driveThumbUrl(gCovId) : String(g.coverLink || '').trim();
-    const thumbHtml = /^https?:\/\//i.test(gImgSrc)
+    const thumbHtml = /^(https?:\/\/|data:image\/)/i.test(gImgSrc)
       ? `<div class="gl-thumb gl-thumb-zoom" data-gl-zoom="${esc(gImgSrc)}" data-gl-zoom-title="${esc(g.title)}" title="לחץ להגדלת התמונה"><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
       : `<div class="gl-thumb"><span class="gl-thumb-fb">${fbIcon}</span></div>`;
 
@@ -2009,9 +2023,12 @@ function insSched() {
 }
 function ins() { return ins0() + insSched() }
 
+let loadFilesPromise = null;
 async function loadFiles() {
+  if (loadFilesPromise) return loadFilesPromise;
   S.files = 'loading';
-  try {
+  loadFilesPromise = (async () => {
+    try {
     const G = async q => {
       const all = []; let pt = '';
       do {
@@ -2041,17 +2058,20 @@ async function loadFiles() {
     }
     S.files = { root: root.id, receiptsId, out };
   } catch (e) { S.files = 'err' }
+  finally { loadFilesPromise = null; }
   if (!S.wForm) draw();
+  })();
+  return loadFilesPromise;
 }
 function dc() { return pickCard() + dc0() }
 
-async function prepareUploadBlob(file) {
-  if (!file || !file.type || !file.type.startsWith('image/') || file.size <= 2621440) return { blob: file, ext: (file.name.split('.').pop() || 'jpg').toLowerCase(), mime: file.type || 'application/octet-stream' };
+async function prepareUploadBlob(file, maxDim = 2200, minBytes = 2621440) {
+  if (!file || !file.type || !file.type.startsWith('image/') || file.size <= minBytes) return { blob: file, ext: (file.name.split('.').pop() || 'jpg').toLowerCase(), mime: file.type || 'application/octet-stream' };
   return new Promise(resolve => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const maxDim = 2200; let w = img.width, h = img.height;
+      let w = img.width, h = img.height;
       if (Math.max(w, h) > maxDim) { const sc = maxDim / Math.max(w, h); w = Math.round(w * sc); h = Math.round(h * sc) }
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
       cv.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -2876,10 +2896,22 @@ async function quotes() {
 setInterval(() => { if (document.visibilityState == 'visible' && (S.tab == 'inv' || S.tab == 'home') && S.inv.length) quotes() }, 90000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (S.tab === 'inv' || S.tab === 'home') && S.inv.length && navigator.onLine !== false) quotes() });
 
+function syncGlFormFromDom() {
+  if (!S.glForm) return;
+  const tEl = document.getElementById('gl-f-title');
+  const cEl = document.getElementById('gl-f-cost');
+  const sEl = document.getElementById('gl-f-saved');
+  const nEl = document.getElementById('gl-f-notes');
+  if (tEl) S.glForm.title = tEl.value;
+  if (cEl) S.glForm.cost = cEl.value;
+  if (sEl) S.glForm.saved = sEl.value;
+  if (nEl) S.glForm.notes = nEl.value;
+}
+
 document.addEventListener('change', e => {
   if ((e.target.id === 'gl-f-cover-inp' || e.target.id === 'gl-f-cover-cam') && S.glForm) {
     const file = e.target.files && e.target.files[0];
-    if (file) { S.glPendingCover = file; draw(true) }
+    if (file) { syncGlFormFromDom(); S.glPendingCover = file; draw(true) }
     return;
   }
   if ((e.target.id === 'wf-cover-inp' || e.target.id === 'wf-cover-cam') && S.wForm) {
@@ -2920,7 +2952,15 @@ document.addEventListener('change', e => {
     }
   }
   if (e.target.dataset.fsl !== undefined && S.fire) { ls('fire_cfg', JSON.stringify(S.fire)) }
-  const s = e.target.dataset.sel; if (s) { S.pv[s] = +e.target.value; S.pv.pr = ''; S.pv.dr = null; draw() }
+  const s = e.target.dataset.sel;
+  if (s) {
+    S.pv[s] = +e.target.value;
+    if (S.pv.from > S.pv.to) {
+      if (s === 'from') S.pv.to = S.pv.from;
+      else S.pv.from = S.pv.to;
+    }
+    S.pv.pr = ''; S.pv.dr = null; draw();
+  }
 });
 
 function ins0() {
@@ -2982,6 +3022,8 @@ function animNums(skipAnim = false) {
 }
 
 function draw(skipAnim = false) {
+  const sp = document.getElementById('page-shopping');
+  if (sp && sp.parentElement !== document.body) document.body.appendChild(sp);
   const slb = syncLabel(), dark = isDarkTheme();
   const ys = S.tab === 'home' ? [...new Set(S.exp.map(e => e.ym))].sort((a, b) => a - b) : [];
   const sy = y => T(S.exp.filter(e => e.ym == y), 'a');
@@ -2989,8 +3031,17 @@ function draw(skipAnim = false) {
   const sidebarHtml = `<aside class="pw-sidebar" aria-label="ניווט ראשי"><div class="pw-sb-brand"><b>MY MONEY GOALS</b><small>Private Wealth Workstation</small></div>${navItems.map(([t, lbl, ico]) => `<button type="button" class="pw-sb-btn ${S.tab === t ? 'on' : ''}" data-pw-nav="${t}"><span>${ico}</span><span>${lbl}</span></button>`).join('')}</aside>`;
   const viewHtml = `<div class="view${skipAnim || S.tab === 'shop' ? ' no-anim' : ''}">${({ home, pv, inv, more, shop: () => '' }[S.tab] || home)()}</div>`;
   $('#app').innerHTML = `<header><div class="hdr-title"><b>${greet()}</b><div class="hdr-meta"><span>${new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span><span class="sync-pill ${slb.cls}"><i></i>${slb.txt}</span></div></div><div class="hdr-acts"><button data-gs-open title="חיפוש גלובלי" aria-label="חיפוש גלובלי">${SVG.search}</button><button data-theme-tog title="${dark ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}" aria-label="${dark ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}">${dark ? SVG.sun : SVG.moon}</button><button data-eye class="${S.hide ? 'on' : ''}" title="הסתר סכומים" aria-label="הסתר סכומים">${S.hide ? SVG.eyeOff : SVG.eye}</button><button data-sync class="${S.syncing ? 'spin' : ''}" title="סנכרון" aria-label="סנכרון">${SVG.sync}</button></div></header>` +
-    (S.err && (!token || S.scopeErr) ? `<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr ? 'data-sync-consent' : 'data-sync'}>${S.scopeErr ? 'אשר הרשאות' : 'סנכרן'}</button></div>` : (!token && !ls('rt') ? `<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>` : '')) + `<div class="pw-desktop-shell">${sidebarHtml}<main>${viewHtml}</main></div>${S.tab === 'home' ? monthSheet(ys, sy) : ''}${globalSearchModal()}`;
-  const sp = document.getElementById('page-shopping'); if (sp) sp.style.display = S.tab === 'shop' ? 'block' : 'none'; if (S.tab === 'shop' && window._shopRender) window._shopRender();
+    (S.err && (!token || S.scopeErr) ? `<div class="bn"><span>${esc(S.err)}</span><button ${S.scopeErr ? 'data-sync-consent' : 'data-sync'}>${S.scopeErr ? 'אשר הרשאות' : 'סנכרן'}</button></div>` : (!token && !ls('rt') ? `<div class="bn"><span>מציג נתונים שמורים במכשיר</span><button data-sync>סנכרן</button></div>` : '')) + `<div class="pw-desktop-shell">${sidebarHtml}<main id="pw-main-slot">${viewHtml}</main></div>${S.tab === 'home' ? monthSheet(ys, sy) : ''}${globalSearchModal()}`;
+  if (sp) {
+    if (S.tab === 'shop') {
+      const slot = document.getElementById('pw-main-slot');
+      if (slot) slot.appendChild(sp);
+      sp.style.display = 'block';
+      if (window._shopRender) window._shopRender();
+    } else {
+      sp.style.display = 'none';
+    }
+  }
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t == S.tab));
   document.querySelectorAll('.car').forEach(syncDots);
   centerMonthStrip();
@@ -3075,8 +3126,16 @@ document.addEventListener('click', async e => {
       return;
     }
   }
+  function switchTab(nt) {
+    if (!nt) return;
+    vib(8);
+    S.tab = nt; S.sub = ''; S.mPick = false; S.moreEdit = false;
+    draw(); scrollTo(0, 0);
+    if (nt === 'inv' && S.inv.length && navigator.onLine !== false) quotes();
+    if (nt === 'shop' && window._shopSync) window._shopSync('pull', true);
+  }
   const pwNav = e.target.closest('[data-pw-nav]');
-  if (pwNav) { const nt = pwNav.dataset.pwNav; if (nt && nt !== S.tab) { S.tab = nt; S.sub = ''; draw(); if (nt === 'inv' && S.inv.length && navigator.onLine !== false) quotes(); if ((nt === 'inv' || nt === 'more') && S.files === 'idle' && token) loadFiles(); } return; }
+  if (pwNav) { switchTab(pwNav.dataset.pwNav); return; }
 
   const b = e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-zoom],[data-gl-zoom-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync],[data-sync-consent],[data-qa-tog],[data-qa-reset],[data-qa-mv],[data-qa-vis]');
   if (!b) { if (!token && ls('rt') && navigator.onLine !== false) refresh().then(ok => ok && load()); return }
@@ -3095,7 +3154,7 @@ document.addEventListener('click', async e => {
   if (b.dataset.gsGl) {
     vib(8); S.gsOpen = false; S.tab = 'more'; S.sub = 'gl';
     const item = (window._getGoals ? window._getGoals() : []).find(x => x.id === b.dataset.gsGl);
-    if (item) { S.glFilter = item.done ? 'done' : 'all'; S.glForm = { ...item }; S.glErr = ''; }
+    if (item) { S.glFilter = item.done ? 'done' : 'all'; S.glPendingCover = null; S.glSaving = false; S.glForm = { ...item, coverId: item.coverId || '', coverLink: item.coverLink || '' }; S.glErr = ''; }
     draw(); scrollTo(0, 0); return;
   }
   if (b.dataset.gsYm) {
@@ -3106,7 +3165,7 @@ document.addEventListener('click', async e => {
   }
   if (b.dataset.gsSub) {
     vib(8); S.gsOpen = false; S.tab = 'more'; S.sub = b.dataset.gsSub; draw(); scrollTo(0, 0);
-    if (S.sub === 'dc' && token && !S.files) loadFiles();
+    if ((S.sub === 'dc' || S.sub === 'wr') && token && (!S.files || S.files === 'err')) loadFiles();
     return;
   }
   if (b.dataset.alertGo) {
@@ -3115,7 +3174,7 @@ document.addEventListener('click', async e => {
     S.tab = 'more'; S.sub = act;
     if (act === 'wr' && b.dataset.alertId) S.wViewId = b.dataset.alertId;
     draw(); scrollTo(0, 0);
-    if ((act === 'dc' || act === 'wr') && token && !S.files) loadFiles();
+    if ((act === 'dc' || act === 'wr') && token && (!S.files || S.files === 'err')) loadFiles();
     return;
   }
   if (b.dataset.dcs !== undefined) {
@@ -3218,31 +3277,17 @@ document.addEventListener('click', async e => {
     const inp = document.getElementById('gl-f-cover-cam'); if (inp) inp.click(); return;
   }
   if ('glUncover' in b.dataset && S.glForm) {
-    vib(6); S.glPendingCover = null; S.glForm.coverId = ''; S.glForm.coverLink = ''; draw(true); return;
+    vib(6); syncGlFormFromDom(); S.glPendingCover = null; S.glForm.coverId = ''; S.glForm.coverLink = ''; draw(true); return;
   }
   if (b.dataset.glType && S.glForm) {
     vib(6);
-    const tEl = document.getElementById('gl-f-title');
-    const cEl = document.getElementById('gl-f-cost');
-    const sEl = document.getElementById('gl-f-saved');
-    const nEl = document.getElementById('gl-f-notes');
-    if (tEl) S.glForm.title = tEl.value;
-    if (cEl) S.glForm.cost = cEl.value;
-    if (sEl) S.glForm.saved = sEl.value;
-    if (nEl) S.glForm.notes = nEl.value;
+    syncGlFormFromDom();
     S.glForm.type = b.dataset.glType === 'do' ? 'do' : 'buy';
     draw(true); return;
   }
   if (b.dataset.glPrio && S.glForm) {
     vib(6);
-    const tEl = document.getElementById('gl-f-title');
-    const cEl = document.getElementById('gl-f-cost');
-    const sEl = document.getElementById('gl-f-saved');
-    const nEl = document.getElementById('gl-f-notes');
-    if (tEl) S.glForm.title = tEl.value;
-    if (cEl) S.glForm.cost = cEl.value;
-    if (sEl) S.glForm.saved = sEl.value;
-    if (nEl) S.glForm.notes = nEl.value;
+    syncGlFormFromDom();
     S.glForm.priority = Number(b.dataset.glPrio) || 5;
     draw(true); return;
   }
@@ -3274,11 +3319,12 @@ document.addEventListener('click', async e => {
           coverId = up.id || '';
           coverLink = up.webViewLink || (coverId ? `https://drive.google.com/file/d/${coverId}/view` : '');
         } else {
+          const prep = await prepareUploadBlob(S.glPendingCover, 900, 120000);
           const reader = new FileReader();
           coverLink = await new Promise((res, rej) => {
             reader.onload = () => res(String(reader.result || ''));
             reader.onerror = () => rej(new Error('שגיאה בקריאת התמונה'));
-            reader.readAsDataURL(S.glPendingCover);
+            reader.readAsDataURL(prep.blob);
           });
         }
       } catch (err) {
@@ -3335,7 +3381,7 @@ document.addEventListener('click', async e => {
     if (confirm('למחוק רשומת אחריות זו? (הקובץ בדרייב יישמר)')) {
       vib(10);
       if (window._deleteWarranty) window._deleteWarranty(b.dataset.wDel);
-      S.wForm = null; S.wPendingFile = null; S.wErr = '';
+      S.wForm = null; S.wPendingCover = null; S.wPendingFiles = []; S.wErr = '';
       draw();
     }
     return;
@@ -3370,8 +3416,8 @@ document.addEventListener('click', async e => {
     return;
   }
   if ('quickGl' in b.dataset) {
-    vib(8); S.tab = 'more'; S.sub = 'gl'; S.glErr = '';
-    S.glForm = { id: '', type: 'buy', title: '', priority: 5, cost: '', saved: '', done: false, notes: '' };
+    vib(8); S.tab = 'more'; S.sub = 'gl'; S.glErr = ''; S.glPendingCover = null; S.glSaving = false;
+    S.glForm = { id: '', type: 'buy', title: '', priority: 5, cost: '', saved: '', done: false, notes: '', coverId: '', coverLink: '' };
     draw(); scrollTo(0, 0);
     setTimeout(() => { const el = document.getElementById('gl-f-title'); el && el.focus() }, 60);
     return;
@@ -3428,7 +3474,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if ('eye' in b.dataset) { vib(8); S.hide = !S.hide; ls('hide', S.hide ? '1' : '0'); draw(); if (window._shopRender) window._shopRender() }
-  if (b.dataset.t) { vib(8); S.tab = b.dataset.t; S.sub = ''; S.mPick = false; S.moreEdit = false; draw(); scrollTo(0, 0); if (S.tab === 'shop' && window._shopSync) window._shopSync('pull', true) }
+  if (b.dataset.t) { switchTab(b.dataset.t); return; }
   if (b.dataset.dn !== undefined) { vib(6); const c = decodeURIComponent(b.dataset.dn); S.dnSel = (!c || S.dnSel === c) ? null : c; draw(); return }
   if (b.dataset.sc) {
     const M = salMap();
@@ -3467,23 +3513,33 @@ document.addEventListener('click', async e => {
   if (b.dataset.od) openDoc(decodeURIComponent(b.dataset.od), decodeURIComponent(b.dataset.op || ''));
   if (b.dataset.r) { vib(6); S.pv.dr = { r: decodeURIComponent(b.dataset.r), k: b.dataset.k, p: b.dataset.p === '' ? null : +b.dataset.p }; draw(); toDr() }
   if ('fl' in b.dataset) loadFiles();
-  if ('sub' in b.dataset) { vib(8); S.sub = b.dataset.sub; draw(); scrollTo(0, 0); if (S.sub == 'dc' && token && !S.files) loadFiles(); if (S.sub == 'wr') { if (token && !S.files) loadFiles(); if (window._shopSync) window._shopSync('pull', true) } if (S.sub == 'sl') syncSalDrive('pull') }
+  if ('sub' in b.dataset) { vib(8); S.sub = b.dataset.sub; draw(); scrollTo(0, 0); if (S.sub == 'dc' && token && (!S.files || S.files === 'err')) loadFiles(); if (S.sub == 'wr') { if (token && (!S.files || S.files === 'err')) loadFiles(); if (window._shopSync) window._shopSync('pull', true) } if (S.sub == 'sl') syncSalDrive('pull') }
   if ('dcf' in b.dataset) { vib(6); S.dcf = decodeURIComponent(b.dataset.dcf); draw() }
   if (b.dataset.l) open(decodeURIComponent(b.dataset.l), '_blank', 'noopener');
 
   if (b.dataset.y) { vib(8); S.ym = +b.dataset.y; S.dnSel = null; S.mPick = false; draw() }
-  if (b.dataset.c) { vib(10); const c = S.cp[+b.dataset.c]; if (c.c.startsWith('http')) open(c.c, '_blank', 'noopener'); else { navigator.clipboard.writeText(c.c); b.textContent = 'הועתק ✓'; b.classList.add('ok') } }
+  if (b.dataset.c) {
+    vib(10); const c = S.cp[+b.dataset.c];
+    if (c.c.startsWith('http')) open(c.c, '_blank', 'noopener');
+    else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(c.c).then(() => { b.textContent = 'הועתק ✓'; b.classList.add('ok') }).catch(() => {});
+    }
+  }
 });
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (S.gsOpen) { S.gsOpen = false; draw(true); return }
   if (S.mPick) { S.mPick = false; draw(true); return }
-  if (S.wForm) { S.wForm = null; S.wPendingCover = null; S.wPendingFiles = []; S.wErr = ''; draw(true); return }
+  if (S.wForm) { if (S.wSaving) return; S.wForm = null; S.wPendingCover = null; S.wPendingFiles = []; S.wErr = ''; draw(true); return }
   if (S.wViewId) { S.wViewId = ''; draw(true); return }
   if (S.glForm) { if (S.glSaving) return; S.glForm = null; S.glPendingCover = null; S.glErr = ''; draw(true); return }
   if (S.pick) { S.pick = null; draw(true); return }
 });
+
+window._onShopLoaded = () => {
+  if (!$('nav').hidden && (S.tab === 'home' || (S.tab === 'more' && !S.sub))) draw(true);
+};
 
 (function boot() {
   S.hide = ls('hide') == '1';

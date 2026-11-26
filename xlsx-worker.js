@@ -27,6 +27,34 @@ const ymOf = d => {
   return fd.getFullYear() * 100 + fd.getMonth() + 1;
 };
 
+function parseLocalDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(+val) ? null : val;
+  if (typeof val === 'number' && val > 20000 && val < 100000) {
+    const d = new Date(Math.round((val - 25569) * 864e5) + 432e5);
+    return isNaN(+d) ? null : d;
+  }
+  const s = String(val).trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3], 12, 0, 0);
+  const dmy = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (dmy) return new Date(+dmy[3], +dmy[2] - 1, +dmy[1], 12, 0, 0);
+  const d = new Date(s);
+  return isNaN(+d) ? null : d;
+}
+
+function wDate(v) {
+  if (v instanceof Date) return isNaN(+v) ? null : v;
+  if (typeof v === 'number' && v > 20000 && v < 100000) {
+    const d = new Date(Math.round((v - 25569) * 864e5));
+    return isNaN(+d) ? null : d;
+  }
+  if (typeof v === 'string' && v.trim()) {
+    return parseLocalDate(v.trim());
+  }
+  return null;
+}
+
 function parseExp(wb) {
   const rows = XLSX.utils.sheet_to_json(wb.Sheets['ראשי'] || wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true });
   const exp = [], mon = [], cp = [], bud = {}, sal = {};
@@ -40,18 +68,6 @@ function parseExp(wb) {
       if (v === null || v === undefined || v === '') return 0;
       const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.\-+eE]/g, '').trim());
       return Number.isFinite(n) ? n : 0;
-    };
-    const wDate = v => {
-      if (v instanceof Date) return isNaN(+v) ? null : v;
-      if (typeof v === 'number' && v > 20000 && v < 100000) {
-        const d = new Date(Math.round((v - 25569) * 864e5));
-        return isNaN(+d) ? null : d;
-      }
-      if (typeof v === 'string' && v.trim()) {
-        const p = new Date(v.trim());
-        return isNaN(+p) ? null : p;
-      }
-      return null;
     };
     const wAmt = wNum(x[1]);
     const wDt = wDate(x[4]);
@@ -126,7 +142,9 @@ function parseIns(wb) {
   const sm = wb.Sheets['סיכום'];
   if (!sm || !sm.C6 || !sm.C7) throw new Error('מבנה גיליון ביטוח חיים לא תקין');
   const pr = XLSX.utils.sheet_to_json(wb.Sheets['פרמיות שנתיות'] || wb.Sheets[wb.SheetNames[1]], { header: 1, raw: true }).slice(4, 36);
-  const st = fix(sm.C6.v);
+  const rawSt = wDate(sm.C6.v);
+  if (!rawSt) throw new Error('מבנה גיליון ביטוח חיים לא תקין');
+  const st = fix(rawSt);
   const yrs = +sm.C7.v || 0;
   const pay = [];
   for (let n = 0; n < yrs * 12; n++) {
