@@ -1963,3 +1963,29 @@ main.pw-screen-anim {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   Private Wealth Visual Polish (v14)
+   ========================================================================== */
+.pw-mort-hero{position:relative;overflow:hidden;border:1px solid var(--bd-strong)}
+.pw-mort-hero .big{font-size:clamp(30px,5vw,42px);font-weight:900;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+.pw-mort-hero .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.pw-mort-hero .trio>div{background:var(--card2);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px}
+.pw-mort-hero .trio b{display:block;margin-top:4px;font-size:15px;font-variant-numeric:tabular-nums}
+
+.pv-head-card{border:1px solid var(--bd-strong);background:var(--card)}
+.pv-head-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.pv-head-title{font-weight:800;font-size:16px;color:var(--ink)}
+.pv-head-sub{font-size:12.5px;color:var(--mut)}
+
+.pw-btn-secondary{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:1px solid var(--bd-strong);background:var(--card2);color:var(--ink);
+  border-radius:var(--r-sm);padding:8px 14px;font:inherit;font-size:13px;font-weight:700;
+  cursor:pointer;transition:background .15s ease,transform .15s ease,border-color .15s ease
+}
+@media(hover:hover){.pw-btn-secondary:hover{background:var(--card3);border-color:var(--g);transform:translateY(-1px)}}
+
+@media (max-width:640px){
+  .pw-mort-hero .trio{grid-template-columns:1fr}
+}
