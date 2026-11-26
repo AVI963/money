@@ -67,7 +67,7 @@ const ico=c=>(ICO.find(x=>x[0].test(c))||[0,'🏷️'])[1];
 const W_CATS=['מוצרי חשמל','רכב','ריהוט','אלקטרוניקה ומחשבים','בית וגינה','שונות'];
 const wCatOf=w=>String((w&&w.category)||'').trim()||'שונות';
 const SAL_TPL_KEY='sal_tpl',SAL_TPL_AT_KEY='sal_tpl_at',SAL_SV_KEY='sal_sv',SAL_DIRTY_PUSH_KEY='sal_dirty_push',SAL_META_KEY='my_money_sal_drive_meta_v1',SAL_DRIVE_FILE=APP_CONFIG.salaryFileName||'my_money_salary.json';
-const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',glFilter:'all',glSort:'prio',glForm:null,glErr:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,homeEdit:false,homeLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
+const S={exp:[],mon:[],inv:[],pen:[],docs:[],bud:{},sal:null,salAt:0,cp:[],ins:null,mort:null,syncAt:0,ym:0,tab:'home',sub:'',dcf:'',wrStatus:'all',wrCat:'',glFilter:'all',glSort:'prio',glForm:null,glPendingCover:null,glSaving:false,glErr:'',hide:false,theme:'',dnSel:null,syncing:false,mPick:false,moreEdit:false,moreLayout:null,homeEdit:false,homeLayout:null,wForm:null,wViewId:'',wPendingCover:null,wPendingFiles:[],wSaving:false,wErr:'',dcStatus:'all',gsOpen:false,gsQ:'',excl:new Set(),unexcl:new Set(),fire:null,pv:{by:'m',rows:'c',sel:[],open:[],q:'',from:0,to:0,pr:'12',dr:null}};
   let token,cc,quotesAbort=null;
 const $=s=>document.querySelector(s),ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
 const vib=(ms=8)=>{try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}};
@@ -1169,6 +1169,12 @@ function gl() {
   });
 
   const f = S.glForm;
+  const pendCov = S.glPendingCover;
+  const existingCovUrl = f ? (f.coverLink || (f.coverId ? driveThumbUrl(f.coverId) : '')) : '';
+  const covLabel = pendCov
+    ? `🖼️ תמונה חדשה: ${esc(pendCov.name)}`
+    : (existingCovUrl ? '✅ קיימת תמונת יעד' : '📷 בחר / צלם תמונה ליעד');
+
   const modal = f ? `<div class="ms-back" data-gl-close>
     <div class="ms-sheet" style="max-width:460px">
       <div class="ms-grab"></div>
@@ -1193,14 +1199,24 @@ function gl() {
         </div>
       </div>
       <label class="wf-lbl" style="margin-top:8px">סדר עדיפות (1 = לא מיידי · 10 = מיידי)</label>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
-        ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="chip2 ${Number(f.priority) === n ? 'on' : ''}" data-gl-prio="${n}" style="padding:5px 10px;min-width:34px">${n}</button>`).join('')}
+      <div class="gl-prio-row">
+        ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="chip2 gl-prio-btn ${Number(f.priority) === n ? 'on' : ''}" data-gl-prio="${n}">${n}</button>`).join('')}
       </div>
+      <label class="wf-lbl" style="margin-top:10px">תמונה ליעד (אופציונלי)</label>
+      <input id="gl-f-cover-inp" type="file" accept="image/*" style="display:none">
+      <div style="display:flex;gap:6px;align-items:center">
+        <button type="button" id="gl-f-cover-trig" class="wf-file-btn ${pendCov || existingCovUrl ? 'has' : ''}" style="flex:1">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${covLabel}</span>
+          <span style="font-weight:700;color:var(--g);flex:none">${pendCov || existingCovUrl ? 'החלף' : 'בחר'}</span>
+        </button>
+        ${(pendCov || existingCovUrl) ? `<button type="button" class="chip2" data-gl-uncover style="color:var(--r);padding:8px 10px">הסר</button>` : ''}
+      </div>
+      ${pendCov ? `<div class="gl-cover-preview"><span class="mut" style="font-size:12px">יישמר בעת שמירת היעד: <b>${esc(pendCov.name)}</b></span></div>` : (existingCovUrl ? `<div class="gl-cover-preview"><img src="${esc(f.coverId ? driveThumbUrl(f.coverId) : existingCovUrl)}" alt="${esc(f.title || '')}" onerror="this.style.display='none'"><span class="mut" style="font-size:12px">תמונה משויכת ליעד</span></div>` : '')}
       <label class="wf-lbl" style="margin-top:8px">הערות / קישור</label>
       <input id="gl-f-notes" class="wf-inp" type="text" placeholder="דגם מועדף, תאריך יעד..." value="${esc(f.notes || '')}">
       ${S.glErr ? `<p class="neg" style="font-size:12.5px;margin:8px 0 0">${esc(S.glErr)}</p>` : ''}
       <div class="row" style="margin-top:14px;padding:0;gap:8px">
-        <button type="button" class="pr" data-gl-save style="flex:1;background:var(--g);color:#fff;padding:11px">שמור יעד ✓</button>
+        <button type="button" class="pr" data-gl-save ${S.glSaving ? 'disabled' : ''} style="flex:1;background:var(--g);color:#fff;padding:11px">${S.glSaving ? 'שומר...' : 'שמור יעד ✓'}</button>
         ${f.id ? `<button type="button" class="chip2" data-gl-del="${esc(f.id)}" style="color:var(--r);padding:10px 14px">מחק</button>` : ''}
       </div>
     </div>
@@ -1229,11 +1245,19 @@ function gl() {
     const saved = Math.min(cost, Number(g.saved) || 0);
     const pctVal = cost > 0 ? Math.min(100, Math.round((saved / cost) * 100)) : (g.done ? 100 : 0);
     const pm = prioMeta(g.priority);
+    const fbIcon = g.type === 'do' ? '✨' : '🛍️';
+    const gCovId = g.coverId || extractDriveId(g.coverLink || '');
+    const gImgSrc = gCovId ? driveThumbUrl(gCovId) : String(g.coverLink || '').trim();
+    const thumbHtml = /^https?:\/\//i.test(gImgSrc)
+      ? `<div class="gl-thumb"><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
+      : `<div class="gl-thumb"><span class="gl-thumb-fb">${fbIcon}</span></div>`;
+
     return `<div class="gl-card ${g.done ? 'done' : ''}">
       <button type="button" class="shop-check" data-gl-tog="${esc(g.id)}" aria-label="סמן הושג">${g.done ? '✓' : ''}</button>
+      ${thumbHtml}
       <div class="gl-body" data-gl-edit="${esc(g.id)}">
         <div class="gl-top">
-          <span class="gl-title">${g.type === 'do' ? '✨' : '🛍️'} ${esc(g.title)}</span>
+          <span class="gl-title">${esc(g.title)}</span>
           <span class="gl-prio ${pm.cls}">${pm.lbl}</span>
         </div>
         ${g.notes ? `<div class="w-sub">${esc(g.notes)}</div>` : ''}
@@ -1246,7 +1270,6 @@ function gl() {
   }).join('')}
   ${modal}`;
 }
-
 function warrantyDetailSheet(){
   if(!S.wViewId)return '';
   const all=getAllWarranties();
@@ -2487,6 +2510,11 @@ async function quotes(){
 setInterval(()=>{if(document.visibilityState=='visible'&&S.tab=='inv'&&S.inv.length)quotes()},90000);
 
 document.addEventListener('change',e=>{
+  if(e.target.id==='gl-f-cover-inp'&&S.glForm){
+    const file=e.target.files&&e.target.files[0];
+    if(file){S.glPendingCover=file;draw(true)}
+    return;
+  }
   if(e.target.id==='wf-cover-inp'&&S.wForm){
     const file=e.target.files&&e.target.files[0];
     if(file){S.wPendingCover=file;draw(true)}
@@ -2661,7 +2689,7 @@ document.addEventListener('pointerup',e=>{
 });
 document.addEventListener('pointercancel',()=>clearScrbHold(false));
 
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
   const sum=e.target.closest('details.ct > summary');
   if(sum&&!rmRed()){
     const det=sum.parentElement,body=det.querySelector('.ct-body');
@@ -2783,8 +2811,8 @@ document.addEventListener('click',e=>{
   }
   if('glOpen'in b.dataset){
     vib(8);
-    S.glErr='';
-    S.glForm={id:'',type:'buy',title:'',priority:5,cost:'',saved:'',done:false,notes:''};
+    S.glErr='';S.glPendingCover=null;S.glSaving=false;
+    S.glForm={id:'',type:'buy',title:'',priority:5,cost:'',saved:'',done:false,notes:'',coverId:'',coverLink:''};
     draw(true);
     setTimeout(()=>{const el=document.getElementById('gl-f-title');el&&el.focus()},60);
     return;
@@ -2792,11 +2820,18 @@ document.addEventListener('click',e=>{
   if(b.dataset.glEdit){
     vib(8);
     const item=(window._getGoals?window._getGoals():[]).find(x=>x.id===b.dataset.glEdit);
-    if(item){S.glErr='';S.glForm={...item};draw(true);}
+    if(item){S.glErr='';S.glPendingCover=null;S.glSaving=false;S.glForm={...item,coverId:item.coverId||'',coverLink:item.coverLink||''};draw(true);}
     return;
   }
   if('glClose'in b.dataset){
-    vib(6);S.glForm=null;S.glErr='';draw(true);return;
+    if(S.glSaving)return;
+    vib(6);S.glForm=null;S.glPendingCover=null;S.glErr='';draw(true);return;
+  }
+  if(b.id==='gl-f-cover-trig'&&S.glForm){
+    const inp=document.getElementById('gl-f-cover-inp');if(inp)inp.click();return;
+  }
+  if('glUncover'in b.dataset&&S.glForm){
+    vib(6);S.glPendingCover=null;S.glForm.coverId='';S.glForm.coverLink='';draw(true);return;
   }
   if(b.dataset.glType&&S.glForm){
     vib(6);
@@ -2834,7 +2869,7 @@ document.addEventListener('click',e=>{
     }
     return;
   }
-  if('glSave'in b.dataset&&S.glForm){
+  if('glSave'in b.dataset&&S.glForm&&!S.glSaving){
     vib(10);
     const title=(document.getElementById('gl-f-title')?.value||'').trim();
     const cost=Math.max(0,Number(document.getElementById('gl-f-cost')?.value)||0);
@@ -2842,6 +2877,30 @@ document.addEventListener('click',e=>{
     const notes=(document.getElementById('gl-f-notes')?.value||'').trim();
     if(!title){S.glErr='נא להזין שם יעד או רכישה';draw(true);return;}
     const id=S.glForm.id||('g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    let coverId=S.glForm.coverId||'';
+    let coverLink=S.glForm.coverLink||'';
+    if(S.glPendingCover){
+      S.glSaving=true;S.glErr='';draw(true);
+      try{
+        if(typeof uploadReceiptToDrive==='function'&&token){
+          const up=await uploadReceiptToDrive(S.glPendingCover,{name:`${title} (תמונת יעד)`,store:'',purchaseDate:todayISO()});
+          coverId=up.id||'';
+          coverLink=up.webViewLink||(coverId?`https://drive.google.com/file/d/${coverId}/view`:'');
+        }else{
+          const reader=new FileReader();
+          coverLink=await new Promise((res,rej)=>{
+            reader.onload=()=>res(String(reader.result||''));
+            reader.onerror=()=>rej(new Error('שגיאה בקריאת התמונה'));
+            reader.readAsDataURL(S.glPendingCover);
+          });
+        }
+      }catch(err){
+        S.glSaving=false;
+        S.glErr=(err&&err.message)?err.message:'שגיאה בהעלאת התמונה';
+        draw(true);return;
+      }
+      S.glSaving=false;
+    }
     if(window._saveGoal){
       window._saveGoal({
         id,
@@ -2851,10 +2910,12 @@ document.addEventListener('click',e=>{
         cost,
         saved,
         done:!!S.glForm.done,
-        notes
+        notes,
+        coverId,
+        coverLink
       });
     }
-    S.glForm=null;S.glErr='';
+    S.glForm=null;S.glPendingCover=null;S.glErr='';
     showToast('היעד נשמר ✓');
     draw(true);return;
   }
@@ -3021,7 +3082,7 @@ document.addEventListener('keydown',e=>{
   if(S.mPick){S.mPick=false;draw(true);return}
   if(S.wForm){S.wForm=null;S.wPendingCover=null;S.wPendingFiles=[];S.wErr='';draw(true);return}
   if(S.wViewId){S.wViewId='';draw(true);return}
-  if(S.glForm){S.glForm=null;S.glErr='';draw(true);return}
+  if(S.glForm){if(S.glSaving)return;S.glForm=null;S.glPendingCover=null;S.glErr='';draw(true);return}
   if(S.pick){S.pick=null;draw(true);return}
 });
 

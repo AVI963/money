@@ -361,7 +361,9 @@
         !!p.done !== !!g.done ||
         (Number(p.priority) || 0) !== (Number(g.priority) || 0) ||
         (Number(p.cost) || 0) !== (Number(g.cost) || 0) ||
-        (Number(p.saved) || 0) !== (Number(g.saved) || 0)
+        (Number(p.saved) || 0) !== (Number(g.saved) || 0) ||
+        (p.coverId || "") !== (g.coverId || "") ||
+        (p.coverLink || "") !== (g.coverLink || "")
       ) {
         return true;
       }
@@ -534,6 +536,8 @@
       saved: Math.max(0, Number(g.saved) || 0),
       done: !!g.done,
       notes: String(g.notes || "").trim(),
+      coverId: String(g.coverId || "").trim(),
+      coverLink: String(g.coverLink || "").trim(),
       updatedAt: upd
     });
 
@@ -551,8 +555,20 @@
       if (mergedDeletedG[g.id] && mergedDeletedG[g.id] >= upd) return;
       const ng = normG(g, upd);
       const prev = gById.get(ng.id);
-      if (!prev || upd >= (Number(prev.updatedAt) || 0)) {
+      if (!prev) {
         gById.set(ng.id, ng);
+      } else if (upd >= (Number(prev.updatedAt) || 0)) {
+        gById.set(ng.id, {
+          ...ng,
+          coverId: ng.coverId || prev.coverId || "",
+          coverLink: ng.coverLink || prev.coverLink || "",
+          updatedAt: upd
+        });
+      } else {
+        if (!prev.coverLink && ng.coverLink) {
+          prev.coverId = ng.coverId || prev.coverId || "";
+          prev.coverLink = ng.coverLink;
+        }
       }
     });
 
@@ -1145,6 +1161,8 @@
       saved: Math.max(0, Number(rec.saved) || 0),
       done: !!rec.done,
       notes: String(rec.notes || "").trim(),
+      coverId: String(rec.coverId || "").trim(),
+      coverLink: String(rec.coverLink || "").trim(),
       updatedAt: Date.now()
     };
     const idx = goals.findIndex((g) => g.id === clean.id);

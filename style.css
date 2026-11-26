@@ -61,7 +61,7 @@
   --glass-bd:rgba(255,255,255,.85);
   --nav-sh:0 12px 32px -8px rgba(15,23,42,.14),0 2px 8px -2px rgba(15,23,42,.05);
   --st-sh:-4px 0 10px -6px rgba(15,23,42,.08);
-  --focus-ring:0 0 0 3px rgba(5,150,105,.18),
+  --focus-ring:0 0 0 3px rgba(5,150,105,.18);
   /* Navy & Champagne Gold Brand Accents */
   --navy:#10233e;
   --navy-2:#1e3a5f;
@@ -1280,3 +1280,59 @@ html[data-theme="dark"] .btn-primary,html[data-theme="dark"] .go{
   border:1px solid var(--line);margin-top:var(--sp-xs);font-size:13px
 }
 .hlay-ctrls{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+
+
+/* ==========================================================================
+   Luxury Navy + Gold + Emerald Polish, Goal Thumbnails & Narrow Mobile
+   ========================================================================== */
+.card h2{color:var(--navy);letter-spacing:-.2px}
+html[data-theme="dark"] .card h2{color:var(--ink)}
+button.pr{background:var(--navy);color:#fff}
+html[data-theme="dark"] button.pr{background:var(--navy-2);color:#f8fafc;border:1px solid var(--gold-bd)}
+button.pr.ok{background:var(--g);color:#fff;border-color:transparent}
+.chip2.on{background:var(--navy);border-color:var(--navy);color:#fff}
+html[data-theme="dark"] .chip2.on{background:var(--gold);border-color:var(--gold);color:#090d16}
+.gl-prog-bar i{background:linear-gradient(90deg,var(--navy-2),var(--gold),var(--g))}
+
+.gl-thumb{
+  width:48px;height:48px;border-radius:14px;flex:none;
+  background:var(--card2);border:1px solid var(--line);
+  display:grid;place-items:center;overflow:hidden;font-size:21px
+}
+.gl-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.gl-thumb-fb{
+  width:100%;height:100%;display:grid;place-items:center;
+  background:var(--navy-soft);font-size:20px
+}
+html[data-theme="dark"] .gl-thumb-fb{background:var(--gold-soft)}
+.gl-card.done .gl-thumb{opacity:.55}
+
+.gl-prio-row{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-top:5px
+}
+.gl-prio-btn{
+  padding:6px 4px !important;min-width:0 !important;text-align:center
+}
+
+.gl-cover-preview{
+  display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;
+  border-radius:var(--r-md);background:var(--card2);border:1px solid var(--line)
+}
+.gl-cover-preview img{
+  width:48px;height:48px;border-radius:12px;object-fit:cover;flex:none;border:1px solid var(--line)
+}
+
+@media(max-width:420px){
+  .big{font-size:clamp(30px,8.8vw,44px);letter-spacing:-1px}
+  .card{padding:14px 15px;border-radius:var(--r-lg)}
+  button.pr{padding:8px 11px;font-size:12.5px}
+  .chip2{padding:5.5px 10.5px;font-size:12px}
+  .shop-hero-grid{gap:6px}
+  .shop-hero-box{padding:8px 4px}
+  .shop-hero-val{font-size:14.5px}
+  .gl-thumb{width:44px;height:44px;border-radius:12px;font-size:19px}
+  .gl-card{padding:11px 12px;gap:10px}
+  .gl-title{font-size:13.5px}
+  nav{inset-inline:10px;bottom:calc(8px + env(safe-area-inset-bottom));padding:4px}
+  nav button{padding:6.5px 0 5.5px;font-size:10px}
+}
