@@ -1989,3 +1989,6 @@ main.pw-screen-anim {
 @media (max-width:640px){
   .pw-mort-hero .trio{grid-template-columns:1fr}
 }
+
+/* v15 Settings & Polish */
+.pw-settings-card{border-inline-start:3px solid var(--g)}
