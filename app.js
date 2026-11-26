@@ -772,10 +772,98 @@ function pv(){
 }
 
 function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
+  return `<div class="card hg"><div class="lb">נכסים פיננסיים מתועדים (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><span class="chip">השקעות ופנסיה בלבד · ללא נדל״ן והתחייבויות</span><div class="stack"><i style="width:${v/(v+p)*100}%;background:var(--pw-emerald)"></i><i style="width:${p/(v+p)*100}%;background:var(--pw-gold)"></i></div>
+  <div class="trio"><div><span class="lb">השקעות (${Math.round(v/(v+p)*100)}%)</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה והשתלמות (${Math.round(p/(v+p)*100)}%)</span><b>${fmt(p)}</b></div></div></div>`}
+function penCard(){
+  if(!S.pen.length)return '';
+  const byType={};
+  S.pen.forEach(r=>{
+    const tp=String(r['סוג']||'חיסכון פנסיוני').trim()||'חיסכון פנסיוני';
+    (byType[tp]=byType[tp]||[]).push(r);
+  });
+  return `<div class="card"><div class="row" style="padding:0 0 6px"><h2 class="pw-sec-title">פנסיה והשתלמות</h2><span class="chip">${S.pen.length} קרנות</span></div>
+  ${Object.entries(byType).map(([tp,rows])=>`<div style="margin-top:10px"><div class="pw-ins-kicker" style="margin-bottom:4px">${esc(tp)} · ${fmt(T(rows,'שווי ₪'))}</div>${rows.map(r=>`<div class="row s"><div><b>${esc(r['שם'])}</b><div class="mut" style="font-size:11px">${esc(r['סוג']||'')}${r['תאריך דוח']?' · דוח '+esc(r['תאריך דוח']):r['תאריך']?' · דוח '+esc(r['תאריך']):''}</div></div><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}</div>`).join('')}
+  <p class="mut" style="margin-top:10px">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`;
+}
+
+const pk=e=>S.pv.by=='y'?Math.floor(e.ym/100):e.ym,nf=n=>S.hide?'•••':Math.round(n).toLocaleString('he-IL');
+const plb=p=>!p?'':S.pv.by=='y'?String(p):new Date(Math.floor(p/100),p%100-1,1).toLocaleDateString('he-IL',{month:'short',year:'2-digit'});
+function setPr(p){
+  const P=S.pv,ys=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
+  if(!ys.length){const cur=ymOf(new Date());P.pr=p;P.from=cur;P.to=cur;P.dr=null;return}
+  const mx=ys[ys.length-1],yr=Math.floor(mx/100),mo=mx%100;P.pr=p;P.to=mx;P.dr=null;
+  if(p=='all')P.from=ys[0];
+  else if(p=='ty')P.from=yr*100+1;
+  else if(p=='ly'){P.from=(yr-1)*100+1;P.to=(yr-1)*100+12}
+  else if(p=='qtr'){
+    const qStartMo=Math.floor((mo-1)/3)*3+1;
+    const qEndMo=qStartMo+2;
+    const qStart=yr*100+qStartMo;
+    const qEnd=yr*100+qEndMo;
+    const inQ=ys.filter(y=>y>=qStart&&y<=qEnd);
+    P.from=inQ.length?inQ[0]:ys[Math.max(0,ys.length-3)];
+    P.to=inQ.length?inQ[inQ.length-1]:mx;
+  }
+  else P.from=ys[Math.max(0,ys.length-+p)];
+}
+
+function pvSlidesExtra(ys){
+  const i=ys.indexOf(S.ym),sy=y=>T(S.exp.filter(e=>e.ym==y),'a'),inc=y=>(S.mon.find(x=>x.ym==y)||{}).inc||0,
+  l6=ys.slice(Math.max(0,i-5),i+1),wi=l6.filter(y=>inc(y)>0),
+  si=T(wi.map(y=>({a:inc(y)})),'a'),se=T(wi.map(y=>({a:sy(y)})),'a'),
+  w=ys.slice(Math.max(0,i-11),i+1),cnt={};
+  S.exp.filter(e=>w.includes(e.ym)).forEach(e=>{(cnt[e.t]=cnt[e.t]||new Set()).add(e.ym)});
+  const fx=new Set(Object.keys(cnt).filter(t=>w.length>=4&&cnt[t].size>=w.length*.75)),cur=S.exp.filter(e=>e.ym==S.ym),fs=T(cur.filter(e=>fx.has(e.t)),'a'),tot=sy(S.ym),
+  topf=Object.entries(cur.filter(e=>fx.has(e.t)).reduce((o,e)=>(o[e.t]=(o[e.t]||0)+e.a,o),{})).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const out=[];
+  if(si){
+    out.push(`<div class="card sl"><div><div class="row" style="padding:0"><h2>שיעור חיסכון (חצי שנה אחרונה)</h2><b class="pos" style="font-size:20px">${Math.round((si-se)/si*100)}%</b></div><span class="lb">מתוך ${wi.length} חודשים עם משכורת</span></div><div class="trio"><div><span class="lb">משכורת ממוצעת</span><b>${fmt(si/wi.length)}</b></div><div><span class="lb">הוצאות ממוצעות</span><b>${fmt(se/wi.length)}</b></div><div><span class="lb">נחסך בממוצע</span><b class="${si>se?'pos':'neg'}">${fmt((si-se)/wi.length)}</b></div></div></div>`);
+  }
+  if(fx.size){
+    out.push(`<div class="card sl"><div><h2>קבועות מול משתנות (${ymLb(S.ym)})</h2><span class="lb">הוצאות שחוזרות כמעט כל חודש נחשבות קבועות</span><div class="stack" style="height:12px"><i style="width:${fs/(tot||1)*100}%;background:var(--b)"></i><i style="width:${(1-fs/(tot||1))*100}%;background:var(--line)"></i></div></div><div><div class="trio" style="margin-top:4px"><div><span class="lb">קבועות (${Math.round(fs/(tot||1)*100)}%)</span><b>${fmt(fs)}</b></div><div><span class="lb">משתנות (${Math.round((1-fs/(tot||1))*100)}%)</span><b>${fmt(tot-fs)}</b></div></div>${topf.map(([t,v])=>`<div class="row s"><span class="mut">${esc(t)}</span><b>${fmt(v)}</b></div>`).join('')}</div></div>`);
+  }
+  return out;
+}
+
+function pv(){
+  const P=S.pv,R=P.rows,all=[...new Set(S.exp.map(e=>e.ym))].sort((a,b)=>a-b);
+  if(!all.length)return `<div class="card"><p class="mut" style="text-align:center">אין נתוני הוצאות לניתוח.</p></div>`;
+  const inr=S.exp.filter(e=>e.ym>=P.from&&e.ym<=P.to),
+  cats=[...new Set(inr.map(e=>e.c))].sort((a,b)=>T(inr.filter(e=>e.c==b),'a')-T(inr.filter(e=>e.c==a),'a')),
+  qNorm=String(P.q||'').toLowerCase(),
+  d=inr.filter(e=>(!P.sel.length||P.sel.includes(e.c))&&(!qNorm||(e.t+' '+e.c).toLowerCase().includes(qNorm))),per=[];
+  if(P.by=='y'){for(let y=Math.floor(P.from/100);y<=Math.floor(P.to/100);y++)per.push(y)}else{for(let y=Math.floor(P.from/100),m=P.from%100;y*100+m<=P.to;m==12?(y++,m=1):m++)per.push(y*100+m)}
+  const M={};d.forEach(e=>{const r=e[R],p=pk(e);M[r]=M[r]||{t:0,p:{}};M[r].t+=e.a;M[r].p[p]=(M[r].p[p]||0)+e.a});
+  const rs=Object.entries(M).sort((a,b)=>b[1].t-a[1].t),pt=per.map(p=>T(d.filter(e=>pk(e)==p),'a')),tot=T(d,'a'),nmo=all.filter(y=>y>=P.from&&y<=P.to).length||1,
+  mxc=Math.max(...rs.flatMap(([,v])=>Object.values(v.p)),1),
+  rawMaxP=pt.length?Math.max(...pt):0,
+  pi=rawMaxP>0?pt.indexOf(rawMaxP):-1,
+  pr=[['qtr','רבעון'],['3','3 חודשים'],['6','חצי שנה'],['12','שנה'],['ty','השנה'],['ly','שנה שעברה'],['all','הכל']],
+  opt=v=>all.map(y=>`<option value="${y}" ${y==v?'selected':''}>${ymLb(y)}</option>`).join('');
+  const row=(r,v,sb)=>`<tr><td ${R=='c'&&!sb?`data-x="${encodeURIComponent(r)}" style="cursor:pointer"`:`data-n="${encodeURIComponent(r)}" data-k="${sb?'t':R}" style="cursor:pointer"`}>${sb?'<span class="mut">↳ </span>':R=='c'?(P.open.includes(r)?'▾ ':'▸ '):''}${esc(r)}</td>${per.map(p=>{const x=v.p[p]||0;return `<td data-r="${encodeURIComponent(r)}" data-k="${sb?'t':R}" data-p="${p}" style="background:rgba(16,185,129,${(x/mxc*.42).toFixed(3)})">${x?nf(x):''}</td>`}).join('')}<td data-r="${encodeURIComponent(r)}" data-k="${sb?'t':R}" data-p=""><b>${nf(v.t)}</b></td></tr>`,
+  sub=c=>{const m={};d.filter(e=>e.c==c).forEach(e=>{m[e.t]=m[e.t]||{t:0,p:{}};m[e.t].t+=e.a;m[e.t].p[pk(e)]=(m[e.t].p[pk(e)]||0)+e.a});return Object.entries(m).sort((a,b)=>b[1].t-a[1].t)};
+  const pvPts=per.map((p,k)=>({v:pt[k],lb:plb(p),flb:plb(p),on:k===pi}));
+  const extraSlides=pvSlidesExtra(all);
+  const dotCount=4+extraSlides.length;
+  return `<div class="card"><h2>ניתוח הוצאות</h2><div class="chips">${pr.map(([k,t])=>`<button class="chip2 ${P.pr==k?'on':''}" data-pr="${k}">${t}</button>`).join('')}</div>
+  <div class="chips"><select data-sel="from">${opt(P.from)}</select><span class="mut">עד</span><select data-sel="to">${opt(P.to)}</select></div>
+  <div class="chips"><div class="qwrap"><input data-q placeholder="חיפוש הוצאה ספציפית (למשל: חשמל)" value="${esc(P.q)}">${P.q?'<button class="qclr" data-qclr aria-label="נקה חיפוש">✕</button>':''}</div></div>
+  <div class="chips"><button class="chip2 ${P.by=='m'?'on':''}" data-by="m">לפי חודש</button><button class="chip2 ${P.by=='y'?'on':''}" data-by="y">לפי שנה</button><button class="chip2 ${R=='c'?'on':''}" data-rows="c">קטגוריות</button><button class="chip2 ${R=='t'?'on':''}" data-rows="t">סוגי הוצאה</button></div></div>
+  <div class="car"><div class="card sl"><div><div class="lb">סך הכל בטווח${P.sel.length?' ('+P.sel.length+' קטגוריות נבחרו)':''}</div><div class="big">${fmt(tot)}</div>
+  <div class="trio"><div><span class="lb">ממוצע לחודש</span><b>${fmt(tot/nmo)}</b></div><div><span class="lb">חודשים</span><b>${nmo}</b></div><div><span class="lb">שיא${pi>=0&&per[pi]?' · '+plb(per[pi]):''}</span><b>${fmt(rawMaxP)}</b></div></div></div>
+  ${areaChart(pvPts,{avg:tot/nmo,showLabels:per.length<=12})}</div>
+  ${pxs(rs,tot,nmo,d,P,all)}${extraSlides.join('')}</div><div class="dots">${Array.from({length:dotCount},(_,k)=>`<i data-dot="${k}" class="${k?'':'on'}"></i>`).join('')}</div><div class="card"><h2>סינון קטגוריות</h2><div class="chips">${cats.map(c=>`<button class="chip2 ${P.sel.includes(c)?'on':''}" data-cat="${encodeURIComponent(c)}">${ico(c)} ${esc(c)}</button>`).join('')}</div><span class="mut">בחירה מרובה. בלי בחירה מוצגות כולן.</span></div>
+  <div class="card" id="tb"><h2>טבלה</h2><div class="tw"><table><tr><th></th>${per.map(p=>`<th>${esc(plb(p))}</th>`).join('')}<th>סה״כ</th></tr>
+  ${rs.map(([r,v])=>row(r,v,0)+(R=='c'&&P.open.includes(r)?sub(r).map(([t,u])=>row(t,u,1)).join(''):'')).join('')}
+  <tr><td><b>סה״כ</b></td>${pt.map(x=>`<td><b>${nf(x)}</b></td>`).join('')}<td><b>${nf(tot)}</b></td></tr></table></div><span class="mut">לחץ על תא להצגת ההוצאות שבו.</span></div>
+  ${P.dr?(()=>{const it=d.filter(e=>e[P.dr.k||R]==P.dr.r&&(P.dr.p==null||pk(e)==P.dr.p)).sort((a,b)=>P.dr.p==null?b.ym-a.ym||b.a-a.a:b.a-a.a);return `<div class="card" id="dr"><div class="row"><h2>${esc(P.dr.r)} · ${P.dr.p==null?'כל התקופה':esc(plb(P.dr.p))}</h2><button class="chip2" data-up>↑ לטבלה</button></div><div class="row s"><span class="mut">${it.length} פעולות · ממוצע ${fmt(it.length?T(it,'a')/it.length:0)}</span><b>${fmt(T(it,'a'))}</b></div>${P.dr.p==null?(P.dr.k=='c'?brk(it):''):it.map(e=>`<div class="row s"><span>${esc(e.t)} <span class="mut">${ymLb(e.ym)}</span></span><b>${fmt(e.a)}</b></div>`).join('')}</div>`})():''}`;
+}
+
+function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
   return `<div class="card hg"><div class="lb">סך שווי נקי (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><div class="stack"><i style="width:${v/(v+p)*100}%;background:${COL[0]}"></i><i style="width:${p/(v+p)*100}%;background:${COL[1]}"></i></div>
   <div class="trio"><div><span class="lb">השקעות (${Math.round(v/(v+p)*100)}%)</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה והשתלמות (${Math.round(p/(v+p)*100)}%)</span><b>${fmt(p)}</b></div></div></div>`}
 function penCard(){return S.pen.length?`<div class="card"><h2>חיסכון פנסיוני</h2>${S.pen.map(r=>`<div class="row"><span>${esc(r['שם'])} <span class="mut">${esc(r['סוג']||'')}</span></span><b>${fmt(r['שווי ₪'])}</b></div>`).join('')}<p class="mut">לפי הדוח האחרון בקובץ. לעדכון ערוך את הגיליון פנסיה.</p></div>`:''}
-function inv(){return (S.qt?`<p class="mut" style="margin:4px 6px">● מחירים חיים עודכנו ב-${esc(S.qt)}</p>`:'')+nw()+nwHistoryCard()+inv0()+penCard()}
+function inv(){return (S.qt?`<div class="pw-sync-pill" style="margin:4px 6px 10px"><span class="pw-sync-dot"></span><span>עדכון מחירים אחרון: ${esc(S.qt)} · עדכון תקופתי</span></div>`:'')+nw()+nwHistoryCard()+inv0()+penCard()}
 
 function todayISO(){
   const d=new Date();
@@ -894,6 +982,7 @@ function dc0(){
   const cs=[...new Set(dcWithDays.map(d=>d.cat).filter(Boolean))];
   if(S.dcf&&!cs.includes(S.dcf))S.dcf='';
   const curDcSt=S.dcStatus||'all';
+  const viewMode=S.dcView||'list';
   L=dcWithDays.filter(d=>{
     if(S.dcf&&d.cat!==S.dcf)return false;
     if(curDcSt==='soon'&&d.st!=='soon')return false;
@@ -902,15 +991,40 @@ function dc0(){
     return true;
   }).sort((a,b)=>(a.x?+a.x:9e15)-(b.x?+b.x:9e15)||String(a.n).localeCompare(String(b.n),'he'));
 
-  return `<h2>מסמכים ותוקפים</h2>
+  const actBtn=d=>d.link
+    ?`<button class="pw-btn-secondary" data-l="${encodeURIComponent(d.link)}">פתח</button>`
+    :(d.od?`<button class="pw-btn-secondary" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:'');
+
+  return `<div class="pw-dc-toolbar">
+    <div><h2 class="pw-sec-title">Document Center · מסמכים ותוקפים</h2><span class="lb">${allCount} מסמכים מתועדים במרכז המסמכים</span></div>
+    <div style="display:flex;gap:6px">
+      <button type="button" class="chip2 ${viewMode==='list'?'on':''}" data-dcv="list">רשימה</button>
+      <button type="button" class="chip2 ${viewMode==='grid'?'on':''}" data-dcv="grid">כרטיסים</button>
+    </div>
+  </div>
   <div class="chips" style="margin-bottom:4px">
     <button class="chip2 ${curDcSt==='all'?'on':''}" data-dcs="all">הכל (${allCount})</button>
+  const dcvBtn=e.target.closest('[data-dcv]');if(dcvBtn){S.dcView=dcvBtn.dataset.dcv;draw(true);return;}
     <button class="chip2 ${curDcSt==='soon'?'on':''}" data-dcs="soon">עומד לפוג (${cntDcSoon})</button>
     <button class="chip2 ${curDcSt==='expired'?'on':''}" data-dcs="expired">פג תוקף (${cntDcExp})</button>
   </div>
   <div class="chips"><button class="chip2 ${S.dcf?'':'on'}" data-dcf="">כל הקטגוריות</button>${cs.map(c=>`<button class="chip2 ${S.dcf==c?'on':''}" data-dcf="${encodeURIComponent(c)}">${esc(c)}</button>`).join('')}</div>${F=='loading'?'<p class="mut">טוען קבצים מהדרייב...</p>':''}`+
-  (L.length?L.map(d=>{const n=d.x?Math.round((d.x-now)/864e5):null,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
-    return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.n)}${d.sens?' 🔒':''}</b><div class="mut">${[esc(d.who),esc(d.cat),d.x?'עד '+dl(d.x):'',d.missing?'⚠ אין קובץ בדרייב':''].filter(Boolean).join(' · ')}</div></div>${d.link?`<button class="pr" data-l="${encodeURIComponent(d.link)}">פתח</button>`:d.od?`<button class="pr" data-od="${encodeURIComponent(d.n)}" data-op="${encodeURIComponent(d.who||'')}">פתח</button>`:''}</div>`}).join(''):'<div class="card"><p class="mut" style="margin:0;text-align:center">אין מסמכים להצגה בקטגוריה זו.</p></div>');
+  (L.length?(viewMode==='grid'
+    ?`<div class="pw-dc-grid">${L.map(d=>{
+        const n=d.days,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
+        return `<div class="pw-dc-tile ${d.missing?'missing':''}">
+          <div class="row" style="padding:0;gap:6px"><span class="pl ${cl}" style="margin:0">${tx}</span>${d.sens?'<span class="pw-sync-pill" title="מסמך רגיש">🔒 רגיש</span>':''}</div>
+          <b style="font-size:14px">${esc(d.n)}</b>
+          <div class="mut" style="font-size:12px">${[esc(d.who),esc(d.cat),d.x?'עד '+dl(d.x):''].filter(Boolean).join(' · ')||'ללא פרטים נוספים'}</div>
+          ${d.missing?'<div class="mut" style="font-size:11.5px;color:#B45309">חסר קובץ מקושר בדרייב</div>':''}
+          <div style="margin-top:auto;padding-top:4px">${actBtn(d)}</div>
+        </div>`;
+      }).join('')}</div>`
+    :L.map(d=>{
+        const n=d.days,tx=n===null?'ללא תוקף':n<0?'פג':n<60?n+' ימים':n<730?Math.round(n/30.4)+' חודשים':Math.round(n/365)+' שנים',cl=n===null?'mut':n<0?'neg':n<90?'amb':'pos';
+        return `<div class="cp"><div class="pl ${cl}">${tx}</div><div style="min-width:0"><b>${esc(d.n)}${d.sens?' 🔒':''}</b><div class="mut">${[esc(d.who),esc(d.cat),d.x?'עד '+dl(d.x):'',d.missing?'חסר קובץ בדרייב':''].filter(Boolean).join(' · ')}</div></div>${actBtn(d)}</div>`;
+      }).join('')
+  ):`<div class="empty-state"><div class="es-ico">📁</div><h3>אין מסמכים להצגה</h3><p>לא נמצאו מסמכים התואמים לסינון הנוכחי במרכז המסמכים.</p><button type="button" class="pw-btn-secondary" data-dcs="all">הצג את כל המסמכים</button></div>`);
 }
 
 const W_CAT_ICO={'מוצרי חשמל':'🔌','רכב':'🚗','ריהוט':'🛋️','אלקטרוניקה ומחשבים':'💻','בית וגינה':'🏡','שונות':'📦'};
@@ -960,9 +1074,13 @@ function nwHistoryCard(){
     on:k===arr.length-1
   }));
   const first=pts[0].v,last=pts[pts.length-1].v,diff=last-first;
+  const pctCh=first>0?((diff/first)*100).toFixed(1):'0.0';
   return `<div class="card">
-    <div class="row" style="padding:0"><h2>צמיחת הון אישי (ללא משכנתא)</h2><b class="${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${fmt(diff)}</b></div>
-    <span class="lb">השקעות + פנסיה לאורך זמן</span>
+    <div class="row" style="padding:0">
+      <div><h2 class="pw-sec-title">התפתחות הון מתועד</h2><span class="lb">השקעות ופנסיה/השתלמות מתועדות בלבד (ללא נכסי נדל״ן או התחייבויות)</span></div>
+      <div style="text-align:end"><b class="${diff>=0?'pos':'neg'}" style="font-size:16px">${diff>=0?'+':''}${fmt(diff)}</b><div class="mut" style="font-size:11px"><bdi dir="ltr">${diff>=0?'+':''}${pctCh}%</bdi></div></div>
+    </div>
+    <div class="row s" style="padding:4px 0 0"><span class="mut">שווי נוכחי מתועד</span><b>${fmt(last)}</b></div>
     ${areaChart(pts,{showLabels:true})}
   </div>`;
 }
@@ -997,7 +1115,8 @@ function smartAlerts(){
     if(!x)return;
     const days=Math.round((x-now)/864e5);
     if(days>=0&&days<=60){
-      alerts.push({cls:days<=14?'bad':'warn',ico:'🧾',txt:`אחריות על "${w.name}" תפוג בעוד ${days} ימים`,act:'wr',id:w.id});
+      const isCrit=days<=14;
+      alerts.push({prio:isCrit?0:1,days,cls:isCrit?'crit':'warn',sev:isCrit?'קריטי':'בקרוב',ico:'🧾',title:`אחריות על "${w.name}"`,sub:`תפוג בעוד ${days} ימים · ${dl(x)}`,cta:'לתיק אחריות ←',act:'wr',id:w.id});
     }
   });
   S.docs.forEach(d=>{
@@ -1005,7 +1124,8 @@ function smartAlerts(){
     if(!x)return;
     const days=Math.round((x-now)/864e5);
     if(days>=0&&days<=90){
-      alerts.push({cls:days<=21?'bad':'warn',ico:'📁',txt:`המסמך "${d['שם']}" יפוג בעוד ${days} ימים`,act:'dc'});
+      const isCrit=days<=21;
+      alerts.push({prio:isCrit?0:1,days,cls:isCrit?'crit':'warn',sev:isCrit?'קריטי':'תזכורת',ico:'📁',title:`המסמך "${d['שם']}"`,sub:`תוקף בעוד ${days} ימים · ${dl(x)}`,cta:'למסמכים ←',act:'dc',id:''});
     }
   });
   S.cp.forEach(c=>{
@@ -1013,11 +1133,28 @@ function smartAlerts(){
     if(!x)return;
     const days=Math.round((x-now)/864e5);
     if(days>=0&&days<=45){
-      alerts.push({cls:'info',ico:'🎟️',txt:`קופון "${c.n||c['שם']}" (${fmt(c.a||0)}) יפוג בעוד ${days} ימים`,act:'cp'});
+      alerts.push({prio:2,days,cls:'info',sev:'הטבה',ico:'🎟️',title:`קופון "${c.n||c['שם']}"`,sub:`${fmt(c.a||0)} · תפוגה בעוד ${days} ימים`,cta:'לקופונים ←',act:'cp',id:''});
     }
   });
   if(!alerts.length)return '';
-  return `<div class="card"><h2>התראות חכמות (${alerts.length})</h2>${alerts.slice(0,4).map(a=>`<div class="alert-row ${a.cls}" data-alert-go="${a.act}" data-alert-id="${esc(a.id||'')}"><span>${a.ico}</span><span style="font-size:13px;font-weight:600">${esc(a.txt)}</span></div>`).join('')}</div>`;
+  alerts.sort((a,b)=>a.prio-b.prio||a.days-b.days);
+  return `<div class="card">
+    <div class="row" style="padding:0 0 8px"><h2 class="pw-sec-title">התראות חכמות</h2><span class="chip">${alerts.length} פעילות</span></div>
+    <div style="display:grid;gap:8px">${alerts.slice(0,4).map(a=>`
+      <div class="pw-alert-item ${a.cls}" data-alert-go="${a.act}" data-alert-id="${esc(a.id||'')}">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <span style="font-size:18px;flex:none">${a.ico}</span>
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <b style="font-size:13px">${esc(a.title)}</b>
+              <span class="pw-alert-sev">${esc(a.sev)}</span>
+            </div>
+            <div class="mut" style="font-size:11.5px">${esc(a.sub)}</div>
+          </div>
+        </div>
+        <span class="mut" style="font-size:11.5px;font-weight:700;white-space:nowrap">${esc(a.cta)}</span>
+      </div>`).join('')}</div>
+  </div>`;
 }
 
 function globalSearchModal(){
@@ -1657,95 +1794,44 @@ function more(){
 }
 const greet=()=>{const h=new Date().getHours();return h<5?'לילה טוב':h<12?'בוקר טוב':h<18?'צהריים טובים':'ערב טוב'};
 function insights(cs,cav){
-  const L=[],tot=T(cs.map(x=>({a:x[1]})),'a'),ch=cs.filter(([c])=>!/דיור|שכר|משכנת/.test(c)).map(([c,v])=>[c,v-cav(c),cav(c)]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
-  if(ch[0]&&ch[0][1]>0)L.push(['📈',esc(ch[0][0])+' גבוה ב-'+fmt(ch[0][1])+' מהממוצע שלו']);
-  const lo=ch[ch.length-1];if(lo&&lo[1]<0)L.push(['📉',esc(lo[0])+' נמוך ב-'+fmt(-lo[1])+' מהממוצע שלו']);
-  if(cs[0]&&tot)L.push(['🥇',esc(cs[0][0])+' מהווה '+Math.round(cs[0][1]/tot*100)+'% מההוצאות החודש']);
+  const items=[],tot=T(cs.map(x=>({a:x[1]})),'a'),ch=cs.filter(([c])=>!/דיור|שכר|משכנת/.test(c)).map(([c,v])=>[c,v-cav(c),cav(c)]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
+  if(ch[0]&&ch[0][1]>0){
+    items.push({kicker:'חריגה כלפי מעלה',title:`${ch[0][0]} מעל הממוצע`,sub:`ממוצע קודם: ${fmt(ch[0][2])}`,metric:`+${fmt(ch[0][1])}`,cls:'neg'});
+  }
+  const lo=ch[ch.length-1];
+  if(lo&&lo[1]<0){
+    items.push({kicker:'חיסכון מול ממוצע',title:`${lo[0]} מתחת לממוצע`,sub:`ממוצע קודם: ${fmt(lo[2])}`,metric:`-${fmt(-lo[1])}`,cls:'pos'});
+  }
+  if(cs[0]&&tot){
+    const sh=Math.round(cs[0][1]/tot*100);
+    items.push({kicker:'קטגוריה מובילה',title:`${cs[0][0]} מובילה את ההוצאות`,sub:`סכום בקטגוריה: ${fmt(cs[0][1])}`,metric:`${sh}%`,cls:''});
+  }
   const inc=(S.mon.find(x=>x.ym==S.ym)||{}).inc||0;
   if(inc>0){
     const sr=Math.round(((inc-tot)/inc)*100);
-    L.push(['💰',sr>=0?`שיעור החיסכון החודשי עומד על ${S.hide?'•••':sr+'%'} (יתרה ${fmt(inc-tot)})`:`ההוצאות עולות על ההכנסה החודשית ב-${fmt(tot-inc)}`]);
+    items.push({kicker:'תזרים חודשי',title:sr>=0?'חיסכון חודשי חיובי':'גירעון תזרימי החודש',sub:`יתרה נטו: ${fmt(inc-tot)}`,metric:S.hide?'•••':`${sr}%`,cls:sr>=0?'pos':'neg'});
   }
   const goals=window._getGoals?window._getGoals().filter(g=>!g.done):[];
   if(goals.length){
     const gCost=goals.reduce((s,g)=>s+Math.max(0,num(g.cost)),0);
     const gSaved=goals.reduce((s,g)=>s+Math.max(0,num(g.saved)),0);
-    L.push(['🎯',`${goals.length} יעדים פתוחים · נחסכו ${fmt(gSaved)} מתוך ${fmt(gCost)}`]);
+    items.push({kicker:'יעדים פתוחים',title:`${goals.length} יעדים במעקב`,sub:`נחסכו ${fmt(gSaved)} מתוך ${fmt(gCost)}`,metric:gCost>0?`${Math.min(100,Math.round(gSaved/gCost*100))}%`:'—',cls:'pos'});
   }
-  const now=new Date(),soon=new Date(now.getTime()+30*864e5);
-  const wSoon=getAllWarranties().filter(w=>{if(!w.expiryDate)return false;const d=new Date(w.expiryDate+'T00:00:00');return d>=now&&d<=soon});
-  if(wSoon.length)L.push(['🧾',`${wSoon.length} אחריויות מוצרים פגות ב-30 הימים הקרובים`]);
-  const dSoon=(S.docs||[]).filter(d=>{if(!d.exp)return false;const dt=new Date(d.exp);return !isNaN(dt)&&dt>=now&&dt<=soon});
-  if(dSoon.length)L.push(['📁',`${dSoon.length} מסמכים דורשים חידוש בקרוב`]);
-  const nwTot=T(S.inv,'שווי ₪')+T(S.pen,'שווי ₪');
-  if(nwTot>0)L.push(['🏦',`הון מנוהל (השקעות ופנסיה) מסתכם ב-${fmt(nwTot)}`]);
-  return L.length?`<div class="card"><h2>תובנות</h2>${L.map(([i,t])=>`<div class="row" style="justify-content:flex-start;gap:12px"><span>${i}</span><span>${t}</span></div>`).join('')}</div>`:'';
-}
-
-const HOME_META={
-  quick:{id:'quick',t:'פעולות מהירות'},
-  carousel:{id:'carousel',t:'קרוסלת גרפים ובריאות פיננסית'},
-  alerts:{id:'alerts',t:'התראות חכמות'},
-  insights:{id:'insights',t:'תובנות אישיות'},
-  cats:{id:'cats',t:'קטגוריות מובילות'}
-};
-const HOME_DEF_ORDER=['quick','carousel','alerts','insights','cats'];
-function getHomeList(){
-  let cfg=Array.isArray(S.homeLayout)?S.homeLayout.filter(x=>x&&HOME_META[x.id]):[];
-  const seen=new Set(cfg.map(x=>x.id));
-  HOME_DEF_ORDER.forEach(id=>{if(!seen.has(id))cfg.push({id,hidden:false})});
-  return cfg.map(x=>({...HOME_META[x.id],hidden:!!x.hidden}));
-}
-function saveHomeList(list){
-  S.homeLayout=list.map(x=>({id:x.id,hidden:!!x.hidden}));
-  ls('home_layout',JSON.stringify(S.homeLayout));
-}
-
-const QA_CATALOG={
-  gl:{id:'gl',i:'🎯',t:'הוספת יעד',attr:'data-quick-gl'},
-  inv:{id:'inv',i:'📈',t:'נכסים',attr:'data-t="inv"'},
-  dc:{id:'dc',i:'📁',t:'מסמכים',attr:'data-gs-sub="dc"'},
-  shop:{id:'shop',i:'🛒',t:'קניות',attr:'data-t="shop"'},
-  sync:{id:'sync',i:'🔄',t:'סנכרון',attr:'data-sync'},
-  wr:{id:'wr',i:'🧾',t:'אחריות',attr:'data-gs-sub="wr"'},
-  sl:{id:'sl',i:'🧮',t:'מחשבון שכר',attr:'data-gs-sub="sl"'},
-  pv:{id:'pv',i:'📊',t:'ניתוח',attr:'data-t="pv"'},
-  fire:{id:'fire',i:'🧭',t:'חופש כלכלי',attr:'data-gs-sub="fire"'},
-  mt:{id:'mt',i:'🏠',t:'משכנתא',attr:'data-gs-sub="mt"'}
-};
-const QA_DEF_ORDER=['gl','inv','dc','shop','sync','wr','sl','pv','fire','mt'];
-function getQaList(){
-  let cfg=Array.isArray(S.qaLayout)?S.qaLayout.filter(x=>x&&QA_CATALOG[x.id]):[];
-  const seen=new Set(cfg.map(x=>x.id));
-  QA_DEF_ORDER.forEach((id,idx)=>{if(!seen.has(id))cfg.push({id,hidden:idx>=5})});
-  return cfg.map(x=>({...QA_CATALOG[x.id],hidden:!!x.hidden}));
-}
-function saveQaList(list){
-  S.qaLayout=list.map(x=>({id:x.id,hidden:!!x.hidden}));
-  ls('qa_layout',JSON.stringify(S.qaLayout));
-}
-function quickActionsCard(){
-  const list=getQaList(),ed=S.qaEdit;
-  const visible=list.filter(x=>!x.hidden);
+  if(!items.length)return '';
   return `<div class="card">
-    <div class="qa-hdr">
-      <h2>פעולות מהירות</h2>
-      <div style="display:flex;gap:6px">
-        ${ed?`<button type="button" class="btn-ghost" data-qa-reset style="padding:3px 8px;font-size:11.5px">איפוס</button>`:''}
-        <button type="button" class="chip2 ${ed?'on':''}" data-qa-tog style="padding:3px 10px;font-size:11.5px">${ed?'סיום ✓':'התאמה ✎'}</button>
-      </div>
-    </div>
-    ${ed?`<div class="qa-edit-list">${list.map((it,idx)=>`<div class="qa-edit-row">
-      <span>${it.i} <b>${esc(it.t)}</b> <small class="mut">${it.hidden?'(מוסתר)':'(מוצג)'}</small></span>
-      <div class="hlay-ctrls">
-        <button type="button" class="med-btn" data-qa-mv="${idx}:-1" ${idx===0?'disabled':''}>▲</button>
-        <button type="button" class="med-btn" data-qa-mv="${idx}:1" ${idx===list.length-1?'disabled':''}>▼</button>
-        <button type="button" class="btn-secondary" data-qa-vis="${it.id}" style="padding:3px 8px;font-size:11px">${it.hidden?'הצג':'הסתר'}</button>
-      </div>
-    </div>`).join('')}</div>`
-    :`<div class="qa-grid">${(visible.length?visible:list.slice(0,5)).map(it=>`<button type="button" class="qa-btn" ${it.attr}><span>${it.i}</span><span>${esc(it.t)}</span></button>`).join('')}</div>`}
+    <div class="row" style="padding:0 0 8px"><h2 class="pw-sec-title">תובנות אישיות</h2><span class="lb">ניתוח עריכתי</span></div>
+    <div style="display:grid;gap:8px">${items.map(it=>`
+      <div class="pw-ins-card">
+        <div style="min-width:0">
+          <div class="pw-ins-kicker">${esc(it.kicker)}</div>
+          <div class="pw-ins-title">${esc(it.title)}</div>
+          <div class="pw-ins-sub">${esc(it.sub)}</div>
+        </div>
+        <span class="pw-ins-metric ${it.cls}">${esc(it.metric)}</span>
+      </div>`).join('')}</div>
   </div>`;
 }
+
 function financialHealthCard(tot,inc,avgExp,inCar=false){
   const invVal=T(S.inv,'שווי ₪'),penVal=T(S.pen,'שווי ₪'),netWorth=invVal+penVal;
   const baseM=Math.max(1,avgExp||tot||12000);
@@ -1772,22 +1858,50 @@ function financialHealthCard(tot,inc,avgExp,inCar=false){
   const goalsScore=Math.max(10,Math.min(100,Math.round((goalProg*0.75+penBoost)*100)));
 
   const totalScore=Math.max(0,Math.min(100,Math.round(liqScore*0.30+savScore*0.30+debtScore*0.20+goalsScore*0.20)));
-  const grade=totalScore>=80?'מצוין':totalScore>=60?'יציב':'דורש תשומת לב';
+  const statusLbl=totalScore>=75?'יציבות גבוהה':totalScore>=50?'מצב סביר':'דורש תשומת לב';
+  const ringCol=totalScore>=75?'var(--pw-emerald)':totalScore>=50?'var(--pw-gold)':'#EF4444';
+  const R=44,C=2*Math.PI*R,dash=(totalScore/100)*C;
 
-  return `<div class="card${inCar?' sl':''}">
-    <div class="health-score-top">
-      <div><h2 style="margin:0">מדד בריאות פיננסית</h2><small class="mut">ציון משוקלל (0–100) · ${esc(grade)}</small></div>
-      <div class="health-num">${S.hide?'•••':totalScore}</div>
+  const pillars=[
+    {lbl:'נזילות ורזרבה (30%)',val:liqScore,col:'var(--pw-emerald)',tip:`נזילות השקעות מול הוצאה חודשית: ${liqMonths.toFixed(1)} חודשים`},
+    {lbl:'שיעור חיסכון (30%)',val:savScore,col:'#3B82F6',tip:`חיסכון חודשי בפועל: ${inc>0?Math.round(savRate)+'%':'אין נתון הכנסה'}`},
+    {lbl:'יחס התחייבויות (20%)',val:debtScore,col:'var(--pw-gold)',tip:`תשלומים חודשיים צפויים (משכנתא/ביטוח): ${fmt(debtM)}`},
+    {lbl:'יעדים ופנסיה (20%)',val:goalsScore,col:'#8B5CF6',tip:`${doneGoals.length} הושגו · ${openGoals.length} פתוחים · פנסיה ${fmt(penVal)}`}
+  ];
+
+  return `<div class="card ${inCar?'sl':''}">
+    <div class="row" style="padding:0 0 6px">
+      <div><h2 class="pw-sec-title">מדד בריאות פיננסית</h2><span class="lb">הערכה פנימית מבוססת נתוני המערכת</span></div>
+      <span class="chip">${esc(statusLbl)}</span>
     </div>
-    <div class="health-grid">
-      <div class="health-m"><small>נזילות (30%)</small><b>${S.hide?'•••':liqScore+'/100'}</b></div>
-      <div class="health-m"><small>שיעור חיסכון (30%)</small><b>${S.hide?'•••':savScore+'/100'}</b></div>
-      <div class="health-m"><small>התחייבויות (20%)</small><b>${S.hide?'•••':debtScore+'/100'}</b></div>
-      <div class="health-m"><small>יעדים והון (20%)</small><b>${S.hide?'•••':goalsScore+'/100'}</b></div>
+    <div class="pw-health-wrap">
+      <div class="pw-ring-box">
+        <svg viewBox="0 0 108 108">
+          <circle cx="54" cy="54" r="${R}" fill="none" stroke="var(--pw-hairline)" stroke-width="9"/>
+          <circle cx="54" cy="54" r="${R}" fill="none" stroke="${ringCol}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}"/>
+        </svg>
+        <div class="pw-ring-center">
+          <span class="pw-ring-score">${S.hide?'•••':totalScore}</span>
+          <span class="pw-ring-sub">מתוך 100</span>
+        </div>
+      </div>
+      <div class="pw-health-pillars">
+        ${pillars.map(p=>`<div class="pw-pillar-row" title="${esc(p.tip)}">
+          <div class="pw-pillar-hd"><span>${esc(p.lbl)}</span><b>${S.hide?'•••':p.val}</b></div>
+          <div class="pw-pillar-track"><div class="pw-pillar-fill" style="width:${p.val}%;background:${p.col}"></div></div>
+        </div>`).join('')}
+      </div>
     </div>
-    <p class="mut" style="margin:8px 0 0;font-size:11.5px">שקוף: 30% נזילות (${invVal>0?liqMonths.toFixed(1)+' חוד׳ מחיה':'לפי יתרה'}) · 30% חיסכון · 20% התחייבויות · 20% יעדים והון (${fmt(netWorth)})</p>
+    <details class="ct">
+      <summary><span>פירוט משקולות והסבר רכיבים</span><b>4 רכיבים</b>${SVG.chevD}</summary>
+      <div class="ct-body">
+        ${pillars.map(p=>`<div class="row s"><span><b>${esc(p.lbl)}</b> — ${esc(p.tip)}</span><b>${S.hide?'•••':p.val}/100</b></div>`).join('')}
+      </div>
+    </details>
+    <div class="pw-disclaimer-note">מדד אינפורמטיבי פנימי של האפליקציה ואינו מהווה דירוג בנקאי רשמי או ייעוץ פיננסי.</div>
   </div>`;
 }
+
 function renderHomeModules(tot,inc,avg,cs,cav,ys,i){
   const list=getHomeList();
   const ed=S.homeEdit;
