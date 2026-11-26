@@ -2434,3 +2434,182 @@ main.pw-screen-anim {
     margin-top: auto;
   }
 }
+
+
+/* v28 Unified Compact Cards & Reorder Mode (Goals & Coupons) */
+.ord-card-ctrls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.ord-pos-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--mut);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  padding: 2px 7px;
+  font-variant-numeric: tabular-nums;
+}
+.gl-card.ord-card,
+.cp.ord-card {
+  border-style: dashed;
+  border-color: var(--bd-strong);
+}
+
+.gl-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+}
+.gl-grid .gl-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-height: 82px !important;
+  height: 100% !important;
+  margin-bottom: 0 !important;
+  padding: 11px 13px !important;
+  box-sizing: border-box !important;
+}
+.gl-grid .gl-card .gl-thumb {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  flex: 0 0 48px !important;
+  border-radius: 12px !important;
+  font-size: 20px !important;
+}
+.gl-grid .gl-card .gl-body {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 5px !important;
+}
+.gl-grid .gl-card .gl-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+.gl-grid .gl-card .gl-title {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+}
+.gl-grid .gl-card .gl-note {
+  font-size: 11.5px;
+  color: var(--mut);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gl-grid .gl-card .gl-prog-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-top: 2px !important;
+}
+
+.cp-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  margin-top: 8px !important;
+  align-items: stretch !important;
+}
+.cp-grid .pw-cp-item {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  min-height: 92px !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+}
+.cp-top-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.cp-grid .pw-cp-item .am {
+  width: 56px !important;
+  height: 44px !important;
+  min-width: 56px !important;
+  flex: 0 0 56px !important;
+  border-radius: 12px !important;
+  font-size: 13.5px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+.cp-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cp-title {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--mut);
+}
+.cp-code-txt {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-bot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.cp-hint {
+  font-size: 11.5px;
+  color: var(--mut);
+}
+.cp-act-btn {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  flex: none !important;
+}
+
+@media (min-width: 700px) {
+  .gl-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+  .cp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+}
+@media (min-width: 1120px) {
+  .gl-grid,
+  .cp-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}

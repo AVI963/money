@@ -67,7 +67,7 @@ const ico = c => (ICO.find(x => x[0].test(c)) || [0, '🏷️'])[1];
 const W_CATS = ['מוצרי חשמל', 'רכב', 'ריהוט', 'אלקטרוניקה ומחשבים', 'בית וגינה', 'שונות'];
 const wCatOf = w => String((w && w.category) || '').trim() || 'שונות';
 const SAL_TPL_KEY = 'sal_tpl', SAL_TPL_AT_KEY = 'sal_tpl_at', SAL_SV_KEY = 'sal_sv', SAL_DIRTY_PUSH_KEY = 'sal_dirty_push', SAL_META_KEY = 'my_money_sal_drive_meta_v1', SAL_DRIVE_FILE = APP_CONFIG.salaryFileName || 'my_money_salary.json';
-const S = { exp: [], mon: [], inv: [], pen: [], docs: [], bud: {}, sal: null, salAt: 0, cp: [], ins: null, mort: null, syncAt: 0, ym: 0, tab: 'home', sub: '', dcf: '', dcView: '', dcForm: null, dcSaving: false, dcErr: '', wrStatus: 'all', wrCat: '', glFilter: 'all', glSort: 'prio', glForm: null, glPendingCover: null, glSaving: false, glErr: '', cpIdx: null, cpEdit: false, cpUseAmt: '', cpErr: '', hide: false, theme: '', dnSel: null, syncing: false, mPick: false, moreEdit: false, moreLayout: null, homeEdit: false, homeLayout: null, qaEdit: false, qaLayout: null, wForm: null, wViewId: '', wPendingCover: null, wPendingFiles: [], wSaving: false, wErr: '', dcStatus: 'all', gsOpen: false, gsQ: '', excl: new Set(), unexcl: new Set(), fire: null, pv: { by: 'm', rows: 'c', sel: [], open: [], q: '', from: 0, to: 0, pr: '12', dr: null } };
+const S = { exp: [], mon: [], inv: [], pen: [], docs: [], bud: {}, sal: null, salAt: 0, cp: [], ins: null, mort: null, syncAt: 0, ym: 0, tab: 'home', sub: '', dcf: '', dcView: '', dcForm: null, dcSaving: false, dcErr: '', wrStatus: 'all', wrCat: '', glFilter: 'all', glSort: 'prio', glOrderEdit: false, glOrder: null, glForm: null, glPendingCover: null, glSaving: false, glErr: '', cpIdx: null, cpEdit: false, cpOrderEdit: false, cpOrder: null, cpUseAmt: '', cpErr: '', hide: false, theme: '', dnSel: null, syncing: false, mPick: false, moreEdit: false, moreLayout: null, homeEdit: false, homeLayout: null, qaEdit: false, qaLayout: null, wForm: null, wViewId: '', wPendingCover: null, wPendingFiles: [], wSaving: false, wErr: '', dcStatus: 'all', gsOpen: false, gsQ: '', excl: new Set(), unexcl: new Set(), fire: null, pv: { by: 'm', rows: 'c', sel: [], open: [], q: '', from: 0, to: 0, pr: '12', dr: null } };
 let token, cc, quotesAbort = null;
 const $ = s => document.querySelector(s), ls = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch (e) { } };
 const vib = (ms = 8) => { try { navigator.vibrate && navigator.vibrate(ms) } catch (e) { } };
@@ -1323,6 +1323,52 @@ function prioMeta(p) {
   return { cls: 'lo', lbl: `רגיל · ${n}/10` };
 }
 
+
+function getGoalOrderIds(allGoals) {
+  let saved = Array.isArray(S.glOrder) ? S.glOrder.filter(Boolean) : [];
+  if (!saved.length) {
+    try { const raw = JSON.parse(ls('gl_order') || 'null'); if (Array.isArray(raw)) saved = raw.filter(Boolean); } catch (e) {}
+  }
+  const allIds = allGoals.map(g => g.id);
+  const setAll = new Set(allIds);
+  const out = saved.filter(id => setAll.has(id));
+  allIds.forEach(id => { if (!out.includes(id)) out.push(id); });
+  return out;
+}
+function saveGoalOrderIds(ids) {
+  S.glOrder = [...ids];
+  ls('gl_order', JSON.stringify(S.glOrder));
+}
+function getOrderedGoals(allGoals) {
+  const orderIds = getGoalOrderIds(allGoals);
+  const pos = new Map(orderIds.map((id, i) => [id, i]));
+  return [...allGoals].sort((a, b) => (pos.get(a.id) ?? 9999) - (pos.get(b.id) ?? 9999));
+}
+
+function cpKeyOf(c) {
+  return `${String(c.n || c['שם'] || '').trim()}|${String(c.c || '').trim()}`;
+}
+function getCouponOrderKeys(cpList) {
+  let saved = Array.isArray(S.cpOrder) ? S.cpOrder.filter(Boolean) : [];
+  if (!saved.length) {
+    try { const raw = JSON.parse(ls('cp_order') || 'null'); if (Array.isArray(raw)) saved = raw.filter(Boolean); } catch (e) {}
+  }
+  const keys = cpList.map(cpKeyOf);
+  const setK = new Set(keys);
+  const out = saved.filter(k => setK.has(k));
+  keys.forEach(k => { if (!out.includes(k)) out.push(k); });
+  return out;
+}
+function saveCouponOrderKeys(keys) {
+  S.cpOrder = [...keys];
+  ls('cp_order', JSON.stringify(S.cpOrder));
+}
+function getOrderedCoupons(cpList) {
+  const keys = getCouponOrderKeys(cpList);
+  const pos = new Map(keys.map((k, i) => [k, i]));
+  return [...cpList].map((c, origIdx) => ({ c, origIdx }))
+    .sort((a, b) => (pos.get(cpKeyOf(a.c)) ?? 9999) - (pos.get(cpKeyOf(b.c)) ?? 9999) || a.origIdx - b.origIdx);
+}
 function gl() {
   const all = window._getGoals ? window._getGoals() : [];
   const open = all.filter(g => !g.done);
@@ -1332,8 +1378,10 @@ function gl() {
   const remCost = Math.max(0, totCost - totSaved);
   const overallPct = totCost > 0 ? Math.min(100, Math.round((totSaved / totCost) * 100)) : 0;
 
+  const ordEd = !!S.glOrderEdit;
   const flt = S.glFilter || 'all';
   const srt = S.glSort || 'prio';
+
   let list = all.filter(g => {
     if (flt === 'do') return !g.done && g.type === 'do';
     if (flt === 'buy') return !g.done && g.type === 'buy';
@@ -1341,11 +1389,19 @@ function gl() {
     return !g.done;
   });
 
-  list = [...list].sort((a, b) => {
-    if (srt === 'cost_desc') return (Number(b.cost) || 0) - (Number(a.cost) || 0);
-    if (srt === 'cost_asc') return (Number(a.cost) || 0) - (Number(b.cost) || 0);
-    return (Number(b.priority) || 0) - (Number(a.priority) || 0) || (Number(a.cost) || 0) - (Number(b.cost) || 0);
-  });
+  if (ordEd) {
+    list = getOrderedGoals(list);
+  } else {
+    list = [...list].sort((a, b) => {
+      if (srt === 'manual') {
+        const ord = getGoalOrderIds(all);
+        return ord.indexOf(a.id) - ord.indexOf(b.id);
+      }
+      if (srt === 'cost_desc') return (Number(b.cost) || 0) - (Number(a.cost) || 0);
+      if (srt === 'cost_asc') return (Number(a.cost) || 0) - (Number(b.cost) || 0);
+      return (Number(b.priority) || 0) - (Number(a.priority) || 0) || (Number(a.cost) || 0) - (Number(b.cost) || 0);
+    });
+  }
 
   const f = S.glForm;
   const pendCov = S.glPendingCover;
@@ -1413,10 +1469,16 @@ function gl() {
     </div>
   </div>` : '';
 
+  const sortLbl = srt === 'manual' ? 'מיון: סדר ידני ▾' : srt === 'cost_desc' ? 'מיון: יקר לזול ▾' : srt === 'cost_asc' ? 'מיון: זול ליקר ▾' : 'מיון: דחיפות ▾';
+
   return `${zoomModal}<div class="card hg">
     <div class="row" style="padding:0 0 10px">
       <div><h2 style="margin:0">🎯 יעדים ורכישות</h2><span class="lb">תכנון, תיעדוף ומעקב חיסכון</span></div>
-      <button type="button" class="pr" data-gl-open style="background:var(--g);color:#fff;padding:8px 14px;font-size:13px">+ חדש</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${ordEd ? `<button type="button" class="chip2" data-gl-ord-reset style="padding:6px 10px;font-size:12px">איפוס</button>` : ''}
+        <button type="button" class="chip2 ${ordEd ? 'on' : ''}" data-gl-ord-tog style="padding:6px 11px;font-size:12px">${ordEd ? 'סיום ✓' : 'סדר כרטיסים ✎'}</button>
+        <button type="button" class="pr" data-gl-open style="background:var(--g);color:#fff;padding:8px 14px;font-size:13px">+ חדש</button>
+      </div>
     </div>
     <div class="shop-hero-grid">
       <div class="shop-hero-box"><div class="shop-hero-lbl">עלות פתוחה</div><div class="shop-hero-val">${fmt(totCost)}</div></div>
@@ -1428,10 +1490,10 @@ function gl() {
 
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0">
     ${[['all', `פתוחים (${open.length})`], ['buy', `לקנות (${open.filter(x => x.type === 'buy').length})`], ['do', `לעשות (${open.filter(x => x.type === 'do').length})`], ['done', `הושג (${done.length})`]].map(([k, l]) => `<button type="button" class="chip2 ${flt === k ? 'on' : ''}" data-glf="${k}">${l}</button>`).join('')}
-    <button type="button" class="chip2" data-gls style="margin-inline-start:auto;font-size:12px">${srt === 'prio' ? 'מיון: דחיפות ▾' : srt === 'cost_desc' ? 'מיון: יקר לזול ▾' : 'מיון: זול ליקר ▾'}</button>
+    ${!ordEd ? `<button type="button" class="chip2" data-gls style="margin-inline-start:auto;font-size:12px">${sortLbl}</button>` : `<span class="lb" style="margin-inline-start:auto;font-size:11.5px">הזז כרטיסים עם ▲ / ▼</span>`}
   </div>
 
-  ${!list.length ? `<div class="card"><p class="mut" style="margin:0;text-align:center">אין פריטים בקטגוריה זו.</p></div>` : `<div class="gl-grid">${list.map(g => {
+  ${!list.length ? `<div class="card"><p class="mut" style="margin:0;text-align:center">אין פריטים בקטגוריה זו.</p></div>` : `<div class="gl-grid ${ordEd ? 'ord-mode' : ''}">${list.map((g, idx) => {
     const cost = Number(g.cost) || 0;
     const saved = Math.min(cost, Number(g.saved) || 0);
     const pctVal = cost > 0 ? Math.min(100, Math.round((saved / cost) * 100)) : (g.done ? 100 : 0);
@@ -1440,22 +1502,28 @@ function gl() {
     const gCovId = g.coverId || extractDriveId(g.coverLink || '');
     const gImgSrc = gCovId ? driveThumbUrl(gCovId) : String(g.coverLink || '').trim();
     const thumbHtml = /^(https?:\/\/|data:image\/)/i.test(gImgSrc)
-      ? `<div class="gl-thumb gl-thumb-zoom" data-gl-zoom="${esc(gImgSrc)}" data-gl-zoom-title="${esc(g.title)}" title="לחץ להגדלת התמונה"><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
+      ? `<div class="gl-thumb ${ordEd ? '' : 'gl-thumb-zoom'}" ${ordEd ? '' : `data-gl-zoom="${esc(gImgSrc)}" data-gl-zoom-title="${esc(g.title)}" title="לחץ להגדלת התמונה"`}><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
       : `<div class="gl-thumb"><span class="gl-thumb-fb">${fbIcon}</span></div>`;
 
-    return `<div class="gl-card ${g.done ? 'done' : ''}" data-gl-edit="${esc(g.id)}" role="button" tabindex="0">
-      <button type="button" class="shop-check" data-gl-tog="${esc(g.id)}" onclick="event.stopPropagation()" aria-label="סמן הושג">${g.done ? '✓' : ''}</button>
+    const ordCtrls = ordEd ? `<div class="ord-card-ctrls" onclick="event.stopPropagation()">
+      <span class="ord-pos-badge">#${idx + 1}</span>
+      <button type="button" class="med-btn" data-gl-mv="${esc(g.id)}:-1" ${idx === 0 ? 'disabled' : ''} aria-label="הזז למעלה">▲</button>
+      <button type="button" class="med-btn" data-gl-mv="${esc(g.id)}:1" ${idx === list.length - 1 ? 'disabled' : ''} aria-label="הזז למטה">▼</button>
+    </div>` : `<button type="button" class="shop-check" data-gl-tog="${esc(g.id)}" onclick="event.stopPropagation()" aria-label="סמן הושג">${g.done ? '✓' : ''}</button>`;
+
+    return `<div class="gl-card ${g.done ? 'done' : ''} ${ordEd ? 'ord-card' : ''}" ${ordEd ? '' : `data-gl-edit="${esc(g.id)}" role="button" tabindex="0"`}>
+      ${ordCtrls}
       ${thumbHtml}
       <div class="gl-body">
         <div class="gl-top">
           <span class="gl-title">${esc(g.title)}</span>
           <span class="gl-prio ${pm.cls}">${pm.lbl}</span>
         </div>
-        ${g.notes ? `<div class="w-sub">${esc(g.notes)}</div>` : ''}
+        ${g.notes ? `<div class="gl-note">${esc(g.notes)}</div>` : ''}
         ${cost > 0 ? `<div class="gl-prog-row">
           <div class="gl-prog-bar"><i style="width:${pctVal}%"></i></div>
           <span class="gl-amt">${saved > 0 ? `${fmt(saved)} / ` : ''}${fmt(cost)}</span>
-        </div>` : `<div class="w-sub">ללא עלות כספית</div>`}
+        </div>` : `<div class="gl-note">ללא עלות כספית</div>`}
       </div>
     </div>`;
   }).join('')}</div>`}
@@ -3012,6 +3080,8 @@ function cp() {
   if (!S.cp.length) return `<div class="card pw-empty-card"><p class="mut">${S.exp.length ? 'לא נמצאו קופונים בקובץ ההוצאות.' : ''}הקופונים זמינים אחרי סנכרון עם הדרייב.</p></div>`;
   const activeIdx = (S.cpIdx !== null && S.cpIdx !== undefined && S.cp[S.cpIdx]) ? S.cpIdx : null;
   const cur = activeIdx !== null ? S.cp[activeIdx] : null;
+  const ordEd = !!S.cpOrderEdit;
+  const ordered = getOrderedCoupons(S.cp);
 
   const modal = cur ? `<div class="ms-back" data-cp-close>
     <div class="ms-sheet" style="max-width:440px" onclick="event.stopPropagation()">
@@ -3055,20 +3125,46 @@ function cp() {
     </div>
   </div>` : '';
 
-  return `<div class="card hg pw-cp-hero"><div class="lb">ארנק קופונים והטבות</div><div class="big">${fmt(T(S.cp, 'a'))}</div><span class="chip">${S.cp.length} קופונים פעילים</span></div>
-    <div class="cp-grid">${S.cp.map((c, k) => `<div class="cp pw-cp-item" data-cp-open="${k}" role="button" tabindex="0">
-      <div class="am" style="background:${COL[k % 8]}">${fmt(c.a)}</div>
+  return `<div class="card hg pw-cp-hero">
+    <div class="row" style="padding:0;gap:8px;align-items:flex-start">
       <div>
-        <b>${esc(c.n)}</b>
-        <div class="cp-meta-row">
-          <span>${c.c ? (c.c.startsWith('http') ? '🔗 קישור למימוש' : `🔑 ${esc(c.c)}`) : 'ללא קוד'}</span>
-          <span>לחץ לעריכה וניצול</span>
+        <div class="lb">ארנק קופונים והטבות</div>
+        <div class="big">${fmt(T(S.cp, 'a'))}</div>
+        <span class="chip">${S.cp.length} קופונים פעילים</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${ordEd ? `<button type="button" class="chip2" data-cp-ord-reset style="padding:6px 10px;font-size:12px">איפוס</button>` : ''}
+        <button type="button" class="chip2 ${ordEd ? 'on' : ''}" data-cp-ord-tog style="padding:6px 11px;font-size:12px">${ordEd ? 'סיום ✓' : 'סדר כרטיסים ✎'}</button>
+      </div>
+    </div>
+  </div>
+  <div class="cp-grid ${ordEd ? 'ord-mode' : ''}">${ordered.map(({ c, origIdx }, idx) => {
+    const codeBadge = c.c ? (c.c.startsWith('http') ? '🔗 קישור למימוש' : `🔑 ${esc(c.c)}`) : 'ללא קוד';
+    const actionBtn = ordEd
+      ? `<div class="ord-card-ctrls" onclick="event.stopPropagation()">
+          <span class="ord-pos-badge">#${idx + 1}</span>
+          <button type="button" class="med-btn" data-cp-mv="${idx}:-1" ${idx === 0 ? 'disabled' : ''} aria-label="הזז למעלה">▲</button>
+          <button type="button" class="med-btn" data-cp-mv="${idx}:1" ${idx === ordered.length - 1 ? 'disabled' : ''} aria-label="הזז למטה">▼</button>
+        </div>`
+      : `<button type="button" class="pr cp-act-btn" data-c="${origIdx}" onclick="event.stopPropagation()">${c.c && c.c.startsWith('http') ? 'פתח' : 'העתק קוד'}</button>`;
+
+    return `<div class="cp pw-cp-item ${ordEd ? 'ord-card' : ''}" ${ordEd ? '' : `data-cp-open="${origIdx}" role="button" tabindex="0"`}>
+      <div class="cp-top-row">
+        <div class="am" style="background:${COL[origIdx % 8]}">${fmt(c.a)}</div>
+        <div class="cp-info">
+          <b class="cp-title">${esc(c.n)}</b>
+          <div class="cp-meta-row">
+            <span class="cp-code-txt">${codeBadge}</span>
+          </div>
         </div>
       </div>
-      <button type="button" class="pr" data-c="${k}" onclick="event.stopPropagation()">${c.c && c.c.startsWith('http') ? 'פתח' : 'העתק קוד'}</button>
-    </div>`).join('')}</div>${modal}`;
+      <div class="cp-bot-row">
+        <span class="cp-hint">${ordEd ? 'התאם מיקום ברשימה' : 'לחץ לעריכה וניצול'}</span>
+        ${actionBtn}
+      </div>
+    </div>`;
+  }).join('')}</div>${modal}`;
 }
-
 const prevNums = {}, rmRed = () => matchMedia('(prefers-reduced-motion:reduce)').matches;
 function renderBigVal(el, str) {
   const fc = el.firstChild;
@@ -3381,6 +3477,65 @@ document.addEventListener('click', async e => {
     syncGlFormFromDom();
     S.glForm.priority = Number(b.dataset.glPrio) || 5;
     draw(true); return;
+  }
+  if ('glOrdTog' in b.dataset) {
+    vib(8); S.glOrderEdit = !S.glOrderEdit; draw(true); return;
+  }
+  if ('glOrdReset' in b.dataset) {
+    vib(8); S.glOrder = null; ls('gl_order', null); draw(true); return;
+  }
+  if (b.dataset.glMv) {
+    vib(6);
+    const [id, dirStr] = b.dataset.glMv.split(':');
+    const dir = Number(dirStr) || 0;
+    const all = window._getGoals ? window._getGoals() : [];
+    const flt = S.glFilter || 'all';
+    const vis = getOrderedGoals(all.filter(g => {
+      if (flt === 'do') return !g.done && g.type === 'do';
+      if (flt === 'buy') return !g.done && g.type === 'buy';
+      if (flt === 'done') return !!g.done;
+      return !g.done;
+    }));
+    const curPos = vis.findIndex(g => g.id === id);
+    const ni = curPos + dir;
+    if (curPos >= 0 && ni >= 0 && ni < vis.length) {
+      const fullOrder = getGoalOrderIds(all);
+      const aId = vis[curPos].id;
+      const bId = vis[ni].id;
+      const ia = fullOrder.indexOf(aId);
+      const ib = fullOrder.indexOf(bId);
+      if (ia !== -1 && ib !== -1) {
+        const tmp = fullOrder[ia];
+        fullOrder[ia] = fullOrder[ib];
+        fullOrder[ib] = tmp;
+        saveGoalOrderIds(fullOrder);
+        S.glSort = 'manual';
+        draw(true);
+      }
+    }
+    return;
+  }
+  if ('cpOrdTog' in b.dataset) {
+    vib(8); S.cpOrderEdit = !S.cpOrderEdit; draw(true); return;
+  }
+  if ('cpOrdReset' in b.dataset) {
+    vib(8); S.cpOrder = null; ls('cp_order', null); draw(true); return;
+  }
+  if (b.dataset.cpMv) {
+    vib(6);
+    const [idxStr, dirStr] = b.dataset.cpMv.split(':');
+    const idx = Number(idxStr), dir = Number(dirStr) || 0;
+    const ordered = getOrderedCoupons(S.cp);
+    const ni = idx + dir;
+    if (idx >= 0 && ni >= 0 && ni < ordered.length) {
+      const keys = ordered.map(x => cpKeyOf(x.c));
+      const tmp = keys[idx];
+      keys[idx] = keys[ni];
+      keys[ni] = tmp;
+      saveCouponOrderKeys(keys);
+      draw(true);
+    }
+    return;
   }
   if (b.dataset.glTog) {
     vib(10);
