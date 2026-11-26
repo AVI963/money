@@ -1051,7 +1051,7 @@
     searchInp.addEventListener("input", (e) => {
       clearTimeout(searchTimer);
       const val = e.target.value;
-      searchTimer = setTimeout(() => handleSearchInput(val), 220);
+      searchTimer = setTimeout(() => handleSearchInput(val), 600);
     });
     searchInp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {

@@ -715,6 +715,21 @@ function home(){
   ${renderHomeModules(tot,inc,avg,cs,cav,ys,i)}`;
 }
 
+function priceDotHtml(r){
+  if(!r||!r.live)return '';
+  let cls='q-dot-ok', title='מעודכן';
+  if(S.qt){
+    const m=String(S.qt).match(/(\d{1,2})[:.](\d{2})/);
+    if(m){
+      const now=new Date(), qd=new Date(now.getFullYear(),now.getMonth(),now.getDate(),+m[1],+m[2]);
+      const diffHrs=(now-qd)/36e5;
+      if(diffHrs>3||diffHrs<-2){cls='q-dot-warn';title='עודכן לפני יותר משעתיים-שלוש';}
+    }
+  }else if(S.qtErr){
+    cls='q-dot-stale';title='לא מעודכן';
+  }
+  return `<span class="q-dot ${cls}" title="${title}" aria-label="${title}"></span>`;
+}
 function inv0(){
   if(!S.inv.length)return `<div class="empty-state"><div class="es-ico">📈</div><h3>אין נתוני השקעות</h3><p>${esc(S.invErr||'הנתונים נטענים מגיליון ההשקעות ומעדכון המחירים התקופתי.')}</p><button type="button" class="pw-btn-secondary" data-sync>סנכרן נתונים</button></div>`;
   const val=T(S.inv,'שווי ₪'),cost=T(S.inv,'עלות ₪'),gain=val-cost,tax=Math.max(0,gain)*.25,acc={},top=[...S.inv].sort((a,b)=>b['שווי ₪']-a['שווי ₪']);
@@ -728,7 +743,7 @@ function inv0(){
   <p class="mut" style="margin:10px 0 0">הערכה בלבד: מס 25% על הרווח הכולל, בלי הצמדה למדד ובלי עמלות.</p></div>`+
   Object.entries(acc).map(([n,a],k)=>{const v=T(a,'שווי ₪'),c=T(a,'עלות ₪'),accGain=v-c;
   return `<div class="card"><div class="row"><h2 class="pw-sec-title" style="margin:0">${esc(n)}</h2><b>${fmt(v)}</b></div><div class="row s"><span class="mut">תשואה ורווח</span><b class="${accGain<0?'neg':'pos'}">${c>0?pct(accGain/c*100)+' · ':''}${fmt(accGain)}</b></div>
-  ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-(+r['עלות ₪']||0),sh=r['שווי ₪']/(v||1)*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${esc(r['שם'])}${r.live?' <small class="pos">● עדכון אחרון</small>':''}</span><b>${fmt(r['שווי ₪'])}</b></div>
+  ${a.sort((x,y)=>y['שווי ₪']-x['שווי ₪']).map(r=>{const g=r['שווי ₪']-(+r['עלות ₪']||0),sh=r['שווי ₪']/(v||1)*100;return `<div style="padding-top:12px"><div class="row" style="padding:0"><span>${esc(r['שם'])}${priceDotHtml(r)}</span><b>${fmt(r['שווי ₪'])}</b></div>
   <div class="row s mut" style="padding:0"><span>${sh.toFixed(0)}% מהחשבון · עלות ${fmt(+r['עלות ₪']||0)}</span><span class="${g<0?'neg':'pos'}">${fmt(g)}</span></div><div class="bar" style="margin:4px 0 0"><i style="width:${sh}%;background:${COL[k*3%8]}"></i></div></div>`}).join('')}</div>`}).join('');
 }
 
@@ -806,8 +821,18 @@ function pv(){
 }
 
 function nw(){const v=T(S.inv,'שווי ₪'),p=T(S.pen,'שווי ₪');if(!v&&!p)return '';
-  return `<div class="card hg"><div class="lb">נכסים פיננסיים מתועדים (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><span class="chip">השקעות ופנסיה בלבד · ללא נדל״ן והתחייבויות</span><div class="stack"><i style="width:${v/(v+p)*100}%;background:var(--pw-emerald)"></i><i style="width:${p/(v+p)*100}%;background:var(--pw-gold)"></i></div>
-  <div class="trio"><div><span class="lb">השקעות (${Math.round(v/(v+p)*100)}%)</span><b>${fmt(v)}</b></div><div><span class="lb">פנסיה והשתלמות (${Math.round(p/(v+p)*100)}%)</span><b>${fmt(p)}</b></div></div></div>`}
+  const tot=v+p||1;
+  const hisht=T(S.pen.filter(r=>/השתלמות/i.test(String(r['סוג']||'')+' '+String(r['שם']||''))),'שווי ₪');
+  const gemel=T(S.pen.filter(r=>/גמל/i.test(String(r['סוג']||'')+' '+String(r['שם']||''))),'שווי ₪');
+  const penOnly=Math.max(0,p-hisht-gemel);
+  const subBoxes=[];
+  if(penOnly>0)subBoxes.push(['פנסיה',penOnly]);
+  if(hisht>0)subBoxes.push(['השתלמות',hisht]);
+  if(gemel>0)subBoxes.push(['קופת גמל',gemel]);
+  if(!subBoxes.length)subBoxes.push(['פנסיה והשתלמות',p]);
+  const gridCols=subBoxes.length===1?'repeat(2,minmax(0,1fr))':'repeat('+(1+subBoxes.length)+',minmax(0,1fr))';
+  return `<div class="card hg nw-hero"><div class="lb">נכסים פיננסיים מתועדים (השקעות ופנסיה)</div><div class="big">${fmt(v+p)}</div><span class="chip">השקעות ופנסיה בלבד · ללא נדל״ן והתחייבויות</span><div class="stack"><i style="width:${(v/tot*100).toFixed(1)}%;background:var(--pw-emerald)"></i><i style="width:${(p/tot*100).toFixed(1)}%;background:var(--pw-gold)"></i></div>
+  <div class="nw-split-grid" style="grid-template-columns:${gridCols}"><div><span class="lb">השקעות (${Math.round(v/tot*100)}%)</span><b>${fmt(v)}</b></div>${subBoxes.map(([lbl,val])=>`<div><span class="lb">${esc(lbl)}</span><b>${fmt(val)}</b></div>`).join('')}</div></div>`}
 function penCard(){
   if(!S.pen.length)return '';
   const byType={};
@@ -1322,7 +1347,17 @@ function gl() {
     </div>
   </div>` : '';
 
-  return `<div class="card hg">
+  const zoomModal = S.glZoomUrl ? `<div class="ms-back gl-zoom-back" data-gl-zoom-close>
+    <div class="ms-sheet gl-zoom-sheet" onclick="event.stopPropagation()">
+      <div class="row" style="padding:0 0 10px">
+        <h2 style="margin:0">${esc(S.glZoomTitle || 'תמונת יעד')}</h2>
+        <button type="button" class="chip2" data-gl-zoom-close style="padding:4px 10px;font-size:12px">✕</button>
+      </div>
+      <img src="${esc(S.glZoomUrl)}" alt="${esc(S.glZoomTitle || 'תמונת יעד')}" class="gl-zoom-img" referrerpolicy="no-referrer">
+    </div>
+  </div>` : '';
+
+  return `${zoomModal}<div class="card hg">
     <div class="row" style="padding:0 0 10px">
       <div><h2 style="margin:0">🎯 יעדים ורכישות</h2><span class="lb">תכנון, תיעדוף ומעקב חיסכון</span></div>
       <button type="button" class="pr" data-gl-open style="background:var(--g);color:#fff;padding:8px 14px;font-size:13px">+ חדש</button>
@@ -1349,7 +1384,7 @@ function gl() {
     const gCovId = g.coverId || extractDriveId(g.coverLink || '');
     const gImgSrc = gCovId ? driveThumbUrl(gCovId) : String(g.coverLink || '').trim();
     const thumbHtml = /^https?:\/\//i.test(gImgSrc)
-      ? `<div class="gl-thumb"><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
+      ? `<div class="gl-thumb gl-thumb-zoom" data-gl-zoom="${esc(gImgSrc)}" data-gl-zoom-title="${esc(g.title)}" title="לחץ להגדלת התמונה"><img src="${esc(gImgSrc)}" alt="${esc(g.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="gl-thumb-fb" style="display:none">${fbIcon}</span></div>`
       : `<div class="gl-thumb"><span class="gl-thumb-fb">${fbIcon}</span></div>`;
 
     return `<div class="gl-card ${g.done ? 'done' : ''}">
@@ -1842,7 +1877,7 @@ function quickActionsCard(){
     <div class="qa-hdr">
       <h2>פעולות מהירות</h2>
       <div style="display:flex;gap:6px">
-        ${ed?`<button type="button" class="btn-ghost" data-qa-reset style="padding:3px 8px;font-size:11.5px">איפוס</button>`:''}
+        ${ed?`<button type="button" class="qa-reset-btn" data-qa-reset>איפוס</button>`:''}
         <button type="button" class="chip2 ${ed?'on':''}" data-qa-tog style="padding:3px 10px;font-size:11.5px">${ed?'סיום ✓':'התאמה ✎'}</button>
       </div>
     </div>
@@ -1932,14 +1967,14 @@ function renderHomeModules(tot,inc,avg,cs,cav,ys,i){
   const ed=S.homeEdit;
   const bar=`<div class="hlay-bar"><span class="lb">${ed?'התאם סדר והצגת כרטיסים במסך הבית':'סידור מודולרי של מסך הבית'}</span><div style="display:flex;gap:6px">${ed?`<button type="button" class="btn-ghost" data-hed-reset style="padding:4px 10px;font-size:12px">איפוס</button>`:''}<button type="button" class="btn-secondary ${ed?'on':''}" data-hed-tog style="padding:4px 12px;font-size:12px">${ed?'סיום עריכה ✓':'סדר כרטיסים ✎'}</button></div></div>`;
   if(ed){
-    return bar+`<div class="card"><h2>ניהול כרטיסי מסך הבית</h2>${list.map((it,idx)=>`<div class="hlay-item">
+    return bar+`<div class="card hlay-card"><div class="qa-hdr"><h2>ניהול כרטיסי מסך הבית</h2><span class="lb">סדר והצגה</span></div><div class="qa-edit-list">${list.map((it,idx)=>`<div class="hlay-item qa-edit-row">
       <span><b>${esc(it.t)}</b> <small class="mut">${it.hidden?'(מוסתר)':'(מוצג)'}</small></span>
       <div class="hlay-ctrls">
         <button type="button" class="med-btn" data-hed-mv="${idx}:-1" ${idx===0?'disabled':''} aria-label="הזז למעלה">▲</button>
         <button type="button" class="med-btn" data-hed-mv="${idx}:1" ${idx===list.length-1?'disabled':''} aria-label="הזז למטה">▼</button>
         <button type="button" class="btn-secondary" data-hed-vis="${it.id}" style="padding:4px 9px;font-size:11.5px">${it.hidden?'הצג':'הסתר'}</button>
       </div>
-    </div>`).join('')}</div>`;
+    </div>`).join('')}</div></div>`;
   }
   const mo=S.ym%100;
   const pts=ys.slice(Math.max(0,i-5),i+1).map((y,k)=>({
@@ -2145,7 +2180,7 @@ document.addEventListener('input',e=>{
         const inp=document.querySelector('input[data-q]');
         if(inp){inp.focus();if(pos!==null)try{inp.setSelectionRange(pos,pos)}catch(err){}}
       }
-    },250);
+    },700);
   }
   if(e.target.dataset.wf!==undefined&&S.wForm){
     const k=e.target.dataset.wf;
@@ -2162,10 +2197,14 @@ document.addEventListener('input',e=>{
   }
   if(e.target.id==='gs-input'){
     S.gsQ=e.target.value;
-    const pos=e.target.selectionStart;
-    draw(true);
-    const inp=document.getElementById('gs-input');
-    if(inp){inp.focus();if(pos!==null)try{inp.setSelectionRange(pos,pos)}catch(err){}}
+    clearTimeout(window._gsDebTimer);
+    window._gsDebTimer=setTimeout(()=>{
+      const cur=document.getElementById('gs-input');
+      const pos=cur?cur.selectionStart:null;
+      draw(true);
+      const inp=document.getElementById('gs-input');
+      if(inp){inp.focus();if(pos!==null)try{inp.setSelectionRange(pos,pos)}catch(err){}}
+    },450);
     return;
   }
   if(e.target.dataset.fsl!==undefined&&S.fire){
@@ -3023,7 +3062,7 @@ document.addEventListener('click',async e=>{
   const pwNav=e.target.closest('[data-pw-nav]');
   if(pwNav){const nt=pwNav.dataset.pwNav;if(nt&&nt!==S.tab){S.tab=nt;S.sub='';draw();if(nt==='inv'&&S.inv.length&&navigator.onLine!==false)quotes();if((nt==='inv'||nt==='more')&&S.files==='idle'&&token)loadFiles();}return;}
 
-  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync],[data-sync-consent],[data-qa-tog],[data-qa-reset],[data-qa-mv],[data-qa-vis]');
+  const b=e.target.closest('button,[data-y],[data-r],[data-x],[data-n],[data-dn],[data-dot],[data-ex],[data-ex-share],[data-fw],[data-ftog],[data-up-top],[data-sub],[data-mp-open],[data-mp-close],[data-med-tog],[data-med-sz],[data-med-mv],[data-med-reset],[data-hed-tog],[data-hed-mv],[data-hed-vis],[data-hed-reset],[data-quick-gl],[data-w-open],[data-w-view],[data-wv-close],[data-w-edit],[data-w-close],[data-wm],[data-w-save],[data-w-del],[data-w-uncover],[data-w-rm-att],[data-w-rm-pend],[data-wrs],[data-wrc],[data-glf],[data-gls],[data-gl-open],[data-gl-close],[data-gl-zoom],[data-gl-zoom-close],[data-gl-edit],[data-gl-tog],[data-gl-type],[data-gl-prio],[data-gl-save],[data-gl-del],[data-dcs],[data-alert-go],[data-gs-open],[data-gs-close],[data-gs-wr],[data-gs-gl],[data-gs-ym],[data-gs-tab],[data-gs-sub],[data-l],[data-sync],[data-sync-consent],[data-qa-tog],[data-qa-reset],[data-qa-mv],[data-qa-vis]');
   if(!b){if(!token&&ls('rt')&&navigator.onLine!==false)refresh().then(ok=>ok&&load());return}
   if(b.classList.contains('ms-back')&&e.target!==b)return;
   if('gsOpen'in b.dataset){
@@ -3139,7 +3178,14 @@ document.addEventListener('click',async e=>{
     setTimeout(()=>{const el=document.getElementById('gl-f-title');el&&el.focus()},60);
     return;
   }
-  if(b.dataset.glEdit){
+    if(b.dataset.glZoom){
+    e.stopPropagation();
+    vib(6);S.glZoomUrl=b.dataset.glZoom;S.glZoomTitle=b.dataset.glZoomTitle||'תמונת יעד';draw(true);return;
+  }
+  if('glZoomClose'in b.dataset){
+    vib(6);S.glZoomUrl='';S.glZoomTitle='';draw(true);return;
+  }
+if(b.dataset.glEdit){
     vib(8);
     const item=(window._getGoals?window._getGoals():[]).find(x=>x.id===b.dataset.glEdit);
     if(item){S.glErr='';S.glPendingCover=null;S.glSaving=false;S.glForm={...item,coverId:item.coverId||'',coverLink:item.coverLink||''};draw(true);}
