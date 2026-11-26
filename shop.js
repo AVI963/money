@@ -30,6 +30,7 @@
     { id: "g_def_16", type: "buy", title: "סוויצר למזגן", priority: 1, cost: 120, saved: 0, done: false, notes: "", updatedAt: 1700000000016 },
     { id: "g_def_17", type: "buy", title: "רכב", priority: 1, cost: 25000, saved: 0, done: false, notes: "", updatedAt: 1700000000017 }
   ];
+  const DEFAULT_GOAL_IDS = new Set(DEFAULT_GOALS.map((g) => g.id));
   const FILE_META_KEY = "my_money_shop_drive_meta_v1";
   const DRIVE_FILE_NAME = APP_CONFIG.shoppingFileName;
 
@@ -524,7 +525,7 @@
     const allDelGKeys = new Set([...Object.keys(local.deletedGoals || {}), ...Object.keys(remote.deletedGoals || {})]);
     allDelGKeys.forEach((id) => {
       const ts = Math.max(Number(local.deletedGoals?.[id]) || 0, Number(remote.deletedGoals?.[id]) || 0);
-      if (ts > cutoff) mergedDeletedG[id] = ts;
+      if (ts > cutoff || (ts > 0 && DEFAULT_GOAL_IDS.has(id))) mergedDeletedG[id] = ts;
     });
 
     const normG = (g, upd) => ({
@@ -868,15 +869,20 @@
     }, 30);
   }
 
-  function commitEditPrice(id, rawVal) {
+  function commitEditPrice(id, rawVal, skipRender = false) {
     const it = items.find((x) => x.id === id);
     editingPriceItemId = null;
-    if (!it) { render(); return; }
+    if (!it) { if (!skipRender) render(); return; }
     const val = Math.max(0, Math.round((parseFloat(String(rawVal || "0").replace(",", ".")) || 0) * 100) / 100);
     it.price = val;
     it.updatedAt = Date.now();
     if (val > 0) rememberProduct(it.name, val, it.dept, it.image);
-    saveState(true);
+    if (skipRender) {
+      persistLocal();
+      scheduleDrivePush();
+    } else {
+      saveState(true);
+    }
   }
 
   function clearDoneItems() {
@@ -1063,8 +1069,18 @@
     });
   }
 
+  document.addEventListener("pointerdown", (e) => {
+    if (!editingPriceItemId) return;
+    const shopPage = byId("page-shopping");
+    if (!shopPage || !shopPage.contains(e.target)) return;
+    const btn = e.target.closest("button,[data-filter],[data-stog],[data-sqty],[data-sdel],[data-sprice]");
+    if (btn && !btn.dataset.priceInp) {
+      e.preventDefault();
+    }
+  });
+
   document.addEventListener("click", (e) => {
-    const shopNavBtn = e.target.closest('nav button[data-t="shop"]');
+    const shopNavBtn = e.target.closest('nav button[data-t="shop"], [data-pw-nav="shop"]');
     if (shopNavBtn) {
       if (!initialPullDone) {
         syncWithDrive("pull", true).then(() => backfillMissingImages());
@@ -1082,6 +1098,17 @@
 
     const btn = e.target.closest("button,[data-filter],[data-stog],[data-sqty],[data-sdel],[data-sprice]");
     if (!btn) return;
+
+    if (editingPriceItemId) {
+      const activeInp = document.querySelector(`[data-price-inp="${editingPriceItemId}"]`);
+      const willRender = !!(
+        (btn.id === "shop-manual-add" && searchInp && searchInp.value.trim()) ||
+        (btn.id === "shop-clear-done" && items.some((x) => x.done)) ||
+        btn.dataset.filter || btn.dataset.stog || btn.dataset.sqty || btn.dataset.sdel || btn.dataset.sprice
+      );
+      if (activeInp) commitEditPrice(editingPriceItemId, activeInp.value, willRender);
+      else editingPriceItemId = null;
+    }
 
     if (btn.id === "shop-manual-add") {
       if (searchInp && searchInp.value.trim()) addItem({ name: searchInp.value });
@@ -1186,6 +1213,7 @@
 
   importFromHashIfPresent();
   render();
+  if (typeof window._onShopLoaded === "function") window._onShopLoaded();
   startupSyncTimer = setTimeout(() => {
     syncWithDrive("pull", true).then(() => {
       if (typeof S !== "undefined" && S.tab === "shop") backfillMissingImages();

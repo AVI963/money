@@ -1,4 +1,4 @@
-const C = 'money-v25';
+const C = 'money-v26';
 const CORE_ASSETS = [
   './',
   'index.html',
@@ -47,7 +47,10 @@ self.addEventListener('fetch', e => {
           caches.open(C).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => caches.match(e.request, { ignoreSearch: true }))
+      }).catch(err => caches.match(e.request, { ignoreSearch: true }).then(m => {
+        if (m) return m;
+        throw err;
+      }))
     );
     return;
   }
@@ -60,9 +63,12 @@ self.addEventListener('fetch', e => {
           caches.open(C).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => cached);
-
-      return cached || netFetch;
+      });
+      if (cached) {
+        netFetch.catch(() => {});
+        return cached;
+      }
+      return netFetch;
     })
   );
 });
